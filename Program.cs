@@ -2,16 +2,19 @@ using System;
 using System.Text;
 using System.Linq;
 
-/// <summary>
-///   The main entry point for the application
-/// </summary>
-[STAThread]
-public static void Main(string[] args)
+public static class Program
 {
-    if (args.Contains("--help") || args.Contains("-h"))
+    /// <summary>
+    ///   The main entry point for the application
+    /// </summary>
+    [STAThread]
+    public static void Main(string[] args)
     {
-        Console.WriteLine("steamguard-cli - v0.0");
-        Console.WriteLine();
-        Console.WriteLine("--help, -h   Display this help message.");
+        if (args.Contains("--help") || args.Contains("-h"))
+        {
+            Console.WriteLine("steamguard-cli - v0.0");
+            Console.WriteLine();
+            Console.WriteLine("--help, -h   Display this help message.");
+        }
     }
 }
