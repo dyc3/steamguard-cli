@@ -8,5 +8,10 @@ using System.Linq;
 [STAThread]
 public static void Main(string[] args)
 {
-    
+    if (args.Contains("--help") || args.Contains("-h"))
+    {
+        Console.WriteLine("steamguard-cli - v0.0");
+        Console.WriteLine();
+        Console.WriteLine("--help, -h   Display this help message.");
+    }
 }
