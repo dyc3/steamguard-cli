@@ -29,7 +29,10 @@ public static class Program
         {
             Console.WriteLine("steamguard-cli - v0.0");
             Console.WriteLine();
-            Console.WriteLine("--help, -h   Display this help message.");
+            Console.WriteLine("--help, -h         Display this help message.");
+            Console.WriteLine("--verbose, -v      Display some extra information when the program is running.");
+            Console.WriteLine("--user, -u         Specify an account for which to generate a Steam Gaurd code.");
+            Console.WriteLine("                   Otherwise, the first account will be selected.");
             return;
         }
         Verbose = args.Contains("-v") || args.Contains("--verbose");
