@@ -15,8 +15,6 @@ public static class Program
             Console.WriteLine("steamguard-cli - v0.0");
             Console.WriteLine();
             Console.WriteLine("--help, -h   Display this help message.");
-            return 0;
         }
-        return 1;
     }
 }
