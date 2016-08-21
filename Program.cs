@@ -14,6 +14,7 @@ public static class Program
     public static string SteamGuardPath { get; set; } = defaultSteamGuardPath;
     public static Manifest Manifest { get; set; }
     public static SteamGuardAccount[] SteamGuardAccounts { get; set; }
+    public static bool Verbose { get; set; } = false;
 
     /// <summary>
     ///   The main entry point for the application
@@ -21,6 +22,9 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        string user = "";
+
+        // Parse cli arguments
         if (args.Contains("--help") || args.Contains("-h"))
         {
             Console.WriteLine("steamguard-cli - v0.0");
@@ -28,13 +32,33 @@ public static class Program
             Console.WriteLine("--help, -h   Display this help message.");
             return;
         }
+        Verbose = args.Contains("-v") || args.Contains("--verbose");
+        if (args.Contains("--user") || args.Contains("-u"))
+        {
+            int u = Array.IndexOf(args, "--user");
+            if (u == -1)
+            {
+                u = Array.IndexOf(args, "-u");
+            }
+            try
+            {
+                user = args[u + 1];
+            }
+            catch (IndexOutOfRangeException)
+            {
+                Console.WriteLine("error: Account name must be supplied after --user or -u.");
+                return;
+            }
+            if (Verbose) Console.WriteLine("Generating Steam Gaurd code for account \"{0}\"", user);
+        }
 
+        // Do some configure
         SteamGuardPath = SteamGuardPath.Replace("~", Environment.GetEnvironmentVariable("HOME"));
         if (!Directory.Exists(SteamGuardPath))
         {
             if (SteamGuardPath == defaultSteamGuardPath.Replace("~", Environment.GetEnvironmentVariable("HOME")))
             {
-                Console.WriteLine("warn: {0} does not exist, creating...", SteamGuardPath);
+                if (Verbose) Console.WriteLine("warn: {0} does not exist, creating...", SteamGuardPath);
                 Directory.CreateDirectory(SteamGuardPath);
             }
             else
@@ -43,10 +67,45 @@ public static class Program
                 return;
             }
         }
+        if (Verbose) Console.WriteLine("maFiles path: {0}", SteamGuardPath);
 
-        // Load the manifest and stuff
-        Manifest = Manifest.GetManifest();
+        // Generate the code
+        if (Verbose) Console.WriteLine("Aligning time...");
+        TimeAligner.AlignTime();
+        if (Verbose) Console.WriteLine("Opening manifest...");
+        Manifest = Manifest.GetManifest(true);
+        if (Verbose) Console.WriteLine("Reading accounts from manifest...");
         SteamGuardAccounts = Manifest.GetAllAccounts();
+        if (SteamGuardAccounts.Length == 0)
+        {
+            Console.WriteLine("error: No accounts read.");
+            return;
+        }
+        if (Verbose) Console.WriteLine("Selecting account...");
+        string code = "";
+        for (int i = 0; i < SteamGuardAccounts.Length; i++)
+        {
+            SteamGuardAccount account = SteamGuardAccounts[i];
+            if (user != "")
+            {
+                if (account.AccountName.ToLower() == user.ToLower())
+                {
+                    if (Verbose) Console.WriteLine("Generating Code...");
+                    code = account.GenerateSteamGuardCode();
+                    break;
+                }
+            }
+            else
+            {
+                if (Verbose) Console.WriteLine("Generating Code for {0}...", account.AccountName);
+                code = account.GenerateSteamGuardCode();
+                break;
+            }
+        }
+        if (code != "")
+            Console.WriteLine(code);
+        else
+            Console.WriteLine("error: No Steam accounts found in {0}", SteamGuardAccounts);
     }
 }
 
@@ -92,11 +151,10 @@ public class Manifest
         }
 
         // Find config dir and manifest file
-        string maDir = Program.SteamGuardPath;
-        string maFile = maDir + "manifest.json";
+        string maFile = Program.SteamGuardPath + "/manifest.json";
 
         // If there's no config dir, create it
-        if (!Directory.Exists(maDir))
+        if (!Directory.Exists(Program.SteamGuardPath))
         {
             _manifest = _generateNewManifest();
             return _manifest;
@@ -105,6 +163,7 @@ public class Manifest
         // If there's no manifest, create it
         if (!File.Exists(maFile))
         {
+            if (Program.Verbose) Console.WriteLine("warn: No manifest file found at {0}", maFile);
             _manifest = _generateNewManifest(true);
             return _manifest;
         }
@@ -120,18 +179,26 @@ public class Manifest
                 _manifest.Save();
             }
 
+            if (_manifest.Encrypted)
+            {
+                throw new NotSupportedException("Encrypted maFiles are not supported at this time.");
+            }
+
             _manifest.RecomputeExistingEntries();
 
             return _manifest;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine("error: Could not open manifest file: {0}", ex.ToString());
             return null;
         }
     }
 
     private static Manifest _generateNewManifest(bool scanDir = false)
     {
+        if (Program.Verbose) Console.WriteLine("Generating new manifest...");
+
         // No directory means no manifest file anyways.
         Manifest newManifest = new Manifest();
         newManifest.Encrypted = false;
@@ -145,10 +212,10 @@ public class Manifest
         // Take a pre-manifest version and generate a manifest for it.
         if (scanDir)
         {
-            string maDir = Program.SteamGuardPath + "/maFiles/";
-            if (Directory.Exists(maDir))
+
+            if (Directory.Exists(Program.SteamGuardPath))
             {
-                DirectoryInfo dir = new DirectoryInfo(maDir);
+                DirectoryInfo dir = new DirectoryInfo(Program.SteamGuardPath);
                 var files = dir.GetFiles();
 
                 foreach (var file in files)
@@ -255,12 +322,11 @@ public class Manifest
     public SteamAuth.SteamGuardAccount[] GetAllAccounts(string passKey = null, int limit = -1)
     {
         if (passKey == null && this.Encrypted) return new SteamGuardAccount[0];
-        string maDir = Program.SteamGuardPath + "/maFiles/";
 
         List<SteamAuth.SteamGuardAccount> accounts = new List<SteamAuth.SteamGuardAccount>();
         foreach (var entry in this.Entries)
         {
-            string fileText = File.ReadAllText(maDir + entry.Filename);
+            string fileText = File.ReadAllText(Path.Combine(Program.SteamGuardPath, entry.Filename));
             if (this.Encrypted)
             {
                 throw new NotSupportedException("Encrypted maFiles are not supported at this time.");
@@ -298,8 +364,7 @@ public class Manifest
         ManifestEntry entry = (from e in this.Entries where e.SteamID == account.Session.SteamID select e).FirstOrDefault();
         if (entry == null) return true; // If something never existed, did you do what they asked?
 
-        string maDir = Program.SteamGuardPath + "/maFiles/";
-        string filename = maDir + entry.Filename;
+        string filename = Path.Combine(Program.SteamGuardPath, entry.Filename);
         this.Entries.Remove(entry);
 
         if (this.Entries.Count == 0)
@@ -337,7 +402,7 @@ public class Manifest
             throw new NotSupportedException("Encrypted maFiles are not supported at this time.");
         }
 
-        string maDir = Program.SteamGuardPath + "/maFiles/";
+
         string filename = account.Session.SteamID.ToString() + ".maFile";
 
         ManifestEntry newEntry = new ManifestEntry()
@@ -375,7 +440,7 @@ public class Manifest
 
         try
         {
-            File.WriteAllText(maDir + filename, jsonAccount);
+            File.WriteAllText(Program.SteamGuardPath + filename, jsonAccount);
             return true;
         }
         catch (Exception)
@@ -386,13 +451,13 @@ public class Manifest
 
     public bool Save()
     {
-        string maDir = Program.SteamGuardPath + "/maFiles/";
-        string filename = maDir + "manifest.json";
-        if (!Directory.Exists(maDir))
+
+        string filename = Program.SteamGuardPath + "manifest.json";
+        if (!Directory.Exists(Program.SteamGuardPath))
         {
             try
             {
-                Directory.CreateDirectory(maDir);
+                Directory.CreateDirectory(Program.SteamGuardPath);
             }
             catch (Exception)
             {
@@ -415,11 +480,11 @@ public class Manifest
     private void RecomputeExistingEntries()
     {
         List<ManifestEntry> newEntries = new List<ManifestEntry>();
-        string maDir = Program.SteamGuardPath + "/maFiles/";
 
         foreach (var entry in this.Entries)
         {
-            string filename = maDir + entry.Filename;
+            string filename = Path.Combine(Program.SteamGuardPath, entry.Filename);
+
             if (File.Exists(filename))
             {
                 newEntries.Add(entry);
