@@ -22,6 +22,8 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        string action = "generate-code";
+
         string user = "";
 
         // Parse cli arguments
@@ -36,6 +38,24 @@ public static class Program
             return;
         }
         Verbose = args.Contains("-v") || args.Contains("--verbose");
+        // Actions
+        if (args.Contains("--generate-code"))
+        {
+            action = "generate-code";
+        }
+        else if (args.Contains("--encrypt"))
+        {
+            action = "encrypt";
+        }
+        else if (args.Contains("--decrypt"))
+        {
+            action = "decrypt";
+        }
+        else if (args.Contains("--setup"))
+        {
+            action = "setup";
+        }
+        // Misc
         if (args.Contains("--user") || args.Contains("-u"))
         {
             int u = Array.IndexOf(args, "--user");
@@ -72,7 +92,26 @@ public static class Program
         }
         if (Verbose) Console.WriteLine("maFiles path: {0}", SteamGuardPath);
 
-        // Generate the code
+        // Perform desired action
+        switch (action)
+        {
+            case "generate-code":
+                GenerateCode(user);
+                break;
+            case "encrypt":
+                break;
+            case "decrypt":
+                break;
+            case "setup":
+                break;
+            default:
+                Console.WriteLine("error: Unknown action: {0}", action);
+                return;
+        }
+    }
+
+    static void GenerateCode(string user = "")
+    {
         if (Verbose) Console.WriteLine("Aligning time...");
         TimeAligner.AlignTime();
         if (Verbose) Console.WriteLine("Opening manifest...");
