@@ -55,7 +55,7 @@ public class Manifest
         }
 
         // Find config dir and manifest file
-        string maFile = Program.SteamGuardPath + "/manifest.json";
+        string maFile = Path.Combine(Program.SteamGuardPath, "manifest.json");
 
         // If there's no config dir, create it
         if (!Directory.Exists(Program.SteamGuardPath))
