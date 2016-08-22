@@ -156,6 +156,8 @@ public class Manifest
     public class IncorrectPassKeyException : Exception { }
     public class ManifestNotEncryptedException : Exception { }
 
+    // TODO: move PromptForPassKey to Program.cs
+    // TODO: make PromptForPassKey more secure
     public string PromptForPassKey()
     {
         if (!this.Encrypted)
@@ -180,6 +182,7 @@ public class Manifest
         return passKey;
     }
 
+    // TODO: move PromptSetupPassKey to Program.cs
     public string PromptSetupPassKey(string initialPrompt = "Enter passkey, or hit cancel to remain unencrypted.")
     {
         Console.Write("Would you like to use encryption? [Y/n] ");
