@@ -6,9 +6,15 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 
 public class Manifest
 {
+    private const int PBKDF2_ITERATIONS = 50000; //Set to 50k to make program not unbearably slow. May increase in future.
+    private const int SALT_LENGTH = 8;
+    private const int KEY_SIZE_BYTES = 32;
+    private const int IV_LENGTH = 16;
+
     [JsonProperty("encrypted")]
     public bool Encrypted { get; set; }
 
@@ -432,5 +438,60 @@ public class Manifest
 
         [JsonProperty("steamid")]
         public ulong SteamID { get; set; }
+    }
+
+    /*
+     Crypto Functions
+    */
+
+    /// <summary>
+    /// Returns an 8-byte cryptographically random salt in base64 encoding
+    /// </summary>
+    /// <returns></returns>
+    public static string GetRandomSalt()
+    {
+        byte[] salt = new byte[SALT_LENGTH];
+        using (RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider())
+        {
+            rng.GetBytes(salt);
+        }
+        return Convert.ToBase64String(salt);
+    }
+
+    /// <summary>
+    /// Returns a 16-byte cryptographically random initialization vector (IV) in base64 encoding
+    /// </summary>
+    /// <returns></returns>
+    public static string GetInitializationVector()
+    {
+        byte[] IV = new byte[IV_LENGTH];
+        using (RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider())
+        {
+            rng.GetBytes(IV);
+        }
+        return Convert.ToBase64String(IV);
+    }
+
+
+    /// <summary>
+    /// Generates an encryption key derived using a password, a random salt, and specified number of rounds of PBKDF2
+    /// </summary>
+    /// <param name="password"></param>
+    /// <param name="salt"></param>
+    /// <returns></returns>
+    private static byte[] GetEncryptionKey(string password, string salt)
+    {
+        if (string.IsNullOrEmpty(password))
+        {
+            throw new ArgumentException("Password is empty");
+        }
+        if (string.IsNullOrEmpty(salt))
+        {
+            throw new ArgumentException("Salt is empty");
+        }
+        using (Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(password, Convert.FromBase64String(salt), PBKDF2_ITERATIONS))
+        {
+            return pbkdf2.GetBytes(KEY_SIZE_BYTES);
+        }
     }
 }
