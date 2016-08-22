@@ -78,7 +78,15 @@ public static class Program
         if (Verbose) Console.WriteLine("Opening manifest...");
         Manifest = Manifest.GetManifest(true);
         if (Verbose) Console.WriteLine("Reading accounts from manifest...");
-        SteamGuardAccounts = Manifest.GetAllAccounts();
+        if (Manifest.Encrypted)
+        {
+            string passkey = Manifest.PromptForPassKey();
+            SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
+        }
+        else
+        {
+            SteamGuardAccounts = Manifest.GetAllAccounts();
+        }
         if (SteamGuardAccounts.Length == 0)
         {
             Console.WriteLine("error: No accounts read.");

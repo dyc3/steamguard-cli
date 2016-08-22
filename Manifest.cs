@@ -83,11 +83,6 @@ public class Manifest
                 _manifest.Save();
             }
 
-            if (_manifest.Encrypted)
-            {
-                throw new NotSupportedException("Encrypted maFiles are not supported at this time.");
-            }
-
             _manifest.RecomputeExistingEntries();
 
             return _manifest;
@@ -233,10 +228,22 @@ public class Manifest
             string fileText = "";
             Stream stream = null;
             FileStream fileStream = File.OpenRead(Path.Combine(Program.SteamGuardPath, entry.Filename));
+            RijndaelManaged aes256;
 
             if (this.Encrypted)
             {
-                //string decryptedText = FileEncryptor.DecryptData(passKey, entry.Salt, entry.IV, fileText);
+                byte[] key = GetEncryptionKey(passKey, entry.Salt);
+
+                aes256 = new RijndaelManaged
+                {
+                    IV = Convert.FromBase64String(entry.IV),
+                    Key = key,
+                    Padding = PaddingMode.PKCS7,
+                    Mode = CipherMode.CBC
+                };
+
+                ICryptoTransform decryptor = aes256.CreateDecryptor(aes256.Key, aes256.IV);
+                stream = new CryptoStream(fileStream, decryptor, CryptoStreamMode.Read);
             }
             else
             {
@@ -314,12 +321,6 @@ public class Manifest
         string iV = null;
         string jsonAccount = JsonConvert.SerializeObject(account);
 
-        if (encrypt)
-        {
-            throw new NotSupportedException("Encrypted maFiles are not supported at this time.");
-        }
-
-
         string filename = account.Session.SteamID.ToString() + ".maFile";
 
         ManifestEntry newEntry = new ManifestEntry()
@@ -357,7 +358,35 @@ public class Manifest
 
         try
         {
-            File.WriteAllText(Program.SteamGuardPath + filename, jsonAccount);
+            Stream stream = null;
+            FileStream fileStream = File.OpenWrite(Path.Combine(Program.SteamGuardPath, newEntry.Filename));
+            RijndaelManaged aes256;
+
+            if (this.Encrypted)
+            {
+                byte[] key = GetEncryptionKey(passKey, newEntry.Salt);
+
+                aes256 = new RijndaelManaged
+                {
+                    IV = Convert.FromBase64String(newEntry.IV),
+                    Key = key,
+                    Padding = PaddingMode.PKCS7,
+                    Mode = CipherMode.CBC
+                };
+
+                ICryptoTransform decryptor = aes256.CreateDecryptor(aes256.Key, aes256.IV);
+                stream = new CryptoStream(fileStream, decryptor, CryptoStreamMode.Write);
+            }
+            else
+            {
+                stream = fileStream;
+            }
+
+            using (StreamWriter writer = new StreamWriter(stream))
+            {
+                writer.Write(jsonAccount);
+            }
+            stream.Close();
             return true;
         }
         catch (Exception)
