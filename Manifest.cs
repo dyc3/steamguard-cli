@@ -227,11 +227,11 @@ public class Manifest
         {
             string fileText = "";
             Stream stream = null;
-            FileStream fileStream = File.OpenRead(Path.Combine(Program.SteamGuardPath, entry.Filename));
             RijndaelManaged aes256;
 
             if (this.Encrypted)
             {
+                MemoryStream ms = new MemoryStream(Convert.FromBase64String(File.ReadAllText(Path.Combine(Program.SteamGuardPath, entry.Filename))));
                 byte[] key = GetEncryptionKey(passKey, entry.Salt);
 
                 aes256 = new RijndaelManaged
@@ -243,21 +243,20 @@ public class Manifest
                 };
 
                 ICryptoTransform decryptor = aes256.CreateDecryptor(aes256.Key, aes256.IV);
-                stream = new CryptoStream(fileStream, decryptor, CryptoStreamMode.Read);
+                stream = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
             }
             else
             {
+                FileStream fileStream = File.OpenRead(Path.Combine(Program.SteamGuardPath, entry.Filename));
                 stream = fileStream;
             }
 
-            byte[] b = new byte[1024];
-            StringBuilder sb = new StringBuilder();
-            while (stream.Read(b,0,b.Length) > 0)
+            if (Program.Verbose) Console.WriteLine("Decrypting...");
+            using (StreamReader reader = new StreamReader(stream))
             {
-                sb.Append(Encoding.UTF8.GetString(b));
+                fileText = reader.ReadToEnd();
             }
             stream.Close();
-            fileText = sb.ToString();
 
             var account = JsonConvert.DeserializeObject<SteamAuth.SteamGuardAccount>(fileText);
             if (account == null) continue;
