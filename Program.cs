@@ -31,7 +31,11 @@ public static class Program
             Console.WriteLine();
             Console.WriteLine("--help, -h         Display this help message.");
             Console.WriteLine("--verbose, -v      Display some extra information when the program is running.");
+<<<<<<< HEAD
             Console.WriteLine("--user, -u         Specify an account for which to generate a Steam Gaurd code.");
+=======
+            Console.WriteLine("--user, -c         Specify an account for which to generate a Steam Gaurd code.");
+>>>>>>> 941f37b92f12659de928739c11817266fccb35db
             Console.WriteLine("                   Otherwise, the first account will be selected.");
             return;
         }
