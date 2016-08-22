@@ -224,14 +224,27 @@ public class Manifest
         List<SteamAuth.SteamGuardAccount> accounts = new List<SteamAuth.SteamGuardAccount>();
         foreach (var entry in this.Entries)
         {
-            string fileText = File.ReadAllText(Path.Combine(Program.SteamGuardPath, entry.Filename));
+            string fileText = "";
+            Stream stream = null;
+            FileStream fileStream = File.OpenRead(Path.Combine(Program.SteamGuardPath, entry.Filename));
+
             if (this.Encrypted)
             {
-                throw new NotSupportedException("Encrypted maFiles are not supported at this time.");
                 //string decryptedText = FileEncryptor.DecryptData(passKey, entry.Salt, entry.IV, fileText);
-                //if (decryptedText == null) return new SteamGuardAccount[0];
-                //fileText = decryptedText;
             }
+            else
+            {
+                stream = fileStream;
+            }
+
+            byte[] b = new byte[1024];
+            StringBuilder sb = new StringBuilder();
+            while (stream.Read(b,0,b.Length) > 0)
+            {
+                sb.Append(Encoding.UTF8.GetString(b));
+            }
+            stream.Close();
+            fileText = sb.ToString();
 
             var account = JsonConvert.DeserializeObject<SteamAuth.SteamGuardAccount>(fileText);
             if (account == null) continue;
