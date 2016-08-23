@@ -368,7 +368,11 @@ public class Manifest
             }
             else
             {
-                stream = File.OpenWrite(Path.Combine(Program.SteamGuardPath, newEntry.Filename));
+				// An unencrypted maFile is shorter than the encrypted version,
+				// so when an unencrypted maFile gets written this way, the file does not get wiped
+				// leaving encrypted text after the final } bracket. Deleting and recreating the file fixes this.
+				File.Delete(Path.Combine(Program.SteamGuardPath, newEntry.Filename));
+                stream = File.OpenWrite(Path.Combine(Program.SteamGuardPath, newEntry.Filename)); // open or create
             }
 
             using (StreamWriter writer = new StreamWriter(stream))
