@@ -310,6 +310,7 @@ public class Manifest
         string jsonAccount = JsonConvert.SerializeObject(account);
 
         string filename = account.Session.SteamID.ToString() + ".maFile";
+		if (Program.Verbose) Console.WriteLine($"Saving account {account.AccountName} to {filename}...");
 
         ManifestEntry newEntry = new ManifestEntry()
         {
@@ -393,16 +394,17 @@ public class Manifest
 
     public bool Save()
     {
-
-        string filename = Program.SteamGuardPath + "manifest.json";
+        string filename = Path.Combine(Program.SteamGuardPath, "manifest.json");
         if (!Directory.Exists(Program.SteamGuardPath))
         {
             try
             {
+				if (Program.Verbose) Console.WriteLine("Creating {0}", Program.SteamGuardPath);
                 Directory.CreateDirectory(Program.SteamGuardPath);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+				if (Program.Verbose) Console.WriteLine($"error: {ex.Message}");
                 return false;
             }
         }
@@ -413,8 +415,9 @@ public class Manifest
             File.WriteAllText(filename, contents);
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+			if (Program.Verbose) Console.WriteLine($"error: {ex.Message}");
             return false;
         }
     }
