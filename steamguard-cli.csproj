@@ -35,6 +35,7 @@
     <Content Include=".\makefile">
       <Link>makefile</Link>
     </Content>
+    <Content Include="install.sh" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include=".\Manifest.cs">
@@ -43,6 +44,7 @@
     <Compile Include=".\Program.cs">
       <Link>Program.cs</Link>
     </Compile>
+    <Compile Include="AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
