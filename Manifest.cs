@@ -305,7 +305,6 @@ public class Manifest
     public bool SaveAccount(SteamGuardAccount account, bool encrypt, string passKey = null, string salt = null, string iV = null)
     {
         if (encrypt && (String.IsNullOrEmpty(passKey) || String.IsNullOrEmpty(salt) || String.IsNullOrEmpty(iV))) return false;
-        //if (!encrypt && this.Encrypted) return false;
 
         string jsonAccount = JsonConvert.SerializeObject(account);
 
@@ -337,7 +336,7 @@ public class Manifest
         }
 
         bool wasEncrypted = this.Encrypted;
-        this.Encrypted = encrypt;// || this.Encrypted;
+        this.Encrypted = encrypt;
 
         if (!this.Save())
         {
