@@ -106,6 +106,7 @@ public static class Program
                 Encrypt();
                 break;
             case "decrypt":
+                Decrypt();
                 break;
             case "setup":
                 throw new NotSupportedException();
@@ -186,6 +187,30 @@ public static class Program
             var account = SteamGuardAccounts[i];
             bool success = Manifest.SaveAccount(account, true, newPassKey, Manifest.GetRandomSalt(), Manifest.GetInitializationVector());
             if (Verbose) Console.WriteLine("Encrypted {0}: {1}", account.AccountName, success);
+        }
+    }
+
+    static void Decrypt()
+    {
+        if (Verbose) Console.WriteLine("Opening manifest...");
+        Manifest = Manifest.GetManifest(true);
+        if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+        if (Manifest.Encrypted)
+        {
+            string passkey = Manifest.PromptForPassKey();
+            SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
+        }
+        else
+        {
+            if (Verbose) Console.WriteLine("Decryption not required.");
+            return;
+        }
+
+        for (int i = 0; i < SteamGuardAccounts.Length; i++)
+        {
+            var account = SteamGuardAccounts[i];
+            bool success = Manifest.SaveAccount(account, false);
+            if (Verbose) Console.WriteLine("Decrypted {0}: {1}", account.AccountName, success);
         }
     }
 }
