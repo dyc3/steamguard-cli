@@ -7,8 +7,8 @@
     <ProjectGuid>12E8E57D-A11A-4FDF-BAEC-AAFDE916E732</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>steamguard_cli_new</RootNamespace>
-    <AssemblyName>steamguard_cli_new</AssemblyName>
+    <RootNamespace>steamguard_cli</RootNamespace>
+    <AssemblyName>steamguard-cli</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
