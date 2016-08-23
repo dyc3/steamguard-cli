@@ -41,11 +41,6 @@ public class Manifest
 
     private static Manifest _manifest { get; set; }
 
-    public static string GetExecutableDir()
-    {
-        return Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
-    }
-
     public static Manifest GetManifest(bool forceLoad = false)
     {
         // Check if already staticly loaded
@@ -111,7 +106,6 @@ public class Manifest
         // Take a pre-manifest version and generate a manifest for it.
         if (scanDir)
         {
-
             if (Directory.Exists(Program.SteamGuardPath))
             {
                 DirectoryInfo dir = new DirectoryInfo(Program.SteamGuardPath);
@@ -132,15 +126,16 @@ public class Manifest
                         };
                         newManifest.Entries.Add(newEntry);
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
+                        if (Program.Verbose) Console.WriteLine("warn: {0}", ex.Message);
                     }
                 }
 
                 if (newManifest.Entries.Count > 0)
                 {
                     newManifest.Save();
-                    newManifest.PromptSetupPassKey("This version of SDA has encryption. Please enter a passkey below, or hit cancel to remain unencrypted");
+                    newManifest.PromptSetupPassKey(true);
                 }
             }
         }
@@ -183,33 +178,33 @@ public class Manifest
     }
 
     // TODO: move PromptSetupPassKey to Program.cs
-    public string PromptSetupPassKey(string initialPrompt = "Enter passkey, or hit cancel to remain unencrypted.")
+    public string PromptSetupPassKey(bool inAccountSetupProcess = false)
     {
-        Console.Write("Would you like to use encryption? [Y/n] ");
-        string doEncryptAnswer = Console.ReadLine();
-        if (doEncryptAnswer == "n" || doEncryptAnswer == "N")
+        if (inAccountSetupProcess)
         {
-            Console.WriteLine("WARNING: You chose to not encrypt your files. Doing so imposes a security risk for yourself. If an attacker were to gain access to your computer, they could completely lock you out of your account and steal all your items.");
-            return null;
+            Console.Write("Would you like to use encryption? [Y/n] ");
+            string doEncryptAnswer = Console.ReadLine();
+            if (doEncryptAnswer == "n" || doEncryptAnswer == "N")
+            {
+                Console.WriteLine("WARNING: You chose to not encrypt your files. Doing so imposes a security risk for yourself. If an attacker were to gain access to your computer, they could completely lock you out of your account and steal all your items.");
+                return null;
+            }
         }
 
         string newPassKey = "";
         string confirmPassKey = "";
         do
         {
-            Console.Write("Enter passkey: ");
+            Console.Write("Enter" + (inAccountSetupProcess ? " " : " new ") + "passkey: ");
             newPassKey = Console.ReadLine();
-            Console.Write("Confirm passkey: ");
+            Console.Write("Confirm" + (inAccountSetupProcess ? " " : " new ") + "passkey: ");
             confirmPassKey = Console.ReadLine();
 
             if (newPassKey != confirmPassKey)
             {
                 Console.WriteLine("Passkeys do not match.");
             }
-        } while (newPassKey != confirmPassKey);
-
-        Console.WriteLine("Unable to set passkey.");
-        return null;
+        } while (newPassKey != confirmPassKey || newPassKey == "");
 
         return newPassKey;
     }
@@ -307,13 +302,11 @@ public class Manifest
         return false;
     }
 
-    public bool SaveAccount(SteamGuardAccount account, bool encrypt, string passKey = null)
+    public bool SaveAccount(SteamGuardAccount account, bool encrypt, string passKey = null, string salt = null, string iV = null)
     {
         if (encrypt && String.IsNullOrEmpty(passKey)) return false;
         if (!encrypt && this.Encrypted) return false;
 
-        string salt = null;
-        string iV = null;
         string jsonAccount = JsonConvert.SerializeObject(account);
 
         string filename = account.Session.SteamID.ToString() + ".maFile";
@@ -354,7 +347,6 @@ public class Manifest
         try
         {
             Stream stream = null;
-            FileStream fileStream = File.OpenWrite(Path.Combine(Program.SteamGuardPath, newEntry.Filename));
             MemoryStream ms = null;
             RijndaelManaged aes256;
 
@@ -371,12 +363,12 @@ public class Manifest
                     Mode = CipherMode.CBC
                 };
 
-                ICryptoTransform decryptor = aes256.CreateDecryptor(aes256.Key, aes256.IV);
-                stream = new CryptoStream(ms, decryptor, CryptoStreamMode.Write);
+                ICryptoTransform encryptor = aes256.CreateEncryptor(aes256.Key, aes256.IV);
+                stream = new CryptoStream(ms, encryptor, CryptoStreamMode.Write);
             }
             else
             {
-                stream = fileStream;
+                stream = File.OpenWrite(Path.Combine(Program.SteamGuardPath, newEntry.Filename));
             }
 
             using (StreamWriter writer = new StreamWriter(stream))
@@ -386,14 +378,15 @@ public class Manifest
 
             if (Encrypted)
             {
-                File.WriteAllText(Convert.ToBase64String(ms.ToArray()), Path.Combine(Program.SteamGuardPath, newEntry.Filename));
+                File.WriteAllText(Path.Combine(Program.SteamGuardPath, newEntry.Filename), Convert.ToBase64String(ms.ToArray()));
             }
 
             stream.Close();
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            if (Program.Verbose) Console.WriteLine("error: {0}", ex.ToString());
             return false;
         }
     }

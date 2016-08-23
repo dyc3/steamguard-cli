@@ -92,13 +92,15 @@ public static class Program
         }
         if (Verbose) Console.WriteLine("maFiles path: {0}", SteamGuardPath);
 
+        if (Verbose) Console.WriteLine("Action: {0}", action);
         // Perform desired action
         switch (action)
         {
             case "generate-code":
                 GenerateCode(user);
                 break;
-            case "encrypt":
+            case "encrypt": // Can also be used to change passkey
+                Encrypt();
                 break;
             case "decrypt":
                 break;
@@ -156,5 +158,30 @@ public static class Program
             Console.WriteLine(code);
         else
             Console.WriteLine("error: No Steam accounts found in {0}", SteamGuardAccounts);
+    }
+
+    static void Encrypt()
+    {
+        if (Verbose) Console.WriteLine("Opening manifest...");
+        Manifest = Manifest.GetManifest(true);
+        if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+        if (Manifest.Encrypted)
+        {
+            string passkey = Manifest.PromptForPassKey();
+            SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
+        }
+        else
+        {
+            SteamGuardAccounts = Manifest.GetAllAccounts();
+        }
+
+        string newPassKey = Manifest.PromptSetupPassKey();
+
+        for (int i = 0; i < SteamGuardAccounts.Length; i++)
+        {
+            var account = SteamGuardAccounts[i];
+            bool success = Manifest.SaveAccount(account, true, newPassKey, Manifest.GetRandomSalt(), Manifest.GetInitializationVector());
+            if (Verbose) Console.WriteLine("Encrypted {0}: {1}", account.AccountName, success);
+        }
     }
 }
