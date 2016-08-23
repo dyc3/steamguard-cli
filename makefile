@@ -10,3 +10,13 @@ run:
 
 clean:
 	rm -r build/
+
+install:
+	cp build/steamguard /usr/local/bin/
+	cp build/Newtonsoft.Json.dll /usr/local/bin/
+	cp build/SteamAuth.dll /usr/local/bin/
+
+uninstall:
+	rm -f /usr/local/bin/steamguard
+	rm -f /usr/local/bin/Newtonsoft.Json.dll
+	rm -f /usr/local/bin/SteamAuth.dll
