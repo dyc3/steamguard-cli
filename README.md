@@ -29,7 +29,11 @@ To run the current build:
 Coming soon...
 
 # Installation
-Coming soon...
+Packages are coming soon...
+
+To install after building from source, run:
+
+    sudo make install
 
 # Usage
 `steamguard-cli` looks for your `maFiles` folder in the current user's home directory (eg. `~/maFiles/`). 
@@ -41,10 +45,10 @@ steamguard-cli is not supported at this time.
 [SDA]: https://github.com/Jessecar96/SteamDesktopAuthenticator
 
 ## Arguments
-    --help, -h         Display this help message.
-    --verbose, -v      Display some extra information when the program is running.
-    --user, -u         Specify an account for which to generate a Steam Gaurd code.
-                       Otherwise, the first account will be selected.
+    --help, -h                   Display this help message.
+    --verbose, -v                Display some extra information when the program is running.
+    --user, -u                   Specify an account for which to generate a Steam Gaurd code.
+                                 Otherwise, the first account will be selected.
     --generate-code              Generate a Steam Guard code and exit. (default)
     --encrypt                    Encrypt your maFiles or change your encryption passkey.
     --decrypt                    Remove encryption from your maFiles.
