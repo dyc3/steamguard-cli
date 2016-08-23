@@ -31,10 +31,13 @@ public static class Program
         {
             Console.WriteLine("steamguard-cli - v0.0");
             Console.WriteLine();
-            Console.WriteLine("--help, -h         Display this help message.");
-            Console.WriteLine("--verbose, -v      Display some extra information when the program is running.");
-            Console.WriteLine("--user, -u         Specify an account for which to generate a Steam Gaurd code.");
-            Console.WriteLine("                   Otherwise, the first account will be selected.");
+            Console.WriteLine("--help, -h                   Display this help message.");
+            Console.WriteLine("--verbose, -v                Display some extra information when the program is running.");
+            Console.WriteLine("--user, -u                   Specify an account for which to generate a Steam Gaurd code.");
+            Console.WriteLine("                             Otherwise, the first account will be selected.");
+            Console.WriteLine("--generate-code              Generate a Steam Guard code and exit. (default)");
+            Console.WriteLine("--encrypt                    Encrypt your maFiles or change your encryption passkey.");
+            Console.WriteLine("--decrypt                    Remove encryption from your maFiles.");
             return;
         }
         Verbose = args.Contains("-v") || args.Contains("--verbose");
@@ -105,6 +108,7 @@ public static class Program
             case "decrypt":
                 break;
             case "setup":
+                throw new NotSupportedException();
                 break;
             default:
                 Console.WriteLine("error: Unknown action: {0}", action);
