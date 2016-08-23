@@ -103,10 +103,10 @@ public static class Program
                 GenerateCode(user);
                 break;
             case "encrypt": // Can also be used to change passkey
-                Encrypt();
+                Console.WriteLine(Encrypt());
                 break;
             case "decrypt":
-                Decrypt();
+                Console.WriteLine(Decrypt());
                 break;
             case "setup":
                 throw new NotSupportedException();
@@ -165,7 +165,7 @@ public static class Program
             Console.WriteLine("error: No Steam accounts found in {0}", SteamGuardAccounts);
     }
 
-    static void Encrypt()
+    static bool Encrypt()
     {
         if (Verbose) Console.WriteLine("Opening manifest...");
         Manifest = Manifest.GetManifest(true);
@@ -189,10 +189,12 @@ public static class Program
 			var iv = Manifest.GetInitializationVector();
             bool success = Manifest.SaveAccount(account, true, newPassKey, salt, iv);
             if (Verbose) Console.WriteLine("Encrypted {0}: {1}", account.AccountName, success);
+			if (!success) return false;
         }
+		return true;
     }
 
-    static void Decrypt()
+    static bool Decrypt()
     {
         if (Verbose) Console.WriteLine("Opening manifest...");
         Manifest = Manifest.GetManifest(true);
@@ -205,7 +207,7 @@ public static class Program
         else
         {
             if (Verbose) Console.WriteLine("Decryption not required.");
-            return;
+            return true;
         }
 
         for (int i = 0; i < SteamGuardAccounts.Length; i++)
@@ -213,6 +215,8 @@ public static class Program
             var account = SteamGuardAccounts[i];
             bool success = Manifest.SaveAccount(account, false);
             if (Verbose) Console.WriteLine("Decrypted {0}: {1}", account.AccountName, success);
+			if (!success) return false;
         }
+		return true;
     }
 }
