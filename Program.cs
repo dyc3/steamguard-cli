@@ -185,7 +185,10 @@ public static class Program
         for (int i = 0; i < SteamGuardAccounts.Length; i++)
         {
             var account = SteamGuardAccounts[i];
-            bool success = Manifest.SaveAccount(account, true, newPassKey, Manifest.GetRandomSalt(), Manifest.GetInitializationVector());
+			var salt = Manifest.GetRandomSalt();
+			var iv = Manifest.GetInitializationVector();
+			if (Program.Verbose) Console.WriteLine($"New encryption info: pass: {newPassKey}, salt: {salt}, iv: {iv}");
+            bool success = Manifest.SaveAccount(account, true, newPassKey, salt, iv);
             if (Verbose) Console.WriteLine("Encrypted {0}: {1}", account.AccountName, success);
         }
     }

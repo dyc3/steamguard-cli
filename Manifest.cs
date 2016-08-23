@@ -304,8 +304,8 @@ public class Manifest
 
     public bool SaveAccount(SteamGuardAccount account, bool encrypt, string passKey = null, string salt = null, string iV = null)
     {
-        if (encrypt && String.IsNullOrEmpty(passKey)) return false;
-        if (!encrypt && this.Encrypted) return false;
+        if (encrypt && (String.IsNullOrEmpty(passKey) || String.IsNullOrEmpty(salt) || String.IsNullOrEmpty(iV))) return false;
+        //if (!encrypt && this.Encrypted) return false;
 
         string jsonAccount = JsonConvert.SerializeObject(account);
 
@@ -337,7 +337,7 @@ public class Manifest
         }
 
         bool wasEncrypted = this.Encrypted;
-        this.Encrypted = encrypt || this.Encrypted;
+        this.Encrypted = encrypt;// || this.Encrypted;
 
         if (!this.Save())
         {
@@ -351,7 +351,7 @@ public class Manifest
             MemoryStream ms = null;
             RijndaelManaged aes256;
 
-            if (Encrypted)
+            if (encrypt)
             {
                 ms = new MemoryStream();
                 byte[] key = GetEncryptionKey(passKey, newEntry.Salt);
@@ -377,7 +377,7 @@ public class Manifest
                 writer.Write(jsonAccount);
             }
 
-            if (Encrypted)
+            if (encrypt)
             {
                 File.WriteAllText(Path.Combine(Program.SteamGuardPath, newEntry.Filename), Convert.ToBase64String(ms.ToArray()));
             }
