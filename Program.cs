@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using SteamAuth;
 using System;
 using System.Collections.Generic;
