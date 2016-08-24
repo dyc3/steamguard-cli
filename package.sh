@@ -1,8 +1,8 @@
 #!/bin/bash
 
-VERSION="0.1-0"
+VERSION=$(build/steamguard --help | head -n 1 | cut -d v -f 2)"-0"
 TEMP_PKG_PATH="/tmp/steamguard-cli_$VERSION"
-echo Building Debian package...
+echo Building Debian package for v$VERSION...
 
 mkdir -p $TEMP_PKG_PATH/usr/local/bin
 mkdir -p $TEMP_PKG_PATH/etc/bash_completion.d

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -29,7 +30,7 @@ public static class Program
         // Parse cli arguments
         if (args.Contains("--help") || args.Contains("-h"))
         {
-            Console.WriteLine("steamguard-cli - v0.0");
+            Console.WriteLine($"steamguard-cli - v{Assembly.GetExecutingAssembly().GetName().Version}");
             Console.WriteLine();
             Console.WriteLine("--help, -h                   Display this help message.");
             Console.WriteLine("--verbose, -v                Display some extra information when the program is running.");
