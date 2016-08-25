@@ -30,16 +30,8 @@ public static class Program
         // Parse cli arguments
         if (args.Contains("--help") || args.Contains("-h"))
         {
-            Console.WriteLine($"steamguard-cli - v{Assembly.GetExecutingAssembly().GetName().Version}");
-            Console.WriteLine();
-            Console.WriteLine("--help, -h                   Display this help message.");
-            Console.WriteLine("--verbose, -v                Display some extra information when the program is running.");
-            Console.WriteLine("--user, -u                   Specify an account for which to generate a Steam Gaurd code.");
-            Console.WriteLine("                             Otherwise, the first account will be selected.");
-            Console.WriteLine("--generate-code              Generate a Steam Guard code and exit. (default)");
-            Console.WriteLine("--encrypt                    Encrypt your maFiles or change your encryption passkey.");
-            Console.WriteLine("--decrypt                    Remove encryption from your maFiles.");
-            return;
+	        ShowHelp();
+	        return;
         }
         Verbose = args.Contains("-v") || args.Contains("--verbose");
         // Actions
@@ -117,6 +109,19 @@ public static class Program
                 return;
         }
     }
+
+	static void ShowHelp()
+	{
+		Console.WriteLine($"steamguard-cli - v{Assembly.GetExecutingAssembly().GetName().Version}");
+		Console.WriteLine();
+		Console.WriteLine("--help, -h                   Display this help message.");
+		Console.WriteLine("--verbose, -v                Display some extra information when the program is running.");
+		Console.WriteLine("--user, -u                   Specify an account for which to generate a Steam Gaurd code.");
+		Console.WriteLine("                             Otherwise, the first account will be selected.");
+		Console.WriteLine("--generate-code              Generate a Steam Guard code and exit. (default)");
+		Console.WriteLine("--encrypt                    Encrypt your maFiles or change your encryption passkey.");
+		Console.WriteLine("--decrypt                    Remove encryption from your maFiles.");
+	}
 
     static void GenerateCode(string user = "")
     {
