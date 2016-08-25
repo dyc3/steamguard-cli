@@ -103,6 +103,7 @@ public static class Program
                 return;
             }
         }
+        if (Verbose) Console.WriteLine("maFiles path: {0}", SteamGuardPath);
 
 	    if (Verbose) Console.WriteLine($"Action: {action}");
 	    if (Verbose) Console.WriteLine($"User: {user}");
@@ -123,6 +124,9 @@ public static class Program
             case "setup":
                 throw new NotSupportedException();
                 break;
+		    case "trade":
+		        TradeList(user);
+		        break;
             default:
                 Console.WriteLine("error: Unknown action: {0}", action);
                 return;
@@ -296,4 +300,55 @@ public static class Program
         }
 		return true;
     }
+
+	static void TradeList(string user = "")
+	{
+		if (Verbose) Console.WriteLine("Opening manifest...");
+		Manifest = Manifest.GetManifest(true);
+		if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+		if (Manifest.Encrypted)
+		{
+			string passkey = Manifest.PromptForPassKey();
+			SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
+		}
+		else
+		{
+			SteamGuardAccounts = Manifest.GetAllAccounts();
+		}
+		if (SteamGuardAccounts.Length == 0)
+		{
+			Console.WriteLine("error: No accounts read.");
+			return;
+		}
+
+		for (int i = 0; i < SteamGuardAccounts.Length; i++)
+		{
+			SteamGuardAccount account = SteamGuardAccounts[i];
+			if (user != "")
+			{
+				if (account.AccountName.ToLower() == user.ToLower())
+				{
+					showTradeConfirmations(account);
+					break;
+				}
+			}
+			else
+			{
+				showTradeConfirmations(account);
+			}
+		}
+	}
+
+	static void showTradeConfirmations(SteamGuardAccount account)
+	{
+		Console.WriteLine($"Checking trade confirmations for {account.AccountName}...");
+		if (Verbose) Console.WriteLine("Refeshing Session...");
+		account.RefreshSession();
+
+		Confirmation[] trades = account.FetchConfirmations();
+		foreach (var trade in trades)
+		{
+			Console.WriteLine($"ID: {trade.ID} Key: {trade.Key} Description: {trade.Description}");
+		}
+	}
 }
