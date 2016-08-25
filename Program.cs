@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -126,6 +125,9 @@ public static class Program
                 break;
 		    case "trade":
 		        TradeList(user);
+		        break;
+			case "accept-all":
+		        AcceptAllTrades(user);
 		        break;
             default:
                 Console.WriteLine("error: Unknown action: {0}", action);
@@ -349,6 +351,56 @@ public static class Program
 		foreach (var trade in trades)
 		{
 			Console.WriteLine($"ID: {trade.ID} Key: {trade.Key} Description: {trade.Description}");
+		}
+	}
+
+	static void AcceptAllTrades(string user = "")
+	{
+		if (Verbose) Console.WriteLine("Opening manifest...");
+		Manifest = Manifest.GetManifest(true);
+		if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+		if (Manifest.Encrypted)
+		{
+			string passkey = Manifest.PromptForPassKey();
+			SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
+		}
+		else
+		{
+			SteamGuardAccounts = Manifest.GetAllAccounts();
+		}
+		if (SteamGuardAccounts.Length == 0)
+		{
+			Console.WriteLine("error: No accounts read.");
+			return;
+		}
+
+		for (int i = 0; i < SteamGuardAccounts.Length; i++)
+		{
+			SteamGuardAccount account = SteamGuardAccounts[i];
+			if (user != "")
+			{
+				if (account.AccountName.ToLower() == user.ToLower())
+				{
+					Console.WriteLine($"Accepting Confirmations on {account.AccountName}");
+					if (Verbose) Console.WriteLine("Refeshing Session...");
+					account.RefreshSession();
+					if (Verbose) Console.WriteLine("Fetching Confirmations...");
+					Confirmation[] confirmations = account.FetchConfirmations();
+					if (Verbose) Console.WriteLine("Accepting Confirmations...");
+					account.AcceptMultipleConfirmations(confirmations);
+					break;
+				}
+			}
+			else
+			{
+				Console.WriteLine($"Accepting Confirmations on {account.AccountName}");
+				if (Verbose) Console.WriteLine("Refeshing Session...");
+				account.RefreshSession();
+				if (Verbose) Console.WriteLine("Fetching Confirmations...");
+				Confirmation[] confirmations = account.FetchConfirmations();
+				if (Verbose) Console.WriteLine("Accepting Confirmations...");
+				account.AcceptMultipleConfirmations(confirmations);
+			}
 		}
 	}
 }
