@@ -29,7 +29,9 @@ To run the current build:
 Coming soon...
 
 # Installation
-Packages are coming soon...
+To install the latest version on Debian-based systems, download the package from the releases section and type
+
+    sudo dpkg --install steamguard-cli_0.1.0.0-0.deb
 
 To install after building from source, run:
 
