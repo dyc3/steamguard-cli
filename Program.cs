@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,55 +24,71 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        string action = "generate-code";
-
+        string action = "";
         string user = "";
 
-        // Parse cli arguments
-        if (args.Contains("--help") || args.Contains("-h"))
-        {
-	        ShowHelp();
-	        return;
-        }
-        Verbose = args.Contains("-v") || args.Contains("--verbose");
-        // Actions
-        if (args.Contains("--generate-code"))
-        {
-            action = "generate-code";
-        }
-        else if (args.Contains("--encrypt"))
-        {
-            action = "encrypt";
-        }
-        else if (args.Contains("--decrypt"))
-        {
-            action = "decrypt";
-        }
-        else if (args.Contains("--setup"))
-        {
-            action = "setup";
-        }
-        // Misc
-        if (args.Contains("--user") || args.Contains("-u"))
-        {
-            int u = Array.IndexOf(args, "--user");
-            if (u == -1)
-            {
-                u = Array.IndexOf(args, "-u");
-            }
-            try
-            {
-                user = args[u + 1];
-            }
-            catch (IndexOutOfRangeException)
-            {
-                Console.WriteLine("error: Account name must be supplied after --user or -u.");
-                return;
-            }
-            if (Verbose) Console.WriteLine("Generating Steam Gaurd code for account \"{0}\"", user);
-        }
+	    // Parse cli arguments
+	    for (int i = 0; i < args.Length; i++)
+	    {
+		    if (args[i].StartsWith("-"))
+		    {
+			    if (args[i] == "-v" || args[i] == "--verbose")
+			    {
+				    Verbose = true;
+			    }
+			    else if (args[i] == "-m" || args[i] == "--mafiles-path")
+			    {
+				    i++;
+				    if (i < args.Length)
+				    	SteamGuardPath = args[i];
+				    else
+				    {
+					    Console.WriteLine($"Expected path after {args[i-1]}");
+					    return;
+				    }
+			    }
+			    else if (args[i] == "--help" || args[i] == "-h")
+			    {
+				    ShowHelp();
+				    return;
+			    }
+		    }
+		    else // Parse as action or username
+		    {
+			    if (string.IsNullOrEmpty(action))
+			    {
+				    if (args[i] == "add")
+				    {
+					    action = "setup";
+				    }
+				    else if (args[i] == "encrypt")
+				    {
+					    action = "encrypt";
+				    }
+				    else if (args[i] == "decrypt")
+				    {
+					    action = "decrypt";
+				    }
+				    else if (args[i] == "remove")
+				    {
+					    action = "remove";
+				    }
+				    else if (args[i] == "2fa" || args[i] == "code" || args[i] == "generate-code")
+				    {
+					    action = "generate-code";
+				    }
+				    continue;
+			    }
+			    // its a username
+			    if (string.IsNullOrEmpty(user))
+				    user = args[i];
+		    }
+	    }
 
-        // Do some configure
+	    if (string.IsNullOrEmpty(action))
+		    action = "generate-code";
+
+        // Do some configuring
         SteamGuardPath = SteamGuardPath.Replace("~", Environment.GetEnvironmentVariable("HOME"));
         if (!Directory.Exists(SteamGuardPath))
         {
@@ -86,9 +103,12 @@ public static class Program
                 return;
             }
         }
-        if (Verbose) Console.WriteLine("maFiles path: {0}", SteamGuardPath);
 
-        if (Verbose) Console.WriteLine("Action: {0}", action);
+	    if (Verbose) Console.WriteLine($"Action: {action}");
+	    if (Verbose) Console.WriteLine($"User: {user}");
+	    if (Verbose) Console.WriteLine($"maFiles path: {SteamGuardPath}");
+	    return;
+
         // Perform desired action
         switch (action)
         {
