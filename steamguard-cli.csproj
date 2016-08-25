@@ -35,7 +35,6 @@
     <Content Include=".\makefile">
       <Link>makefile</Link>
     </Content>
-    <Content Include="install.sh" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include=".\Manifest.cs">
