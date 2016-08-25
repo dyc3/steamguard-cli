@@ -39,6 +39,8 @@ public static class Program
             Console.WriteLine("--generate-code              Generate a Steam Guard code and exit. (default)");
             Console.WriteLine("--encrypt                    Encrypt your maFiles or change your encryption passkey.");
             Console.WriteLine("--decrypt                    Remove encryption from your maFiles.");
+	        Console.WriteLine("--trade                      List all trade confirmations across all accounts, or of the user\n" +
+	                          "                             specified with --user");
             return;
         }
         Verbose = args.Contains("-v") || args.Contains("--verbose");
@@ -58,6 +60,10 @@ public static class Program
         else if (args.Contains("--setup"))
         {
             action = "setup";
+        }
+	    else if (args.Contains("--trade"))
+        {
+	        action = "trade";
         }
         // Misc
         if (args.Contains("--user") || args.Contains("-u"))
@@ -112,6 +118,9 @@ public static class Program
             case "setup":
                 throw new NotSupportedException();
                 break;
+		    case "trade":
+		        TradeList(user);
+		        break;
             default:
                 Console.WriteLine("error: Unknown action: {0}", action);
                 return;
@@ -220,4 +229,55 @@ public static class Program
         }
 		return true;
     }
+
+	static void TradeList(string user = "")
+	{
+		if (Verbose) Console.WriteLine("Opening manifest...");
+		Manifest = Manifest.GetManifest(true);
+		if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+		if (Manifest.Encrypted)
+		{
+			string passkey = Manifest.PromptForPassKey();
+			SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
+		}
+		else
+		{
+			SteamGuardAccounts = Manifest.GetAllAccounts();
+		}
+		if (SteamGuardAccounts.Length == 0)
+		{
+			Console.WriteLine("error: No accounts read.");
+			return;
+		}
+
+		for (int i = 0; i < SteamGuardAccounts.Length; i++)
+		{
+			SteamGuardAccount account = SteamGuardAccounts[i];
+			if (user != "")
+			{
+				if (account.AccountName.ToLower() == user.ToLower())
+				{
+					showTradeConfirmations(account);
+					break;
+				}
+			}
+			else
+			{
+				showTradeConfirmations(account);
+			}
+		}
+	}
+
+	static void showTradeConfirmations(SteamGuardAccount account)
+	{
+		Console.WriteLine($"Checking trade confirmations for {account.AccountName}...");
+		if (Verbose) Console.WriteLine("Refeshing Session...");
+		account.RefreshSession();
+
+		Confirmation[] trades = account.FetchConfirmations();
+		foreach (var trade in trades)
+		{
+			Console.WriteLine($"ID: {trade.ID} Key: {trade.Key} Description: {trade.Description}");
+		}
+	}
 }
