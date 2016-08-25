@@ -41,7 +41,9 @@ public static class Program
             Console.WriteLine("--decrypt                    Remove encryption from your maFiles.");
 	        Console.WriteLine("--trade                      List all trade confirmations across all accounts, or of the user\n" +
 	                          "                             specified with --user");
-            return;
+	        Console.WriteLine("--accept-all                 Accept all trade confirmations on all accounts, or all confirmations of\n" +
+	                          "                             the user specified with --user.");
+	        return;
         }
         Verbose = args.Contains("-v") || args.Contains("--verbose");
         // Actions
@@ -64,6 +66,10 @@ public static class Program
 	    else if (args.Contains("--trade"))
         {
 	        action = "trade";
+        }
+	    else if (args.Contains("--accept-all"))
+        {
+	        action = "accept-all";
         }
         // Misc
         if (args.Contains("--user") || args.Contains("-u"))
@@ -120,6 +126,9 @@ public static class Program
                 break;
 		    case "trade":
 		        TradeList(user);
+		        break;
+			case "accept-all":
+		        AcceptAllTrades(user);
 		        break;
             default:
                 Console.WriteLine("error: Unknown action: {0}", action);
@@ -278,6 +287,56 @@ public static class Program
 		foreach (var trade in trades)
 		{
 			Console.WriteLine($"ID: {trade.ID} Key: {trade.Key} Description: {trade.Description}");
+		}
+	}
+
+	static void AcceptAllTrades(string user = "")
+	{
+		if (Verbose) Console.WriteLine("Opening manifest...");
+		Manifest = Manifest.GetManifest(true);
+		if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+		if (Manifest.Encrypted)
+		{
+			string passkey = Manifest.PromptForPassKey();
+			SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
+		}
+		else
+		{
+			SteamGuardAccounts = Manifest.GetAllAccounts();
+		}
+		if (SteamGuardAccounts.Length == 0)
+		{
+			Console.WriteLine("error: No accounts read.");
+			return;
+		}
+
+		for (int i = 0; i < SteamGuardAccounts.Length; i++)
+		{
+			SteamGuardAccount account = SteamGuardAccounts[i];
+			if (user != "")
+			{
+				if (account.AccountName.ToLower() == user.ToLower())
+				{
+					Console.WriteLine($"Accepting Confirmations on {account.AccountName}");
+					if (Verbose) Console.WriteLine("Refeshing Session...");
+					account.RefreshSession();
+					if (Verbose) Console.WriteLine("Fetching Confirmations...");
+					Confirmation[] confirmations = account.FetchConfirmations();
+					if (Verbose) Console.WriteLine("Accepting Confirmations...");
+					account.AcceptMultipleConfirmations(confirmations);
+					break;
+				}
+			}
+			else
+			{
+				Console.WriteLine($"Accepting Confirmations on {account.AccountName}");
+				if (Verbose) Console.WriteLine("Refeshing Session...");
+				account.RefreshSession();
+				if (Verbose) Console.WriteLine("Fetching Confirmations...");
+				Confirmation[] confirmations = account.FetchConfirmations();
+				if (Verbose) Console.WriteLine("Accepting Confirmations...");
+				account.AcceptMultipleConfirmations(confirmations);
+			}
 		}
 	}
 }
