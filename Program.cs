@@ -132,6 +132,12 @@ public static class Program
 	static void ShowHelp()
 	{
 		var descPadding = 26;
+		var descWidth = Console.BufferWidth - descPadding;
+		if (descWidth < 20)
+			descWidth = 20;
+		else if (descWidth > 56)
+			descWidth = 56;
+
 		var flags = new Dictionary<string, string>
 		{
 			{ "-h, --help", "Display this help message." },
@@ -152,13 +158,39 @@ public static class Program
 		Console.WriteLine();
 		foreach (var flag in flags)
 		{
-			Console.WriteLine($"{flag.Key.PadRight(descPadding)}{flag.Value}");
+			// word wrap the descriptions, if needed
+			var desc = flag.Value;
+			if (desc.Length > descWidth)
+			{
+				var sb = new StringBuilder();
+				for (int i = 0; i < desc.Length; i += descWidth)
+				{
+					if (i > 0)
+						sb.Append("".PadLeft((flag.Key.StartsWith("--") ? 5 : 2) + descPadding));
+					sb.AppendLine(desc.Substring(i, i + descWidth > desc.Length ? desc.Length - i : descWidth).Trim());
+				}
+				desc = sb.ToString().TrimEnd('\n');
+			}
+			Console.WriteLine($"{(flag.Key.StartsWith("--") ? "     " : "  " )}{flag.Key.PadRight(descPadding)}{desc}");
 		}
 		Console.WriteLine();
 		Console.WriteLine("Actions:");
 		foreach (var action in actions)
 		{
-			Console.WriteLine($"{action.Key.PadRight(descPadding)}{action.Value}");
+			// word wrap the descriptions, if needed
+			var desc = action.Value;
+			if (desc.Length > descWidth)
+			{
+				var sb = new StringBuilder();
+				for (int i = 0; i < desc.Length; i += descWidth)
+				{
+					if (i > 0)
+						sb.Append("".PadLeft(descPadding + 2));
+					sb.AppendLine(desc.Substring(i, i + descWidth > desc.Length ? desc.Length - i : descWidth).Trim());
+				}
+				desc = sb.ToString().TrimEnd('\n');
+			}
+			Console.WriteLine($"  {action.Key.PadRight(descPadding)}{desc}");
 		}
 	}
 
