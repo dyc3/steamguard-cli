@@ -60,6 +60,10 @@ public static class Program
 				    {
 					    action = "setup";
 				    }
+				    else if (args[i] == "trade")
+				    {
+					    action = "trade";
+				    }
 				    else if (args[i] == "encrypt")
 				    {
 					    action = "encrypt";
@@ -124,7 +128,7 @@ public static class Program
                 throw new NotSupportedException();
                 break;
 		    case "trade":
-		        TradeList(user);
+		        Trade(user);
 		        break;
 			case "accept-all":
 		        AcceptAllTrades(user);
@@ -303,14 +307,14 @@ public static class Program
 		return true;
     }
 
-	static void TradeList(string user = "")
+	static void Trade(string user = "")
 	{
 		if (Verbose) Console.WriteLine("Opening manifest...");
 		Manifest = Manifest.GetManifest(true);
 		if (Verbose) Console.WriteLine("Reading accounts from manifest...");
 		if (Manifest.Encrypted)
 		{
-			string passkey = Manifest.PromptForPassKey();
+			var passkey = Manifest.PromptForPassKey();
 			SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
 		}
 		else
@@ -323,35 +327,117 @@ public static class Program
 			return;
 		}
 
-		for (int i = 0; i < SteamGuardAccounts.Length; i++)
+		foreach (var account in SteamGuardAccounts)
 		{
-			SteamGuardAccount account = SteamGuardAccounts[i];
 			if (user != "")
-			{
-				if (account.AccountName.ToLower() == user.ToLower())
-				{
-					showTradeConfirmations(account);
+				if (!string.Equals(account.AccountName, user, StringComparison.CurrentCultureIgnoreCase))
 					break;
-				}
-			}
-			else
-			{
-				showTradeConfirmations(account);
-			}
+
+			processConfirmations(account);
 		}
 	}
 
-	static void showTradeConfirmations(SteamGuardAccount account)
+	enum TradeAction
 	{
-		Console.WriteLine($"Checking trade confirmations for {account.AccountName}...");
+		Accept = 1,
+		Deny = 0,
+		Ignore = -1
+	}
+
+	static void processConfirmations(SteamGuardAccount account)
+	{
 		if (Verbose) Console.WriteLine("Refeshing Session...");
 		account.RefreshSession();
-
-		Confirmation[] trades = account.FetchConfirmations();
-		foreach (var trade in trades)
+		Console.WriteLine("Retrieving trade confirmations...");
+		var trades = account.FetchConfirmations();
+		var tradeActions = new TradeAction[trades.Length];
+		for (var i = 0; i < tradeActions.Length; i++)
 		{
-			Console.WriteLine($"ID: {trade.ID} Key: {trade.Key} Description: {trade.Description}");
+			tradeActions[i] = TradeAction.Ignore;
 		}
+		if (trades.Length == 0)
+		{
+			Console.WriteLine($"No trade confirmations for {account.AccountName}.");
+			return;
+		}
+		var selected = 0;
+		var colorAccept = ConsoleColor.Green;
+		var colorDeny = ConsoleColor.Red;
+		var colorIgnore = ConsoleColor.Gray;
+
+		var colorBackground = Console.BackgroundColor;
+		var confirm = false;
+
+		do
+		{
+			Console.Clear();
+			if (selected >= trades.Length)
+				selected = trades.Length - 1;
+			else if (selected < 0)
+				selected = 0;
+			Console.ResetColor();
+			Console.WriteLine($"Trade confirmations for {account.AccountName}...");
+			Console.WriteLine("No action will be made without your confirmation.");
+			Console.WriteLine("[a]ccept   [d]eny   [i]gnore  [enter] Confirm"); // accept = 1, deny = 0, ignore = -1
+			Console.WriteLine();
+
+			for (var t = 0; t < trades.Length; t++)
+			{
+				ConsoleColor itemColor;
+				switch (tradeActions[t])
+				{
+					case TradeAction.Accept:
+						itemColor = colorAccept;
+						break;
+					case TradeAction.Deny:
+						itemColor = colorDeny;
+						break;
+					case TradeAction.Ignore:
+						itemColor = colorIgnore;
+						break;
+					default:
+						throw new ArgumentOutOfRangeException();
+				}
+
+				if (t == selected)
+				{
+					Console.BackgroundColor = itemColor;
+					Console.ForegroundColor = colorBackground;
+				}
+				else
+				{
+					Console.ForegroundColor = itemColor;
+					Console.BackgroundColor = colorBackground;
+				}
+
+				Console.WriteLine($"  [{t}] [{tradeActions[t]}] {trades[t].Description}");
+			}
+			var key = Console.ReadKey();
+			switch (key.Key)
+			{
+				case ConsoleKey.UpArrow:
+				case ConsoleKey.W:
+					selected--;
+					break;
+				case ConsoleKey.DownArrow:
+				case ConsoleKey.S:
+					selected++;
+					break;
+				case ConsoleKey.A:
+					tradeActions[selected] = TradeAction.Accept;
+					break;
+				case ConsoleKey.D:
+					tradeActions[selected] = TradeAction.Deny;
+					break;
+				case ConsoleKey.I:
+					tradeActions[selected] = TradeAction.Ignore;
+					break;
+				default:
+					break;
+			}
+		} while (!confirm);
+
+
 	}
 
 	static void AcceptAllTrades(string user = "")
