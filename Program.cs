@@ -364,8 +364,7 @@ public static class Program
 		var colorAccept = ConsoleColor.Green;
 		var colorDeny = ConsoleColor.Red;
 		var colorIgnore = ConsoleColor.Gray;
-
-		var colorBackground = Console.BackgroundColor;
+		var colorSelected = ConsoleColor.Yellow;
 		var confirm = false;
 
 		do
@@ -399,16 +398,7 @@ public static class Program
 						throw new ArgumentOutOfRangeException();
 				}
 
-				if (t == selected)
-				{
-					Console.BackgroundColor = itemColor;
-					Console.ForegroundColor = colorBackground;
-				}
-				else
-				{
-					Console.ForegroundColor = itemColor;
-					Console.BackgroundColor = colorBackground;
-				}
+				Console.ForegroundColor = t == selected ? colorSelected : itemColor;
 
 				Console.WriteLine($"  [{t}] [{tradeActions[t]}] {trades[t].Description}");
 			}
@@ -432,14 +422,19 @@ public static class Program
 				case ConsoleKey.I:
 					tradeActions[selected] = TradeAction.Ignore;
 					break;
+				case ConsoleKey.Enter:
+					confirm = true;
+					break;
 				case ConsoleKey.Escape:
 				case ConsoleKey.Q:
+					Console.ResetColor();
 					Console.WriteLine("Quitting...");
 					return;
 				default:
 					break;
 			}
 		} while (!confirm);
+		Console.ResetColor();
 
 
 	}
