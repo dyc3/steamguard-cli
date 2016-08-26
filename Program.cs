@@ -57,7 +57,7 @@ public static class Program
 		    {
 			    if (string.IsNullOrEmpty(action))
 			    {
-				    if (args[i] == "add")
+				    if (args[i] == "add" || args[i] == "setup")
 				    {
 					    action = "setup";
 				    }
