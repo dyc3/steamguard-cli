@@ -378,7 +378,7 @@ public static class Program
 			Console.ResetColor();
 			Console.WriteLine($"Trade confirmations for {account.AccountName}...");
 			Console.WriteLine("No action will be made without your confirmation.");
-			Console.WriteLine("[a]ccept   [d]eny   [i]gnore  [enter] Confirm"); // accept = 1, deny = 0, ignore = -1
+			Console.WriteLine("[a]ccept   [d]eny   [i]gnore  [enter] Confirm  [q]uit"); // accept = 1, deny = 0, ignore = -1
 			Console.WriteLine();
 
 			for (var t = 0; t < trades.Length; t++)
@@ -432,6 +432,10 @@ public static class Program
 				case ConsoleKey.I:
 					tradeActions[selected] = TradeAction.Ignore;
 					break;
+				case ConsoleKey.Escape:
+				case ConsoleKey.Q:
+					Console.WriteLine("Quitting...");
+					return;
 				default:
 					break;
 			}
