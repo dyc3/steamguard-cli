@@ -107,7 +107,6 @@ public static class Program
 	    if (Verbose) Console.WriteLine($"Action: {action}");
 	    if (Verbose) Console.WriteLine($"User: {user}");
 	    if (Verbose) Console.WriteLine($"maFiles path: {SteamGuardPath}");
-	    return;
 
         // Perform desired action
         switch (action)
@@ -132,15 +131,35 @@ public static class Program
 
 	static void ShowHelp()
 	{
+		var descPadding = 26;
+		var flags = new Dictionary<string, string>
+		{
+			{ "-h, --help", "Display this help message." },
+			{ "-v, --verbose", "Display some extra information when the program is running." },
+			{ "-m, --mafiles", "Specify which folder your maFiles are in. Ex: ~/maFiles" },
+		};
+		var actions = new Dictionary<string, string>
+		{
+			{ "generate-code", "Generate a Steam Guard code for the specified user (if any) and exit. (default)" },
+			{ "encrypt", "Encrypt your maFiles or change your encryption passkey." },
+			{ "decrypt", "Remove encryption from your maFiles." },
+			{ "code", "Same as generate-code" },
+			{ "2fa", "Same as generate-code" },
+		};
+
 		Console.WriteLine($"steamguard-cli - v{Assembly.GetExecutingAssembly().GetName().Version}");
+		Console.WriteLine("usage: steamguard (action) (steam username) -v -h");
 		Console.WriteLine();
-		Console.WriteLine("--help, -h                   Display this help message.");
-		Console.WriteLine("--verbose, -v                Display some extra information when the program is running.");
-		Console.WriteLine("--user, -u                   Specify an account for which to generate a Steam Gaurd code.");
-		Console.WriteLine("                             Otherwise, the first account will be selected.");
-		Console.WriteLine("--generate-code              Generate a Steam Guard code and exit. (default)");
-		Console.WriteLine("--encrypt                    Encrypt your maFiles or change your encryption passkey.");
-		Console.WriteLine("--decrypt                    Remove encryption from your maFiles.");
+		foreach (var flag in flags)
+		{
+			Console.WriteLine($"{flag.Key.PadRight(descPadding)}{flag.Value}");
+		}
+		Console.WriteLine();
+		Console.WriteLine("Actions:");
+		foreach (var action in actions)
+		{
+			Console.WriteLine($"{action.Key.PadRight(descPadding)}{action.Value}");
+		}
 	}
 
     static void GenerateCode(string user = "")
