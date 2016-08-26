@@ -77,10 +77,10 @@ public static class Program
 				    {
 					    action = "generate-code";
 				    }
-				    continue;
+				    else if (string.IsNullOrEmpty(user))
+					    user = args[i];
 			    }
-			    // its a username
-			    if (string.IsNullOrEmpty(user))
+			    else if (string.IsNullOrEmpty(user))
 				    user = args[i];
 		    }
 	    }
