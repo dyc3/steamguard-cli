@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 public static class Program
 {
-    const string defaultSteamGuardPath = "~/maFiles";
+	public const string defaultSteamGuardPath = "~/maFiles";
 
     public static string SteamGuardPath { get; set; } = defaultSteamGuardPath;
     public static Manifest Manifest { get; set; }

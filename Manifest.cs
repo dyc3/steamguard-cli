@@ -63,8 +63,21 @@ public class Manifest
         if (!File.Exists(maFile))
         {
             if (Program.Verbose) Console.WriteLine("warn: No manifest file found at {0}", maFile);
-            _manifest = _generateNewManifest(true);
-            return _manifest;
+	        bool? createNewManifest = Program.SteamGuardPath ==
+	                                  Program.defaultSteamGuardPath.Replace("~", Environment.GetEnvironmentVariable("HOME")) ? true : (bool?) null;
+	        while (createNewManifest == null)
+	        {
+		        Console.Write($"Generate new manifest.json in {Program.SteamGuardPath}? [Y/n]");
+		        var answer = Console.ReadLine();
+		        if (answer != null)
+		        	createNewManifest = !answer.StartsWith("n") && !answer.StartsWith("N");
+	        }
+	        if ((bool) createNewManifest)
+	        {
+		        _manifest = _generateNewManifest(true);
+		        return _manifest;
+	        }
+	        return null;
         }
 
         try
