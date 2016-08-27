@@ -121,7 +121,7 @@ public static class Program
                 Console.WriteLine(Decrypt());
                 break;
             case "setup":
-                Setup();
+                Setup(user);
                 break;
             default:
                 Console.WriteLine("error: Unknown action: {0}", action);
@@ -299,13 +299,16 @@ public static class Program
 		return true;
     }
 
-	static void Setup()
+	static void Setup(string username = "")
 	{
 		if (Verbose) Console.WriteLine("Opening manifest...");
 		Manifest = Manifest.GetManifest(true);
 
-		Console.Write("Username: ");
-		var username = Console.ReadLine();
+		if (string.IsNullOrWhiteSpace(username))
+		{
+			Console.Write("Username: ");
+			username = Console.ReadLine();
+		}
 		Console.Write("Password: ");
 		var password = Console.ReadLine();
 
