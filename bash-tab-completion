@@ -4,7 +4,7 @@ _steamguard()
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
-	opts="--help --verbose --user --generate-code --encrypt --decrypt"
+	opts="--help --verbose --maFiles-path"
 	
 	COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
 	return 0
