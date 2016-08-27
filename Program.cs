@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -103,6 +102,7 @@ public static class Program
                 return;
             }
         }
+        if (Verbose) Console.WriteLine("maFiles path: {0}", SteamGuardPath);
 
 	    if (Verbose) Console.WriteLine($"Action: {action}");
 	    if (Verbose) Console.WriteLine($"User: {user}");
@@ -121,7 +121,7 @@ public static class Program
                 Console.WriteLine(Decrypt());
                 break;
             case "setup":
-                throw new NotSupportedException();
+                Setup(user);
                 break;
             default:
                 Console.WriteLine("error: Unknown action: {0}", action);
@@ -151,6 +151,8 @@ public static class Program
 			{ "decrypt", "Remove encryption from your maFiles." },
 			{ "code", "Same as generate-code" },
 			{ "2fa", "Same as generate-code" },
+			{ "add", "Set up Steam Guard for 2 factor authentication." },
+			{ "setup", "Same as add" }
 		};
 
 		Console.WriteLine($"steamguard-cli - v{Assembly.GetExecutingAssembly().GetName().Version}");
@@ -296,4 +298,125 @@ public static class Program
         }
 		return true;
     }
+
+	static void Setup(string username = "")
+	{
+		if (Verbose) Console.WriteLine("Opening manifest...");
+		Manifest = Manifest.GetManifest(true);
+
+		if (string.IsNullOrWhiteSpace(username))
+		{
+			Console.Write("Username: ");
+			username = Console.ReadLine();
+		}
+		Console.Write("Password: ");
+		var password = Console.ReadLine();
+
+		UserLogin login = new UserLogin(username, password);
+		Console.Write($"Logging in {username}... ");
+		LoginResult loginResult = login.DoLogin();
+		Console.WriteLine(loginResult);
+		if (!login.LoggedIn) return;
+
+		AuthenticatorLinker linker = new AuthenticatorLinker(login.Session);
+		AuthenticatorLinker.LinkResult linkResult = AuthenticatorLinker.LinkResult.GeneralFailure;
+
+		do
+		{
+			linkResult = linker.AddAuthenticator();
+			Console.WriteLine($"Link result: {linkResult}");
+			switch (linkResult)
+			{
+				case AuthenticatorLinker.LinkResult.MustProvidePhoneNumber:
+					var phonenumber = "";
+					do
+					{
+						Console.WriteLine("Enter your mobile phone number in the following format: +{cC} phoneNumber. EG, +1 123-456-7890");
+						phonenumber = Console.ReadLine();
+						phonenumber = FilterPhoneNumber(phonenumber);
+						linker.PhoneNumber = phonenumber;
+					} while (!PhoneNumberOkay(phonenumber));
+					break;
+				case AuthenticatorLinker.LinkResult.MustRemovePhoneNumber:
+					linker.PhoneNumber = null;
+					break;
+				case AuthenticatorLinker.LinkResult.AwaitingFinalization:
+					break;
+				case AuthenticatorLinker.LinkResult.GeneralFailure:
+					Console.WriteLine("error: Unable to add your phone number. Steam returned GeneralFailure");
+					return;
+				case AuthenticatorLinker.LinkResult.AuthenticatorPresent:
+					Console.WriteLine("error: Can't link authenticator, remove the previous authenticator.");
+					return;
+				default:
+					Console.WriteLine($"error: Unexpected linker result: {linkResult}");
+					return;
+			}
+		} while (linkResult != AuthenticatorLinker.LinkResult.AwaitingFinalization);
+
+		string passKey = null;
+		if (Manifest.Entries.Count == 0)
+		{
+			Console.WriteLine("Looks like we are setting up your first account.");
+			passKey = Manifest.PromptSetupPassKey();
+		}
+		else if (Manifest.Entries.Count > 0 && Manifest.Encrypted)
+		{
+			passKey = Manifest.PromptForPassKey();
+		}
+
+		//Save the file immediately; losing this would be bad.
+		if (!Manifest.SaveAccount(linker.LinkedAccount, passKey != null, passKey))
+		{
+			Manifest.RemoveAccount(linker.LinkedAccount);
+			Console.WriteLine("Unable to save mobile authenticator file. The mobile authenticator has not been linked.");
+			return;
+		}
+
+		Console.WriteLine($"The Mobile Authenticator has not yet been linked. Before finalizing the authenticator, please write down your revocation code: {linker.LinkedAccount.RevocationCode}");
+
+		AuthenticatorLinker.FinalizeResult finalizeResponse = AuthenticatorLinker.FinalizeResult.GeneralFailure;
+		do
+		{
+			Console.Write("Please input the SMS message sent to your phone number: ");
+			string smsCode = Console.ReadLine();
+
+			finalizeResponse = linker.FinalizeAddAuthenticator(smsCode);
+			if (Verbose) Console.WriteLine(finalizeResponse);
+
+			switch (finalizeResponse)
+			{
+				case AuthenticatorLinker.FinalizeResult.BadSMSCode:
+					continue;
+
+				case AuthenticatorLinker.FinalizeResult.UnableToGenerateCorrectCodes:
+					Console.WriteLine(
+						"Unable to generate the proper codes to finalize this authenticator. The authenticator should not have been linked.");
+					Console.WriteLine(
+						$"In the off-chance it was, please write down your revocation code, as this is the last chance to see it: {linker.LinkedAccount.RevocationCode}");
+					Manifest.RemoveAccount(linker.LinkedAccount);
+					return;
+
+				case AuthenticatorLinker.FinalizeResult.GeneralFailure:
+					Console.WriteLine("Unable to finalize this authenticator. The authenticator should not have been linked.");
+					Console.WriteLine(
+						$"In the off-chance it was, please write down your revocation code, as this is the last chance to see it: {linker.LinkedAccount.RevocationCode}");
+					Manifest.RemoveAccount(linker.LinkedAccount);
+					return;
+			}
+		} while (finalizeResponse != AuthenticatorLinker.FinalizeResult.Success);
+
+		//Linked, finally. Re-save with FullyEnrolled property.
+		Manifest.SaveAccount(linker.LinkedAccount, passKey != null, passKey);
+		Console.WriteLine($"Mobile authenticator successfully linked. Please actually write down your revocation code: {linker.LinkedAccount.RevocationCode}");
+	}
+
+	public static string FilterPhoneNumber(string phoneNumber) => phoneNumber.Replace("-", "").Replace("(", "").Replace(")", "");
+
+	public static bool PhoneNumberOkay(string phoneNumber)
+	{
+		if (phoneNumber == null || phoneNumber.Length == 0) return false;
+		if (phoneNumber[0] != '+') return false;
+		return true;
+	}
 }

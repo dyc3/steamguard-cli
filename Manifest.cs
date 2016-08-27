@@ -200,7 +200,8 @@ public class Manifest
             if (doEncryptAnswer == "n" || doEncryptAnswer == "N")
             {
                 Console.WriteLine("WARNING: You chose to not encrypt your files. Doing so imposes a security risk for yourself. If an attacker were to gain access to your computer, they could completely lock you out of your account and steal all your items.");
-                return null;
+                Console.WriteLine("You may add encryption later using the --encrypt argument.");
+	            return null;
             }
         }
 
