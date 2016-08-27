@@ -55,7 +55,7 @@ steamguard-cli is not supported at this time.
 
       -h, --help                Display this help message.
       -v, --verbose             Display some extra information when the program is running.
-      -m, --mafiles             Specify which folder your maFiles are in. Ex: ~/maFiles
+      -m, --mafiles-path        Specify which folder your maFiles are in. Ex: ~/maFiles
 
     Actions:
       generate-code             Generate a Steam Guard code for the specified user (if any) and exit. (default)
