@@ -1,9 +1,9 @@
 # steamguard-cli
-A linux utility for setting up and using Steam Guard on the command line.
-**This utility is in beta. Not all features are implemented yet.**
+A linux utility for setting up and using Steam Mobile Authenticator (AKA Steam 2FA) on the command line.
+**This utility is in beta.**
 
 # Disclaimer
-Use this software at your own risk. 
+**Use this software at your own risk.**
 
 # Prerequisites
 These packages are required to build and run steamguard-cli.
@@ -23,6 +23,10 @@ Building on Linux is very simple. Make sure you have all the prerequisites liste
 
 To run the current build:
 
+    build/steamguard
+
+To run the current build quickly:
+
     make run
 
 ## Windows
@@ -31,7 +35,7 @@ Coming soon...
 # Installation
 To install the latest version on Debian-based systems, download the package from the releases section and type
 
-    sudo dpkg --install steamguard-cli_0.1.0.0-0.deb
+    sudo dpkg --install steamguard-cli_x.x.x.x-x.deb
 
 To install after building from source, run:
 
@@ -47,10 +51,17 @@ steamguard-cli is not supported at this time.
 [SDA]: https://github.com/Jessecar96/SteamDesktopAuthenticator
 
 ## Arguments
-    --help, -h                   Display this help message.
-    --verbose, -v                Display some extra information when the program is running.
-    --user, -u                   Specify an account for which to generate a Steam Gaurd code.
-                                 Otherwise, the first account will be selected.
-    --generate-code              Generate a Steam Guard code and exit. (default)
-    --encrypt                    Encrypt your maFiles or change your encryption passkey.
-    --decrypt                    Remove encryption from your maFiles.
+    usage: steamguard (action) (steam username) -v -h
+
+      -h, --help                Display this help message.
+      -v, --verbose             Display some extra information when the program is running.
+      -m, --mafiles             Specify which folder your maFiles are in. Ex: ~/maFiles
+
+    Actions:
+      generate-code             Generate a Steam Guard code for the specified user (if any) and exit. (default)
+      encrypt                   Encrypt your maFiles or change your encryption passkey.
+      decrypt                   Remove encryption from your maFiles.
+      code                      Same as generate-code
+      2fa                       Same as generate-code
+      add                       Set up Steam Guard for 2 factor authentication.
+      setup                     Same as add
