@@ -435,8 +435,28 @@ public static class Program
 			}
 		} while (!confirm);
 		Console.ResetColor();
-
-
+		Console.WriteLine();
+		Console.WriteLine("Processing...");
+		for (var t = 0; t < trades.Length; t++)
+		{
+			switch (tradeActions[t])
+			{
+				case TradeAction.Accept:
+					if (Verbose) Console.WriteLine($"Accepting {trades[t].Description}...");
+					account.AcceptConfirmation(trades[t]);
+					break;
+				case TradeAction.Deny:
+					if (Verbose) Console.WriteLine($"Denying {trades[t].Description}...");
+					account.AcceptConfirmation(trades[t]);
+					break;
+				case TradeAction.Ignore:
+					if (Verbose) Console.WriteLine($"Ignoring {trades[t].Description}...");
+					break;
+				default:
+					throw new ArgumentOutOfRangeException();
+			}
+		}
+		Console.WriteLine("Done.");
 	}
 
 	static void AcceptAllTrades(string user = "")
