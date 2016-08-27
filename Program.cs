@@ -439,22 +439,25 @@ public static class Program
 		Console.WriteLine("Processing...");
 		for (var t = 0; t < trades.Length; t++)
 		{
+			bool success = false;
 			switch (tradeActions[t])
 			{
 				case TradeAction.Accept:
-					if (Verbose) Console.WriteLine($"Accepting {trades[t].Description}...");
-					account.AcceptConfirmation(trades[t]);
+					if (Verbose) Console.Write($"Accepting {trades[t].Description}...");
+					success = account.AcceptConfirmation(trades[t]);
 					break;
 				case TradeAction.Deny:
-					if (Verbose) Console.WriteLine($"Denying {trades[t].Description}...");
-					account.AcceptConfirmation(trades[t]);
+					if (Verbose) Console.Write($"Denying {trades[t].Description}...");
+					success = account.AcceptConfirmation(trades[t]);
 					break;
 				case TradeAction.Ignore:
-					if (Verbose) Console.WriteLine($"Ignoring {trades[t].Description}...");
+					if (Verbose) Console.Write($"Ignoring {trades[t].Description}...");
+					success = true;
 					break;
 				default:
 					throw new ArgumentOutOfRangeException();
 			}
+			if (Verbose) Console.WriteLine(success);
 		}
 		Console.WriteLine("Done.");
 	}
