@@ -313,7 +313,7 @@ public static class Program
 		var password = Console.ReadLine();
 
 		UserLogin login = new UserLogin(username, password);
-		Console.Write("Logging in... ");
+		Console.Write($"Logging in {username}... ");
 		LoginResult loginResult = login.DoLogin();
 		Console.WriteLine(loginResult);
 		if (!login.LoggedIn) return;
