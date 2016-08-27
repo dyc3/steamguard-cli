@@ -151,6 +151,8 @@ public static class Program
 			{ "decrypt", "Remove encryption from your maFiles." },
 			{ "code", "Same as generate-code" },
 			{ "2fa", "Same as generate-code" },
+			{ "add", "Set up Steam Guard for 2 factor authentication." },
+			{ "setup", "Same as add" }
 		};
 
 		Console.WriteLine($"steamguard-cli - v{Assembly.GetExecutingAssembly().GetName().Version}");
