@@ -43,8 +43,8 @@ To install after building from source, run:
 
 # Usage
 `steamguard-cli` looks for your `maFiles` folder in the current user's home directory (eg. `~/maFiles/`). 
-Your `maFiles` can be created with [Steam Desktop Authenticator][SDA]. Creating `maFiles` with
-steamguard-cli is not supported at this time. 
+Your `maFiles` can be created with [Steam Desktop Authenticator][SDA]. You can create `maFiles` with
+steamguard-cli using the `setup` action (`steamguard setup`). 
 
 **REMEMBER TO MAKE BACKUPS OF YOUR `maFiles`, AND TO WRITE DOWN YOUR RECOVERY CODE!**
 
