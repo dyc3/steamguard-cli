@@ -475,7 +475,14 @@ namespace SteamGuard
 		static void processConfirmations(SteamGuardAccount account)
 		{
 			if (Verbose) Console.WriteLine("Refeshing Session...");
-			account.RefreshSession();
+			if (account.RefreshSession())
+			{
+				if (Verbose) Console.WriteLine("Session refreshed");
+			}
+			else
+			{
+				Console.WriteLine("Failed to refresh session");
+			}
 			Console.WriteLine("Retrieving trade confirmations...");
 			var trades = account.FetchConfirmations();
 			var tradeActions = new TradeAction[trades.Length];
