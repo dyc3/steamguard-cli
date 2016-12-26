@@ -491,6 +491,14 @@ namespace SteamGuard
 				UserLogin login = new UserLogin(username, password);
 				Console.Write($"Logging in {username}... ");
 				LoginResult loginResult = login.DoLogin();
+				if (loginResult == LoginResult.Need2FA && !string.IsNullOrEmpty(account.SharedSecret))
+				{
+					if (Verbose) Console.WriteLine(loginResult);
+					TimeAligner.AlignTime();
+					login.TwoFactorCode = account.GenerateSteamGuardCode();
+					if (Verbose) Console.Write($"Logging in {username}... ");
+					loginResult = login.DoLogin();
+				}
 				Console.WriteLine(loginResult);
 
 				if (account.RefreshSession())
