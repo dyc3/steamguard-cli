@@ -481,7 +481,27 @@ namespace SteamGuard
 			}
 			else
 			{
-				Console.WriteLine("Failed to refresh session");
+				if (Verbose) Console.WriteLine("Failed to refresh session");
+				Console.WriteLine("Your Steam credentials have expired. For trade and market confirmations to work properly, please login again.");
+				string username = account.AccountName;
+				Console.WriteLine($"Username: {username}");
+				Console.Write("Password: ");
+				var password = Console.ReadLine();
+
+				UserLogin login = new UserLogin(username, password);
+				Console.Write($"Logging in {username}... ");
+				LoginResult loginResult = login.DoLogin();
+				Console.WriteLine(loginResult);
+
+				if (account.RefreshSession())
+				{
+					if (Verbose) Console.WriteLine("Session refreshed");
+				}
+				else
+				{
+					Console.WriteLine("Failed to refresh session");
+					return;
+				}
 			}
 			Console.WriteLine("Retrieving trade confirmations...");
 			var trades = account.FetchConfirmations();
