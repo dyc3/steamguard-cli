@@ -478,6 +478,7 @@ namespace SteamGuard
 			if (account.RefreshSession())
 			{
 				if (Verbose) Console.WriteLine("Session refreshed");
+				Manifest.SaveAccount(account, Manifest.Encrypted);
 			}
 			else
 			{
@@ -493,6 +494,7 @@ namespace SteamGuard
 				LoginResult loginResult = login.DoLogin();
 				if (loginResult == LoginResult.Need2FA && !string.IsNullOrEmpty(account.SharedSecret))
 				{
+					// if we need a 2fa code, and we can generate it, generate a 2fa code and log in.
 					if (Verbose) Console.WriteLine(loginResult);
 					TimeAligner.AlignTime();
 					login.TwoFactorCode = account.GenerateSteamGuardCode();
@@ -500,14 +502,19 @@ namespace SteamGuard
 					loginResult = login.DoLogin();
 				}
 				Console.WriteLine(loginResult);
+				if (loginResult == LoginResult.LoginOkay)
+				{
+					account.Session = login.Session;
+				}
 
 				if (account.RefreshSession())
 				{
 					if (Verbose) Console.WriteLine("Session refreshed");
+					Manifest.SaveAccount(account, Manifest.Encrypted);
 				}
 				else
 				{
-					Console.WriteLine("Failed to refresh session");
+					Console.WriteLine("Failed to refresh session, aborting...");
 					return;
 				}
 			}
