@@ -403,7 +403,7 @@ namespace SteamGuard
 			if (Manifest.Entries.Count == 0)
 			{
 				Console.WriteLine("Looks like we are setting up your first account.");
-				passKey = Manifest.PromptSetupPassKey();
+				passKey = Manifest.PromptSetupPassKey(true);
 			}
 			else if (Manifest.Entries.Count > 0 && Manifest.Encrypted)
 			{
