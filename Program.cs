@@ -325,10 +325,29 @@ namespace SteamGuard
 			var password = Console.ReadLine();
 
 			UserLogin login = new UserLogin(username, password);
-			Console.Write($"Logging in {username}... ");
-			LoginResult loginResult = login.DoLogin();
-			Console.WriteLine(loginResult);
-			if (!login.LoggedIn) return;
+			string emailCode = null, twoFactorCode = null;
+			while (true)
+			{
+				login.EmailCode = emailCode;
+				login.TwoFactorCode = twoFactorCode;
+				Console.Write($"Logging in {username}... ");
+				LoginResult loginResult = login.DoLogin();
+				Console.WriteLine(loginResult);
+				if (loginResult == LoginResult.NeedEmail)
+				{
+					Console.Write("Email code: ");
+					emailCode = Console.ReadLine();
+					continue;
+				}
+				else if (loginResult == LoginResult.Need2FA)
+				{
+					Console.Write("2FA code: ");
+					twoFactorCode = Console.ReadLine();
+					continue;
+				}
+				if (!login.LoggedIn) return;
+				break;
+			}
 
 			AuthenticatorLinker linker = new AuthenticatorLinker(login.Session);
 			AuthenticatorLinker.LinkResult linkResult = AuthenticatorLinker.LinkResult.GeneralFailure;
