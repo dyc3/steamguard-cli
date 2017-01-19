@@ -377,8 +377,22 @@ namespace SteamGuard
 						Console.WriteLine("error: Unable to add your phone number. Steam returned GeneralFailure");
 						return;
 					case AuthenticatorLinker.LinkResult.AuthenticatorPresent:
-						Console.WriteLine("error: Can't link authenticator, remove the previous authenticator.");
-						return;
+						Console.WriteLine("An authenticator is already present.");
+						Console.WriteLine("If you have the revocation code (Rxxxxx), this program can remove it for you.");
+						Console.Write("Would you like to remove the current authenticator using your revocation code? (y/n) ");
+						var answer = Console.ReadLine();
+						if (answer != "y")
+							continue;
+						Console.Write("Revocation code (Rxxxxx): ");
+						var revocationCode = Console.ReadLine();
+						var account = new SteamGuardAccount();
+						account.Session = login.Session;
+						account.RevocationCode = revocationCode;
+						if (account.DeactivateAuthenticator())
+							Console.WriteLine("Successfully deactivated the current authenticator.");
+						else
+							Console.WriteLine("Deactivating the current authenticator was unsuccessful.");
+						continue;
 					default:
 						Console.WriteLine($"error: Unexpected linker result: {linkResult}");
 						return;
