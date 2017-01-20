@@ -325,10 +325,29 @@ namespace SteamGuard
 			var password = Console.ReadLine();
 
 			UserLogin login = new UserLogin(username, password);
-			Console.Write($"Logging in {username}... ");
-			LoginResult loginResult = login.DoLogin();
-			Console.WriteLine(loginResult);
-			if (!login.LoggedIn) return;
+			string emailCode = null, twoFactorCode = null;
+			while (true)
+			{
+				login.EmailCode = emailCode;
+				login.TwoFactorCode = twoFactorCode;
+				Console.Write($"Logging in {username}... ");
+				LoginResult loginResult = login.DoLogin();
+				Console.WriteLine(loginResult);
+				if (loginResult == LoginResult.NeedEmail)
+				{
+					Console.Write("Email code: ");
+					emailCode = Console.ReadLine();
+					continue;
+				}
+				else if (loginResult == LoginResult.Need2FA)
+				{
+					Console.Write("2FA code: ");
+					twoFactorCode = Console.ReadLine();
+					continue;
+				}
+				if (!login.LoggedIn) return;
+				break;
+			}
 
 			AuthenticatorLinker linker = new AuthenticatorLinker(login.Session);
 			AuthenticatorLinker.LinkResult linkResult = AuthenticatorLinker.LinkResult.GeneralFailure;
@@ -358,8 +377,22 @@ namespace SteamGuard
 						Console.WriteLine("error: Unable to add your phone number. Steam returned GeneralFailure");
 						return;
 					case AuthenticatorLinker.LinkResult.AuthenticatorPresent:
-						Console.WriteLine("error: Can't link authenticator, remove the previous authenticator.");
-						return;
+						Console.WriteLine("An authenticator is already present.");
+						Console.WriteLine("If you have the revocation code (Rxxxxx), this program can remove it for you.");
+						Console.Write("Would you like to remove the current authenticator using your revocation code? (y/n) ");
+						var answer = Console.ReadLine();
+						if (answer != "y")
+							continue;
+						Console.Write("Revocation code (Rxxxxx): ");
+						var revocationCode = Console.ReadLine();
+						var account = new SteamGuardAccount();
+						account.Session = login.Session;
+						account.RevocationCode = revocationCode;
+						if (account.DeactivateAuthenticator())
+							Console.WriteLine("Successfully deactivated the current authenticator.");
+						else
+							Console.WriteLine("Deactivating the current authenticator was unsuccessful.");
+						continue;
 					default:
 						Console.WriteLine($"error: Unexpected linker result: {linkResult}");
 						return;
@@ -370,7 +403,7 @@ namespace SteamGuard
 			if (Manifest.Entries.Count == 0)
 			{
 				Console.WriteLine("Looks like we are setting up your first account.");
-				passKey = Manifest.PromptSetupPassKey();
+				passKey = Manifest.PromptSetupPassKey(true);
 			}
 			else if (Manifest.Entries.Count > 0 && Manifest.Encrypted)
 			{
