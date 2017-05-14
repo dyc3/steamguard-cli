@@ -164,7 +164,9 @@ namespace SteamGuard
 				{ "code", "Same as generate-code" },
 				{ "2fa", "Same as generate-code" },
 				{ "add", "Set up Steam Guard for 2 factor authentication." },
-				{ "setup", "Same as add" }
+				{ "setup", "Same as add" },
+				{ "trade", "Opens an interactive prompt to handle trade confirmations." },
+				{ "accept-all", "Accepts all trade confirmations." }
 			};
 
 			Console.WriteLine($"steamguard-cli - v{Assembly.GetExecutingAssembly().GetName().Version}");
