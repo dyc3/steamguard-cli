@@ -42,9 +42,9 @@ To install after building from source, run:
     sudo make install
 
 # Usage
-`steamguard-cli` looks for your `maFiles` folder in the current user's home directory (eg. `~/maFiles/`). 
+`steamguard-cli` looks for your `maFiles` folder in the current user's home directory (eg. `~/maFiles/`).
 Your `maFiles` can be created with [Steam Desktop Authenticator][SDA]. You can create `maFiles` with
-steamguard-cli using the `setup` action (`steamguard setup`). 
+steamguard-cli using the `setup` action (`steamguard setup`).
 
 **REMEMBER TO MAKE BACKUPS OF YOUR `maFiles`, AND TO WRITE DOWN YOUR RECOVERY CODE!**
 
@@ -56,6 +56,7 @@ steamguard-cli using the `setup` action (`steamguard setup`).
       -h, --help                Display this help message.
       -v, --verbose             Display some extra information when the program is running.
       -m, --mafiles-path        Specify which folder your maFiles are in. Ex: ~/maFiles
+      -p, --passkey             Specify your encryption passkey.
 
     Actions:
       generate-code             Generate a Steam Guard code for the specified user (if any) and exit. (default)
@@ -65,3 +66,5 @@ steamguard-cli using the `setup` action (`steamguard setup`).
       2fa                       Same as generate-code
       add                       Set up Steam Guard for 2 factor authentication.
       setup                     Same as add
+      trade                     Opens an interactive prompt to handle trade confirmations.
+      accept-all                Accepts all trade confirmations.
