@@ -42,7 +42,9 @@ namespace SteamGuard
 					{
 						i++;
 						if (i < args.Length)
+						{
 							SteamGuardPath = args[i];
+						}
 						else
 						{
 							Console.WriteLine($"Expected path after {args[i-1]}");
@@ -84,15 +86,21 @@ namespace SteamGuard
 							action = "generate-code";
 						}
 						else if (string.IsNullOrEmpty(user))
+						{
 							user = args[i];
+						}
 					}
 					else if (string.IsNullOrEmpty(user))
+					{
 						user = args[i];
+					}
 				}
 			}
 
 			if (string.IsNullOrEmpty(action))
+			{
 				action = "generate-code";
+			}
 
 			// Do some configuring
 			SteamGuardPath = SteamGuardPath.Replace("~", Environment.GetEnvironmentVariable("HOME"));
@@ -110,9 +118,12 @@ namespace SteamGuard
 				}
 			}
 
-			if (Verbose) Console.WriteLine($"Action: {action}");
-			if (Verbose) Console.WriteLine($"User: {user}");
-			if (Verbose) Console.WriteLine($"maFiles path: {SteamGuardPath}");
+			if (Verbose)
+			{
+				Console.WriteLine($"Action: {action}");
+				Console.WriteLine($"User: {user}");
+				Console.WriteLine($"maFiles path: {SteamGuardPath}");
+			}
 
 			// Perform desired action
 			switch (action)
