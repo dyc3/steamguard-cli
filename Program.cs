@@ -180,6 +180,7 @@ namespace SteamGuard
 				{ "-h, --help", "Display this help message." },
 				{ "-v, --verbose", "Display some extra information when the program is running." },
 				{ "-m, --mafiles-path", "Specify which folder your maFiles are in. Ex: ~/maFiles" },
+				{ "-p, --passkey", "Specify your encryption passkey." },
 			};
 			var actions = new Dictionary<string, string>
 			{
