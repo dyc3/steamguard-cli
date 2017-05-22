@@ -13,6 +13,7 @@ cp bash-tab-completion $TEMP_PKG_PATH/etc/bash_completion.d/steamguard
 
 cat <<EOT >> $TEMP_PKG_PATH/DEBIAN/control
 Package: steamguard-cli
+Depends: mono-complete
 Version: $VERSION
 Section: base
 Priority: optional
