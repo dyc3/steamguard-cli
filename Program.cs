@@ -28,12 +28,14 @@ namespace SteamGuard
 		{
 			string action = "";
 			string user = "";
+			string passkey = "";
 
 			// Parse cli arguments
 			for (int i = 0; i < args.Length; i++)
 			{
 				if (args[i].StartsWith("-"))
 				{
+					// TODO: there's gotta be some framework or tool or something for this
 					if (args[i] == "-v" || args[i] == "--verbose")
 					{
 						Verbose = true;
@@ -48,6 +50,19 @@ namespace SteamGuard
 						else
 						{
 							Console.WriteLine($"Expected path after {args[i-1]}");
+							return;
+						}
+					}
+					else if (args[i] == "-p" || args[i] == "--passkey")
+					{
+						i++;
+						if (i < args.Length)
+						{
+							passkey = args[i];
+						}
+						else
+						{
+							Console.WriteLine($"Expected encryption passkey after {args[i-1]}");
 							return;
 						}
 					}
@@ -122,6 +137,7 @@ namespace SteamGuard
 			{
 				Console.WriteLine($"Action: {action}");
 				Console.WriteLine($"User: {user}");
+				Console.WriteLine($"Passkey: {passkey}");
 				Console.WriteLine($"maFiles path: {SteamGuardPath}");
 			}
 
@@ -129,22 +145,22 @@ namespace SteamGuard
 			switch (action)
 			{
 				case "generate-code":
-					GenerateCode(user);
+					GenerateCode(user, passkey);
 					break;
 				case "encrypt": // Can also be used to change passkey
-					Console.WriteLine(Encrypt());
+					Console.WriteLine(Encrypt(passkey));
 					break;
 				case "decrypt":
-					Console.WriteLine(Decrypt());
+					Console.WriteLine(Decrypt(passkey));
 					break;
 				case "setup":
-					Setup(user);
+					Setup(user, passkey);
 					break;
 				case "trade":
-					Trade(user);
+					Trade(user, passkey);
 					break;
 				case "accept-all":
-					AcceptAllTrades(user);
+					AcceptAllTrades(user, passkey);
 					break;
 				default:
 					Console.WriteLine("error: Unknown action: {0}", action);
