@@ -221,7 +221,7 @@ namespace SteamGuard
 			}
 		}
 
-		static void GenerateCode(string user = "")
+		static void GenerateCode(string user = "", string passkey = "")
 		{
 			if (Verbose) Console.WriteLine("Aligning time...");
 			TimeAligner.AlignTime();
@@ -230,7 +230,10 @@ namespace SteamGuard
 			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
-				string passkey = Manifest.PromptForPassKey();
+				if (string.IsNullOrEmpty(passkey))
+				{
+					passkey = Manifest.PromptForPassKey();
+				}
 				SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
 			}
 			else
@@ -269,14 +272,18 @@ namespace SteamGuard
 				Console.WriteLine("error: No Steam accounts found in {0}", SteamGuardAccounts);
 		}
 
-		static bool Encrypt()
+		static bool Encrypt(string passkey = "")
 		{
+			// NOTE: in this context, `passkey` refers to the old passkey, if there was one
 			if (Verbose) Console.WriteLine("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
 			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
-				string passkey = Manifest.PromptForPassKey();
+				if (string.IsNullOrEmpty(passkey))
+				{
+					passkey = Manifest.PromptForPassKey();
+				}
 				SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
 			}
 			else
@@ -298,14 +305,17 @@ namespace SteamGuard
 			return true;
 		}
 
-		static bool Decrypt()
+		static bool Decrypt(string passkey = "")
 		{
 			if (Verbose) Console.WriteLine("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
 			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
-				string passkey = Manifest.PromptForPassKey();
+				if (string.IsNullOrEmpty(passkey))
+				{
+					passkey = Manifest.PromptForPassKey();
+				}
 				SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
 			}
 			else
@@ -324,7 +334,7 @@ namespace SteamGuard
 			return true;
 		}
 
-		static void Setup(string username = "")
+		static void Setup(string username = "", string passkey = "")
 		{
 			if (Verbose) Console.WriteLine("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
@@ -420,7 +430,10 @@ namespace SteamGuard
 			}
 			else if (Manifest.Entries.Count > 0 && Manifest.Encrypted)
 			{
-				passKey = Manifest.PromptForPassKey();
+				if (string.IsNullOrEmpty(passkey))
+				{
+					passkey = Manifest.PromptForPassKey();
+				}
 			}
 
 			//Save the file immediately; losing this would be bad.
@@ -481,14 +494,17 @@ namespace SteamGuard
 			return true;
 		}
 
-		static void Trade(string user = "")
+		static void Trade(string user = "", string passkey = "")
 		{
 			if (Verbose) Console.WriteLine("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
 			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
-				var passkey = Manifest.PromptForPassKey();
+				if (string.IsNullOrEmpty(passkey))
+				{
+					passkey = Manifest.PromptForPassKey();
+				}
 				SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
 			}
 			else
@@ -678,14 +694,17 @@ namespace SteamGuard
 			Console.WriteLine("Done.");
 		}
 
-		static void AcceptAllTrades(string user = "")
+		static void AcceptAllTrades(string user = "", string passkey = "")
 		{
 			if (Verbose) Console.WriteLine("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
 			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
-				string passkey = Manifest.PromptForPassKey();
+				if (string.IsNullOrEmpty(passkey))
+				{
+					passkey = Manifest.PromptForPassKey();
+				}
 				SteamGuardAccounts = Manifest.GetAllAccounts(passkey);
 			}
 			else
