@@ -324,7 +324,7 @@ namespace SteamGuard
 				username = Console.ReadLine();
 			}
 			Console.Write("Password: ");
-			var password = Console.ReadLine();
+			var password = Utils.ReadLineSecure();
 
 			UserLogin login = new UserLogin(username, password);
 			string emailCode = null, twoFactorCode = null;

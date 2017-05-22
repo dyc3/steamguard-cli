@@ -180,7 +180,7 @@ namespace SteamGuard
 			while (!passKeyValid)
 			{
 				Console.WriteLine("Please enter encryption password: ");
-				passKey = Console.ReadLine();
+				passKey = Utils.ReadLineSecure();
 				if (passKey == "")
 					continue;
 				passKeyValid = this.VerifyPasskey(passKey);
@@ -212,9 +212,9 @@ namespace SteamGuard
 			do
 			{
 				Console.Write("Enter" + (inAccountSetupProcess ? " " : " new ") + "passkey: ");
-				newPassKey = Console.ReadLine();
+				newPassKey = Utils.ReadLineSecure();
 				Console.Write("Confirm" + (inAccountSetupProcess ? " " : " new ") + "passkey: ");
-				confirmPassKey = Console.ReadLine();
+				confirmPassKey = Utils.ReadLineSecure();
 
 				if (newPassKey != confirmPassKey)
 				{
