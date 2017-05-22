@@ -174,8 +174,6 @@ namespace SteamGuard
 			var descWidth = Console.BufferWidth - descPadding;
 			if (descWidth < 20)
 				descWidth = 20;
-			else if (descWidth > 56)
-				descWidth = 56;
 
 			var flags = new Dictionary<string, string>
 			{
