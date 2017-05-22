@@ -196,7 +196,7 @@ namespace SteamGuard
 			};
 
 			Console.WriteLine($"steamguard-cli - v{Assembly.GetExecutingAssembly().GetName().Version}");
-			Console.WriteLine("usage: steamguard (action) (steam username) -v -h");
+			Console.WriteLine("usage: steamguard ACTION [STEAM USERNAME] [OPTIONS]...");
 			Console.WriteLine();
 			foreach (var flag in flags)
 			{
