@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 // associated with an assembly.
 
 [assembly: AssemblyTitle("steamguard-cli")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("https://github.com/dyc3/steamguard-cli")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("steamguard-cli")]
