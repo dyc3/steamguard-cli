@@ -596,7 +596,9 @@ namespace SteamGuard
 				}
 			}
 			Console.WriteLine("Retrieving trade confirmations...");
-			var trades = account.FetchConfirmations();
+			var tradesTask = account.FetchConfirmationsAsync();
+			tradesTask.Wait();
+			var trades = tradesTask.Result;
 			var tradeActions = new TradeAction[trades.Length];
 			for (var i = 0; i < tradeActions.Length; i++)
 			{
@@ -743,7 +745,9 @@ namespace SteamGuard
 						if (Verbose) Console.WriteLine("Refeshing Session...");
 						account.RefreshSession();
 						if (Verbose) Console.WriteLine("Fetching Confirmations...");
-						Confirmation[] confirmations = account.FetchConfirmations();
+						var tradesTask = account.FetchConfirmationsAsync();
+						tradesTask.Wait();
+						Confirmation[] confirmations = tradesTask.Result;
 						if (Verbose) Console.WriteLine("Accepting Confirmations...");
 						account.AcceptMultipleConfirmations(confirmations);
 						break;
@@ -755,7 +759,9 @@ namespace SteamGuard
 					if (Verbose) Console.WriteLine("Refeshing Session...");
 					account.RefreshSession();
 					if (Verbose) Console.WriteLine("Fetching Confirmations...");
-					Confirmation[] confirmations = account.FetchConfirmations();
+					var tradesTask = account.FetchConfirmationsAsync();
+					tradesTask.Wait();
+					Confirmation[] confirmations = tradesTask.Result;
 					if (Verbose) Console.WriteLine("Accepting Confirmations...");
 					account.AcceptMultipleConfirmations(confirmations);
 				}
