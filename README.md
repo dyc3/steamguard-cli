@@ -37,7 +37,7 @@ To install the latest version on Debian-based systems, download the package from
 
     sudo dpkg --install steamguard-cli_x.x.x.x-x.deb
     
-For Archlinux, install [steamguard-cli-git](https://aur.archlinux.org/packages/steamguard-cli-git/) from AUR.
+For Archlinux, install [steamguard-cli-git](https://aur.archlinux.org/packages/steamguard-cli-git/) from the AUR.
 
 To install after building from source, run:
 
