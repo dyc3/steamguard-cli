@@ -737,23 +737,7 @@ namespace SteamGuard
 			for (int i = 0; i < SteamGuardAccounts.Length; i++)
 			{
 				SteamGuardAccount account = SteamGuardAccounts[i];
-				if (user != "")
-				{
-					if (account.AccountName.ToLower() == user.ToLower())
-					{
-						Console.WriteLine($"Accepting Confirmations on {account.AccountName}");
-						if (Verbose) Console.WriteLine("Refeshing Session...");
-						account.RefreshSession();
-						if (Verbose) Console.WriteLine("Fetching Confirmations...");
-						var tradesTask = account.FetchConfirmationsAsync();
-						tradesTask.Wait();
-						Confirmation[] confirmations = tradesTask.Result;
-						if (Verbose) Console.WriteLine("Accepting Confirmations...");
-						account.AcceptMultipleConfirmations(confirmations);
-						break;
-					}
-				}
-				else
+				if ((user != "" && account.AccountName.ToLower() == user.ToLower()) || user == "")
 				{
 					Console.WriteLine($"Accepting Confirmations on {account.AccountName}");
 					if (Verbose) Console.WriteLine("Refeshing Session...");
@@ -764,6 +748,10 @@ namespace SteamGuard
 					Confirmation[] confirmations = tradesTask.Result;
 					if (Verbose) Console.WriteLine("Accepting Confirmations...");
 					account.AcceptMultipleConfirmations(confirmations);
+					if (user != "")
+					{
+						break;
+					}
 				}
 			}
 		}
