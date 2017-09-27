@@ -100,6 +100,10 @@ namespace SteamGuard
 						{
 							action = "generate-code";
 						}
+						else if (args[i] == "accept-all")
+						{
+							action = "accept-all";
+						}
 						else if (string.IsNullOrEmpty(user))
 						{
 							user = args[i];
