@@ -701,7 +701,7 @@ namespace SteamGuard
 						break;
 					case TradeAction.Deny:
 						if (Verbose) Console.Write($"Denying {trades[t].Description}...");
-						success = account.AcceptConfirmation(trades[t]);
+						success = account.DenyConfirmation(trades[t]);
 						break;
 					case TradeAction.Ignore:
 						if (Verbose) Console.Write($"Ignoring {trades[t].Description}...");
