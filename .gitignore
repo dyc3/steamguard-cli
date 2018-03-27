@@ -3,3 +3,5 @@ bin/
 obj/
 .idea/
 SteamAuth/SteamAuth/packages/
+
+*.deb
