@@ -64,7 +64,7 @@ namespace SteamGuard
 			// If there's no manifest, create it
 			if (!File.Exists(maFile))
 			{
-				if (Program.Verbose) Console.WriteLine("warn: No manifest file found at {0}", maFile);
+				Utils.Verbose("warn: No manifest file found at {0}", maFile);
 				bool? createNewManifest = Program.SteamGuardPath ==
 										  Program.defaultSteamGuardPath.Replace("~", Environment.GetEnvironmentVariable("HOME")) ? true : (bool?) null;
 				while (createNewManifest == null)
@@ -95,6 +95,7 @@ namespace SteamGuard
 
 				_manifest.RecomputeExistingEntries();
 
+				Utils.Verbose($"{_manifest.Entries.Count} accounts loaded");
 				return _manifest;
 			}
 			catch (Exception ex)
@@ -106,7 +107,7 @@ namespace SteamGuard
 
 		private static Manifest _generateNewManifest(bool scanDir = false)
 		{
-			if (Program.Verbose) Console.WriteLine("Generating new manifest...");
+			Utils.Verbose("Generating new manifest...");
 
 			// No directory means no manifest file anyways.
 			Manifest newManifest = new Manifest();
@@ -143,7 +144,7 @@ namespace SteamGuard
 						}
 						catch (Exception ex)
 						{
-							if (Program.Verbose) Console.WriteLine("warn: {0}", ex.Message);
+							Utils.Verbose("warn: {0}", ex.Message);
 						}
 					}
 
@@ -249,9 +250,10 @@ namespace SteamGuard
 			Stream stream = null;
 			RijndaelManaged aes256;
 
+			string filename = Path.Combine(Program.SteamGuardPath, entry.Filename);
 			if (this.Encrypted)
 			{
-				MemoryStream ms = new MemoryStream(Convert.FromBase64String(File.ReadAllText(Path.Combine(Program.SteamGuardPath, entry.Filename))));
+				MemoryStream ms = new MemoryStream(Convert.FromBase64String(File.ReadAllText(filename)));
 				byte[] key = GetEncryptionKey(passKey, entry.Salt);
 
 				aes256 = new RijndaelManaged
@@ -264,14 +266,14 @@ namespace SteamGuard
 
 				ICryptoTransform decryptor = aes256.CreateDecryptor(aes256.Key, aes256.IV);
 				stream = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+				Utils.Verbose($"Decrypting {filename}...");
 			}
 			else
 			{
-				FileStream fileStream = File.OpenRead(Path.Combine(Program.SteamGuardPath, entry.Filename));
+				FileStream fileStream = File.OpenRead(filename);
 				stream = fileStream;
 			}
 
-			if (Program.Verbose) Console.WriteLine("Decrypting...");
 			using (StreamReader reader = new StreamReader(stream))
 			{
 				fileText = reader.ReadToEnd();
@@ -325,7 +327,7 @@ namespace SteamGuard
 			string jsonAccount = JsonConvert.SerializeObject(account);
 
 			string filename = account.Session.SteamID.ToString() + ".maFile";
-			if (Program.Verbose) Console.WriteLine($"Saving account {account.AccountName} to {filename}...");
+			Utils.Verbose($"Saving account {account.AccountName} to {filename}...");
 
 			ManifestEntry newEntry = new ManifestEntry()
 			{
@@ -406,7 +408,7 @@ namespace SteamGuard
 			}
 			catch (Exception ex)
 			{
-				if (Program.Verbose) Console.WriteLine("error: {0}", ex.ToString());
+				Utils.Verbose("error: {0}", ex.ToString());
 				return false;
 			}
 		}
@@ -418,12 +420,12 @@ namespace SteamGuard
 			{
 				try
 				{
-					if (Program.Verbose) Console.WriteLine("Creating {0}", Program.SteamGuardPath);
+					Utils.Verbose("Creating {0}", Program.SteamGuardPath);
 					Directory.CreateDirectory(Program.SteamGuardPath);
 				}
 				catch (Exception ex)
 				{
-					if (Program.Verbose) Console.WriteLine($"error: {ex.Message}");
+					Utils.Verbose($"error: {ex.Message}");
 					return false;
 				}
 			}
@@ -436,7 +438,7 @@ namespace SteamGuard
 			}
 			catch (Exception ex)
 			{
-				if (Program.Verbose) Console.WriteLine($"error: {ex.Message}");
+				Utils.Verbose($"error: {ex.Message}");
 				return false;
 			}
 		}

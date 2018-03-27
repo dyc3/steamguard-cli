@@ -137,13 +137,13 @@ namespace SteamGuard
 				}
 			}
 
-			if (Verbose)
+			Utils.Verbose($"Action: {action}");
+			if (user.Length > 0)
 			{
-				Console.WriteLine($"Action: {action}");
-				Console.WriteLine($"User: {user}");
-				Console.WriteLine($"Passkey: {passkey}");
-				Console.WriteLine($"maFiles path: {SteamGuardPath}");
+				Utils.Verbose($"User: {user}");
 			}
+			Utils.Verbose($"Passkey: {passkey.Length > 0 ? "[specified]" : "[not specified]" }");
+			Utils.Verbose($"maFiles path: {SteamGuardPath}");
 
 			// Perform desired action
 			switch (action)
@@ -273,14 +273,14 @@ namespace SteamGuard
 				{
 					if (account.AccountName.ToLower() == user.ToLower())
 					{
-						Utils.Verbose("Generating Code...");
+						Utils.Verbose("Generating code for {0}...", account.AccountName);
 						code = account.GenerateSteamGuardCode();
 						break;
 					}
 				}
 				else
 				{
-					Utils.Verbose("Generating Code for {0}...", account.AccountName);
+					Utils.Verbose("Generating code for {0}...", account.AccountName);
 					code = account.GenerateSteamGuardCode();
 					break;
 				}
