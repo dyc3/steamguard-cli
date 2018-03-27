@@ -21,5 +21,18 @@ namespace SteamGuard
 			Console.WriteLine();
 			return p.StandardOutput.ReadToEnd().Trim();
 		}
+
+		public static void Verbose(object obj)
+		{
+			Verbose(obj.ToString(), null);
+		}
+
+		public static void Verbose(string format, params object[] arg)
+		{
+			if (Program.Verbose)
+			{
+				Console.WriteLine(format, arg);
+			}
+		}
 	}
 }

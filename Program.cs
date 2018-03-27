@@ -127,7 +127,7 @@ namespace SteamGuard
 			{
 				if (SteamGuardPath == defaultSteamGuardPath.Replace("~", Environment.GetEnvironmentVariable("HOME")))
 				{
-					if (Verbose) Console.WriteLine("warn: {0} does not exist, creating...", SteamGuardPath);
+					Utils.Verbose("warn: {0} does not exist, creating...", SteamGuardPath);
 					Directory.CreateDirectory(SteamGuardPath);
 				}
 				else
@@ -242,11 +242,11 @@ namespace SteamGuard
 
 		static void GenerateCode(string user = "", string passkey = "")
 		{
-			if (Verbose) Console.WriteLine("Aligning time...");
+			Utils.Verbose("Aligning time...");
 			TimeAligner.AlignTime();
-			if (Verbose) Console.WriteLine("Opening manifest...");
+			Utils.Verbose("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
-			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+			Utils.Verbose("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
 				if (string.IsNullOrEmpty(passkey))
@@ -264,7 +264,7 @@ namespace SteamGuard
 				Console.WriteLine("error: No accounts read.");
 				return;
 			}
-			if (Verbose) Console.WriteLine("Selecting account...");
+			Utils.Verbose("Selecting account...");
 			string code = "";
 			for (int i = 0; i < SteamGuardAccounts.Length; i++)
 			{
@@ -273,14 +273,14 @@ namespace SteamGuard
 				{
 					if (account.AccountName.ToLower() == user.ToLower())
 					{
-						if (Verbose) Console.WriteLine("Generating Code...");
+						Utils.Verbose("Generating Code...");
 						code = account.GenerateSteamGuardCode();
 						break;
 					}
 				}
 				else
 				{
-					if (Verbose) Console.WriteLine("Generating Code for {0}...", account.AccountName);
+					Utils.Verbose("Generating Code for {0}...", account.AccountName);
 					code = account.GenerateSteamGuardCode();
 					break;
 				}
@@ -294,9 +294,9 @@ namespace SteamGuard
 		static bool Encrypt(string passkey = "")
 		{
 			// NOTE: in this context, `passkey` refers to the old passkey, if there was one
-			if (Verbose) Console.WriteLine("Opening manifest...");
+			Utils.Verbose("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
-			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+			Utils.Verbose("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
 				if (string.IsNullOrEmpty(passkey))
@@ -318,7 +318,7 @@ namespace SteamGuard
 				var salt = Manifest.GetRandomSalt();
 				var iv = Manifest.GetInitializationVector();
 				bool success = Manifest.SaveAccount(account, true, newPassKey, salt, iv);
-				if (Verbose) Console.WriteLine("Encrypted {0}: {1}", account.AccountName, success);
+				Utils.Verbose("Encrypted {0}: {1}", account.AccountName, success);
 				if (!success) return false;
 			}
 			return true;
@@ -326,9 +326,9 @@ namespace SteamGuard
 
 		static bool Decrypt(string passkey = "")
 		{
-			if (Verbose) Console.WriteLine("Opening manifest...");
+			Utils.Verbose("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
-			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+			Utils.Verbose("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
 				if (string.IsNullOrEmpty(passkey))
@@ -339,7 +339,7 @@ namespace SteamGuard
 			}
 			else
 			{
-				if (Verbose) Console.WriteLine("Decryption not required.");
+				Utils.Verbose("Decryption not required.");
 				return true;
 			}
 
@@ -347,7 +347,7 @@ namespace SteamGuard
 			{
 				var account = SteamGuardAccounts[i];
 				bool success = Manifest.SaveAccount(account, false);
-				if (Verbose) Console.WriteLine("Decrypted {0}: {1}", account.AccountName, success);
+				Utils.Verbose("Decrypted {0}: {1}", account.AccountName, success);
 				if (!success) return false;
 			}
 			return true;
@@ -355,7 +355,7 @@ namespace SteamGuard
 
 		static void Setup(string username = "", string passkey = "")
 		{
-			if (Verbose) Console.WriteLine("Opening manifest...");
+			Utils.Verbose("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
 
 			if (string.IsNullOrWhiteSpace(username))
@@ -473,7 +473,7 @@ namespace SteamGuard
 				string smsCode = Console.ReadLine();
 
 				finalizeResponse = linker.FinalizeAddAuthenticator(smsCode);
-				if (Verbose) Console.WriteLine(finalizeResponse);
+				Utils.Verbose(finalizeResponse);
 
 				switch (finalizeResponse)
 				{
@@ -515,9 +515,9 @@ namespace SteamGuard
 
 		static void Trade(string user = "", string passkey = "")
 		{
-			if (Verbose) Console.WriteLine("Opening manifest...");
+			Utils.Verbose("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
-			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+			Utils.Verbose("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
 				if (string.IsNullOrEmpty(passkey))
@@ -555,15 +555,15 @@ namespace SteamGuard
 
 		static void processConfirmations(SteamGuardAccount account)
 		{
-			if (Verbose) Console.WriteLine("Refeshing Session...");
+			Utils.Verbose("Refeshing Session...");
 			if (account.RefreshSession())
 			{
-				if (Verbose) Console.WriteLine("Session refreshed");
+				Utils.Verbose("Session refreshed");
 				Manifest.SaveAccount(account, Manifest.Encrypted);
 			}
 			else
 			{
-				if (Verbose) Console.WriteLine("Failed to refresh session");
+				Utils.Verbose("Failed to refresh session");
 				Console.WriteLine("Your Steam credentials have expired. For trade and market confirmations to work properly, please login again.");
 				string username = account.AccountName;
 				Console.WriteLine($"Username: {username}");
@@ -576,7 +576,7 @@ namespace SteamGuard
 				if (loginResult == LoginResult.Need2FA && !string.IsNullOrEmpty(account.SharedSecret))
 				{
 					// if we need a 2fa code, and we can generate it, generate a 2fa code and log in.
-					if (Verbose) Console.WriteLine(loginResult);
+					Utils.Verbose(loginResult);
 					TimeAligner.AlignTime();
 					login.TwoFactorCode = account.GenerateSteamGuardCode();
 					if (Verbose) Console.Write($"Logging in {username}... ");
@@ -590,7 +590,7 @@ namespace SteamGuard
 
 				if (account.RefreshSession())
 				{
-					if (Verbose) Console.WriteLine("Session refreshed");
+					Utils.Verbose("Session refreshed");
 					Manifest.SaveAccount(account, Manifest.Encrypted);
 				}
 				else
@@ -710,16 +710,16 @@ namespace SteamGuard
 					default:
 						throw new ArgumentOutOfRangeException();
 				}
-				if (Verbose) Console.WriteLine(success);
+				Utils.Verbose(success);
 			}
 			Console.WriteLine("Done.");
 		}
 
 		static void AcceptAllTrades(string user = "", string passkey = "")
 		{
-			if (Verbose) Console.WriteLine("Opening manifest...");
+			Utils.Verbose("Opening manifest...");
 			Manifest = Manifest.GetManifest(true);
-			if (Verbose) Console.WriteLine("Reading accounts from manifest...");
+			Utils.Verbose("Reading accounts from manifest...");
 			if (Manifest.Encrypted)
 			{
 				if (string.IsNullOrEmpty(passkey))
@@ -744,13 +744,13 @@ namespace SteamGuard
 				if ((user != "" && account.AccountName.ToLower() == user.ToLower()) || user == "")
 				{
 					Console.WriteLine($"Accepting Confirmations on {account.AccountName}");
-					if (Verbose) Console.WriteLine("Refeshing Session...");
+					Utils.Verbose("Refeshing Session...");
 					account.RefreshSession();
-					if (Verbose) Console.WriteLine("Fetching Confirmations...");
+					Utils.Verbose("Fetching Confirmations...");
 					var tradesTask = account.FetchConfirmationsAsync();
 					tradesTask.Wait();
 					Confirmation[] confirmations = tradesTask.Result;
-					if (Verbose) Console.WriteLine("Accepting Confirmations...");
+					Utils.Verbose("Accepting Confirmations...");
 					account.AcceptMultipleConfirmations(confirmations);
 					if (user != "")
 					{
