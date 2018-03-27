@@ -553,6 +553,44 @@ namespace SteamGuard
 			Ignore = -1
 		}
 
+		static bool promptRefreshSession(SteamGuardAccount account)
+		{
+			Console.WriteLine("Your Steam credentials have expired. For trade and market confirmations to work properly, please login again.");
+			string username = account.AccountName;
+			Console.WriteLine($"Username: {username}");
+			Console.Write("Password: ");
+			var password = Console.ReadLine();
+
+			UserLogin login = new UserLogin(username, password);
+			Console.Write($"Logging in {username}... ");
+			LoginResult loginResult = login.DoLogin();
+			if (loginResult == LoginResult.Need2FA && !string.IsNullOrEmpty(account.SharedSecret))
+			{
+				// if we need a 2fa code, and we can generate it, generate a 2fa code and log in.
+				Utils.Verbose(loginResult);
+				TimeAligner.AlignTime();
+				login.TwoFactorCode = account.GenerateSteamGuardCode();
+				if (Verbose) Console.Write($"Logging in {username}... ");
+				loginResult = login.DoLogin();
+			}
+			Console.WriteLine(loginResult);
+			if (loginResult == LoginResult.LoginOkay)
+			{
+				account.Session = login.Session;
+			}
+
+			if (account.RefreshSession())
+			{
+				Utils.Verbose("Session refreshed");
+				Manifest.SaveAccount(account, Manifest.Encrypted);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
 		static void processConfirmations(SteamGuardAccount account)
 		{
 			Utils.Verbose("Refeshing Session...");
@@ -563,40 +601,10 @@ namespace SteamGuard
 			}
 			else
 			{
-				Utils.Verbose("Failed to refresh session");
-				Console.WriteLine("Your Steam credentials have expired. For trade and market confirmations to work properly, please login again.");
-				string username = account.AccountName;
-				Console.WriteLine($"Username: {username}");
-				Console.Write("Password: ");
-				var password = Console.ReadLine();
-
-				UserLogin login = new UserLogin(username, password);
-				Console.Write($"Logging in {username}... ");
-				LoginResult loginResult = login.DoLogin();
-				if (loginResult == LoginResult.Need2FA && !string.IsNullOrEmpty(account.SharedSecret))
-				{
-					// if we need a 2fa code, and we can generate it, generate a 2fa code and log in.
-					Utils.Verbose(loginResult);
-					TimeAligner.AlignTime();
-					login.TwoFactorCode = account.GenerateSteamGuardCode();
-					if (Verbose) Console.Write($"Logging in {username}... ");
-					loginResult = login.DoLogin();
-				}
-				Console.WriteLine(loginResult);
-				if (loginResult == LoginResult.LoginOkay)
-				{
-					account.Session = login.Session;
-				}
-
-				if (account.RefreshSession())
-				{
-					Utils.Verbose("Session refreshed");
-					Manifest.SaveAccount(account, Manifest.Encrypted);
-				}
-				else
+				Utils.Verbose("Failed to refresh session, prompting user...");
+				if (!promptRefreshSession(account))
 				{
 					Console.WriteLine("Failed to refresh session, aborting...");
-					return;
 				}
 			}
 			Console.WriteLine("Retrieving trade confirmations...");
@@ -745,7 +753,19 @@ namespace SteamGuard
 				{
 					Console.WriteLine($"Accepting Confirmations on {account.AccountName}");
 					Utils.Verbose("Refeshing Session...");
-					account.RefreshSession();
+					if (account.RefreshSession())
+					{
+						Utils.Verbose("Session refreshed");
+						Manifest.SaveAccount(account, Manifest.Encrypted);
+					}
+					else
+					{
+						Utils.Verbose("Failed to refresh session, prompting user...");
+						if (!promptRefreshSession(account))
+						{
+							Console.WriteLine("Failed to refresh session, aborting...");
+						}
+					}
 					Utils.Verbose("Fetching Confirmations...");
 					var tradesTask = account.FetchConfirmationsAsync();
 					tradesTask.Wait();
