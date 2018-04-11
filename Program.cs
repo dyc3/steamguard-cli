@@ -661,7 +661,7 @@ namespace SteamGuard
 
 					Console.ForegroundColor = t == selected ? colorSelected : itemColor;
 
-					Console.WriteLine($"  [{t}] [{tradeActions[t]}] {trades[t].Description}");
+					Console.WriteLine($"  [{t}] [{tradeActions[t]}] {trades[t].ConfType} {trades[t].Creator}");
 				}
 				var key = Console.ReadKey();
 				switch (key.Key)
@@ -704,15 +704,15 @@ namespace SteamGuard
 				switch (tradeActions[t])
 				{
 					case TradeAction.Accept:
-						if (Verbose) Console.Write($"Accepting {trades[t].Description}...");
+						if (Verbose) Console.Write($"Accepting {trades[t].ConfType} {trades[t].Creator}...");
 						success = account.AcceptConfirmation(trades[t]);
 						break;
 					case TradeAction.Deny:
-						if (Verbose) Console.Write($"Denying {trades[t].Description}...");
+						if (Verbose) Console.Write($"Denying {trades[t].ConfType} {trades[t].Creator}...");
 						success = account.DenyConfirmation(trades[t]);
 						break;
 					case TradeAction.Ignore:
-						if (Verbose) Console.Write($"Ignoring {trades[t].Description}...");
+						if (Verbose) Console.Write($"Ignoring {trades[t].ConfType} {trades[t].Creator}...");
 						success = true;
 						break;
 					default:
