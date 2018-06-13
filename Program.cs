@@ -540,7 +540,7 @@ namespace SteamGuard
 			{
 				if (user != "")
 					if (!string.Equals(account.AccountName, user, StringComparison.CurrentCultureIgnoreCase))
-						break;
+						continue;
 
 				processConfirmations(account);
 			}
