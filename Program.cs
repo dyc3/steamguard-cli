@@ -538,10 +538,11 @@ namespace SteamGuard
 
 			foreach (var account in SteamGuardAccounts)
 			{
-				if ((account.AccountName.ToLower() == user.ToLower()) || user == "")
-				{
-					processConfirmations(account);
-				}
+				if (user != "")
+					if (!string.Equals(account.AccountName, user, StringComparison.CurrentCultureIgnoreCase))
+						continue;
+
+				processConfirmations(account);
 			}
 		}
 
