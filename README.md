@@ -29,6 +29,34 @@ To run the current build quickly:
 
     make run
 
+## macOS
+
+Building on macOS is pretty simple. Make sure you have all the prerequisites listed above.
+
+* For the prerequisites the easiest way to install them is to use [homebrew](https://brew.sh/):
+
+    brew update
+    brew install mono
+    brew install nuget
+
+* For the application source code:
+
+    git clone --recursive https://github.com/dyc3/steamguard-cli.git
+    cd steamguard-cli
+    make -f makefile.macos
+
+To run the current build:
+
+    mono build/steamguard
+
+To run the current build quickly:
+
+    make -f makefile.macos run
+
+To install run:
+
+    make -f makefile.macos install
+
 ## Windows
 Coming soon...
 
