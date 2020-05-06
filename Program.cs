@@ -567,7 +567,7 @@ namespace SteamGuard
 				Utils.Verbose(loginResult);
 				TimeAligner.AlignTime();
 				login.TwoFactorCode = account.GenerateSteamGuardCode();
-				if (Verbose) Console.Write($"Logging in {username}... ");
+				Utils.Verbose($"Logging in {username}... ");
 				loginResult = login.DoLogin();
 			}
 			Console.WriteLine(loginResult);
