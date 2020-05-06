@@ -188,13 +188,10 @@ namespace SteamGuard
 			};
 			var actions = new Dictionary<string, string>
 			{
-				{ "generate-code", "Generate a Steam Guard code for the specified user (if any) and exit. (default)" },
+				{ "code", "Generate a Steam Guard code for the specified user (if any) and exit. (default)" },
 				{ "encrypt", "Encrypt your maFiles or change your encryption passkey." },
 				{ "decrypt", "Remove encryption from your maFiles." },
-				{ "code", "Same as generate-code" },
-				{ "2fa", "Same as generate-code" },
 				{ "add", "Set up Steam Guard for 2 factor authentication." },
-				{ "setup", "Same as add" },
 				{ "trade", "Opens an interactive prompt to handle trade confirmations." },
 				{ "accept-all", "Accepts all trade confirmations." }
 			};
