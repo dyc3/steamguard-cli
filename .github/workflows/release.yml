@@ -29,6 +29,7 @@ jobs:
         git -c user.name="Github Actions" -c user.email="dyc3@users.noreply.github.com" commit -m "Update version" AssemblyInfo.cs
     - name: Build
       run: |
+        nuget restore SteamAuth/SteamAuth/SteamAuth.sln
         make
         mv build steamguard-cli-v${{ github.event.inputs.version }}
         tar -cf steamguard-cli-v${{ github.event.inputs.version }}.tar.gz steamguard-cli-v${{ github.event.inputs.version }}
