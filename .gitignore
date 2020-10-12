@@ -3,5 +3,6 @@ bin/
 obj/
 .idea/
 SteamAuth/SteamAuth/packages/
+test_maFiles/
 
 *.deb

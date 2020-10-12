@@ -364,29 +364,40 @@ namespace SteamGuard
 			var password = Utils.ReadLineSecure();
 
 			UserLogin login = new UserLogin(username, password);
-			string emailCode = null, twoFactorCode = null;
-			while (true)
+			LoginResult loginResult;
+			do
 			{
-				login.EmailCode = emailCode;
-				login.TwoFactorCode = twoFactorCode;
 				Console.Write($"Logging in {username}... ");
-				LoginResult loginResult = login.DoLogin();
+				loginResult = login.DoLogin();
 				Console.WriteLine(loginResult);
-				if (loginResult == LoginResult.NeedEmail)
+				switch (loginResult)
 				{
-					Console.Write("Email code: ");
-					emailCode = Console.ReadLine();
-					continue;
+					case LoginResult.NeedEmail:
+						Console.Write("Email code: ");
+						login.EmailCode = Console.ReadLine();
+						break;
+					case LoginResult.Need2FA:
+						Console.Write("2FA code: ");
+						login.TwoFactorCode = Console.ReadLine();
+						break;
+					case LoginResult.NeedCaptcha:
+						Console.WriteLine($"Please open: https://steamcommunity.com/public/captcha.php?gid={login.CaptchaGID}");
+						Console.Write("Captcha text: ");
+						login.CaptchaText = Console.ReadLine();
+						break;
+					case LoginResult.BadCredentials:
+						Console.WriteLine("error: Bad Credentials");
+						return;
+					case LoginResult.TooManyFailedLogins:
+						Console.WriteLine("error: Too many failed logins. Wait a bit before trying again.");
+						return;
+					case LoginResult.LoginOkay:
+						break;
+					default:
+						Console.WriteLine($"Unknown login result: {loginResult}");
+						break;
 				}
-				else if (loginResult == LoginResult.Need2FA)
-				{
-					Console.Write("2FA code: ");
-					twoFactorCode = Console.ReadLine();
-					continue;
-				}
-				if (!login.LoggedIn) return;
-				break;
-			}
+			} while (loginResult != LoginResult.LoginOkay);
 
 			AuthenticatorLinker linker = new AuthenticatorLinker(login.Session);
 			AuthenticatorLinker.LinkResult linkResult = AuthenticatorLinker.LinkResult.GeneralFailure;
@@ -406,6 +417,10 @@ namespace SteamGuard
 							phonenumber = FilterPhoneNumber(phonenumber);
 							linker.PhoneNumber = phonenumber;
 						} while (!PhoneNumberOkay(phonenumber));
+						break;
+					case AuthenticatorLinker.LinkResult.MustConfirmEmail:
+						Console.WriteLine("Check your email. Before continuing, click the link in the email to confirm your phone number. Press enter to continue...");
+						Console.ReadLine();
 						break;
 					case AuthenticatorLinker.LinkResult.MustRemovePhoneNumber:
 						linker.PhoneNumber = null;
