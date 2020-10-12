@@ -418,6 +418,10 @@ namespace SteamGuard
 							linker.PhoneNumber = phonenumber;
 						} while (!PhoneNumberOkay(phonenumber));
 						break;
+					case AuthenticatorLinker.LinkResult.MustConfirmEmail:
+						Console.WriteLine("Check your email. Before continuing, click the link in the email to confirm your phone number. Press enter to continue...");
+						Console.ReadLine();
+						break;
 					case AuthenticatorLinker.LinkResult.MustRemovePhoneNumber:
 						linker.PhoneNumber = null;
 						break;
