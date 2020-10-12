@@ -49,6 +49,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build]
     steps:
+    - name: Checkout
+      uses: actions/checkout@v2.3.3
     - name: Download Build Artifact (tar)
       uses: actions/download-artifact@v2.0.5
       with:
@@ -64,6 +66,7 @@ jobs:
         path: steamguard-cli_${{ github.event.inputs.version }}-0.deb
   # TODO: update AUR pkgbuild
   draft:
+    # FIXME: the auto drafter doesn't work
     needs: [build, deb-package]
     runs-on: ubuntu-latest
     steps:
