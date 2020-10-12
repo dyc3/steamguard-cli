@@ -19,6 +19,8 @@ jobs:
         bash -c 'git rev-parse "v${{ github.event.inputs.version }}" >/dev/null 2>&1 && exit 2 || exit 0'
     - name: Checkout
       uses: actions/checkout@v2.3.3
+      with:
+        submodules: true
     - name: Install dependencies
       run: sudo apt install nuget mono-complete make
     - name: Update version number, and commit
