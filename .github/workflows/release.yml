@@ -25,8 +25,10 @@ jobs:
       run: sudo apt install nuget mono-complete make
     - name: Update version number, and commit
       run: |
+        git config --global user.name "Github Actions"
+        git config --global user.email "dyc3@users.noreply.github.com"
         sed -ri "s/Version\(\"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\"\)/Version\(\"${{ github.event.inputs.version }}\"\)/g" AssemblyInfo.cs
-        git -c user.name="Github Actions" -c user.email="dyc3@users.noreply.github.com" commit -m "Update version" AssemblyInfo.cs
+        git commit -m "Update version" AssemblyInfo.cs
     - name: Build
       run: |
         nuget restore SteamAuth/SteamAuth/SteamAuth.sln
