@@ -6,3 +6,5 @@ SteamAuth/SteamAuth/packages/
 test_maFiles/
 
 *.deb
+
+target/

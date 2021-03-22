@@ -1,0 +1,11 @@
+[package]
+name = "steamguard-cli"
+version = "0.2.0"
+authors = ["Carson McManus <carson.mcmanus1@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hmac-sha1 = "^0.1"
+base64 = "0.13.0"
