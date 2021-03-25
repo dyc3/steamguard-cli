@@ -192,6 +192,7 @@ impl UserLogin {
 		}
 
 		if login_resp.emailauth_needed {
+			self.steam_id = login_resp.emailsteamid;
 			return LoginResult::NeedEmail;
 		}
 
