@@ -3,16 +3,31 @@ use reqwest::{Url, cookie::CookieStore, header::COOKIE, header::USER_AGENT};
 use rsa::{PublicKey, RSAPublicKey};
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
+use serde::de::{Visitor};
 use rand::rngs::OsRng;
+use std::fmt;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct LoginResponse {
 	success: bool,
+	#[serde(default)]
 	login_complete: bool,
-	oauth_data_string: String,
+	#[serde(default)]
+	oauth: String,
+	#[serde(default)]
+	captcha_needed: bool,
+	#[serde(default)]
+	captcha_gid: String,
+	#[serde(default)]
+	emailsteamid: u64,
+	#[serde(default)]
+	emailauth_needed: bool,
+	#[serde(default)]
+	requires_twofactor: bool,
+	message: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct RsaResponse {
 	success: bool,
 	publickey_exp: String,
@@ -29,6 +44,7 @@ pub enum LoginResult {
 	NeedCaptcha,
 	Need2FA,
 	NeedEmail,
+	TooManyAttempts,
 	OtherFailure,
 }
 
@@ -36,9 +52,12 @@ pub enum LoginResult {
 pub struct UserLogin {
 	pub username: String,
 	pub password: String,
+	pub captcha_required: bool,
+	pub captcha_gid: String,
 	pub captcha_text: String,
 	pub twofactor_code: String,
 	pub email_code: String,
+	pub steam_id: u64,
 
 	cookies: reqwest::cookie::Jar,
 	// cookies: Arc<reqwest::cookie::Jar>,
@@ -50,9 +69,12 @@ impl UserLogin {
 		return UserLogin {
 			username,
 			password,
+			captcha_required: false,
+			captcha_gid: String::from("-1"),
 			captcha_text: String::from(""),
 			twofactor_code: String::from(""),
 			email_code: String::from(""),
+			steam_id: 0,
 			cookies: reqwest::cookie::Jar::default(),
 			// cookies: Arc::<reqwest::cookie::Jar>::new(reqwest::cookie::Jar::default()),
 			client: reqwest::blocking::ClientBuilder::new()
@@ -80,6 +102,10 @@ impl UserLogin {
 	}
 
 	pub fn login(&self) -> LoginResult {
+		if self.captcha_required && self.captcha_text.len() == 0 {
+			return LoginResult::NeedCaptcha;
+		}
+
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
 		if self.cookies.cookies(&url) == Option::None {
 			self.update_session()
@@ -95,6 +121,7 @@ impl UserLogin {
 			.unwrap();
 
 		let encrypted_password: String;
+		let rsa_timestamp: String;
 		match resp.json::<RsaResponse>() {
 			Ok(rsa_resp) => {
 				// println!("rsa: {:?}", rsa_resp);
@@ -106,6 +133,7 @@ impl UserLogin {
 				let padding = rsa::PaddingScheme::new_pkcs1v15_encrypt();
 				encrypted_password = base64::encode(public_key.encrypt(&mut rng, padding, self.password.as_bytes()).unwrap());
 				println!("encrypted_password: {:?}", encrypted_password);
+				rsa_timestamp = rsa_resp.timestamp;
 			}
 			Err(error) => {
 				println!("rsa error: {:?}", error);
@@ -116,8 +144,46 @@ impl UserLogin {
 		let mut params = HashMap::new();
 		params.insert("donotcache", format!("{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() * 1000));
 		params.insert("username", self.username.clone());
+		params.insert("password", encrypted_password);
+		params.insert("twofactorcode", self.twofactor_code.clone());
+		params.insert("emailauth", self.email_code.clone());
+		params.insert("captchagid", self.captcha_gid.clone());
+		params.insert("captcha_text", self.captcha_text.clone());
+		params.insert("rsatimestamp", rsa_timestamp);
+		params.insert("remember_login", String::from("true"));
+		params.insert("oauth_client_id", String::from("DE45CD61"));
+		params.insert("oauth_scope", String::from("read_profile write_profile read_client write_client"));
 
-		return LoginResult::OtherFailure
+		let login_resp: LoginResponse;
+		match self.client
+			.post("https://steamcommunity.com/login/dologin")
+			.form(&params)
+			.send() {
+				Ok(resp) => {
+					// println!("login resp: {:?}", &resp.text());
+					match resp.json::<LoginResponse>() {
+						Ok(lr) => {
+							println!("login resp: {:?}", lr);
+							login_resp = lr;
+						}
+						Err(error) => {
+							println!("login parse error: {:?}", error);
+							return LoginResult::OtherFailure;
+						}
+					}
+				}
+				Err(error) => {
+					println!("login request error: {:?}", error);
+					return LoginResult::OtherFailure;
+				}
+		}
+
+		if login_resp.message.contains("too many login") {
+			return LoginResult::TooManyAttempts;
+		}
+
+
+		return LoginResult::OtherFailure;
 	}
 }
 
