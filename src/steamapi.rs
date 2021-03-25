@@ -182,6 +182,26 @@ impl UserLogin {
 			return LoginResult::TooManyAttempts;
 		}
 
+		if login_resp.message.contains("Incorrect login") {
+			return LoginResult::BadCredentials;
+		}
+
+		if login_resp.captcha_needed {
+			return LoginResult::NeedCaptcha;
+		}
+
+		if login_resp.emailauth_needed {
+			return LoginResult::NeedEmail;
+		}
+
+		if login_resp.requires_twofactor {
+			return LoginResult::Need2FA;
+		}
+
+		if !login_resp.login_complete {
+			return LoginResult::BadCredentials;
+		}
+
 
 		return LoginResult::OtherFailure;
 	}
