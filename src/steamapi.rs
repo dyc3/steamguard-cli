@@ -101,9 +101,9 @@ impl UserLogin {
 			.send();
 	}
 
-	pub fn login(&self) -> LoginResult {
+	pub fn login(&mut self) -> LoginResult {
 		if self.captcha_required && self.captcha_text.len() == 0 {
-			return LoginResult::NeedCaptcha{captcha_gid: self.captcha_gid};
+			return LoginResult::NeedCaptcha{captcha_gid: self.captcha_gid.clone()};
 		}
 
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -187,12 +187,12 @@ impl UserLogin {
 		}
 
 		if login_resp.captcha_needed {
-			self.captcha_gid = login_resp.captcha_gid;
-			return LoginResult::NeedCaptcha{ captcha_gid: self.captcha_gid };
+			self.captcha_gid = login_resp.captcha_gid.clone();
+			return LoginResult::NeedCaptcha{ captcha_gid: self.captcha_gid.clone() };
 		}
 
 		if login_resp.emailauth_needed {
-			self.steam_id = login_resp.emailsteamid;
+			self.steam_id = login_resp.emailsteamid.clone();
 			return LoginResult::NeedEmail;
 		}
 
@@ -204,7 +204,7 @@ impl UserLogin {
 			return LoginResult::BadCredentials;
 		}
 
-		let oauth: OAuthData = serde_json::from_str(login_resp.oauth).unwrap();
+		let oauth: OAuthData = serde_json::from_str(login_resp.oauth.as_str()).unwrap();
 		let session = self.build_session(oauth);
 
 		return LoginResult::Ok{session};
@@ -222,6 +222,7 @@ impl UserLogin {
 	}
 }
 
+#[derive(Debug, Clone, Deserialize)]
 struct OAuthData {
 	oauth_token: String,
 	steamid: u64,
@@ -230,6 +231,7 @@ struct OAuthData {
 	webcookie: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
 pub struct Session {
 	pub session_id: String,
 	pub steam_login: String,
