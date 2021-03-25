@@ -202,11 +202,40 @@ impl UserLogin {
 			return LoginResult::BadCredentials;
 		}
 
+		let oauth: OAuthData = serde_json::from_str(login_resp.oauth).unwrap();
+		let session = self.build_session(oauth);
 
-		return LoginResult::OtherFailure;
+		return LoginResult::Ok;
+	}
+
+	fn build_session(&self, data: OAuthData) -> Session {
+		return Session{
+			token: data.oauth_token,
+			steam_id: data.steamid,
+			steam_login: format!("{}%7C%7C{}", data.steamid, data.wgtoken),
+			steam_login_secure: format!("{}%7C%7C{}", data.steamid, data.wgtoken_secure),
+			session_id: todo!(),
+			web_cookie: todo!(),
+		};
 	}
 }
 
+struct OAuthData {
+	oauth_token: String,
+	steamid: u64,
+	wgtoken: String,
+	wgtoken_secure: String,
+	webcookie: String,
+}
+
+pub struct Session {
+	pub session_id: String,
+	pub steam_login: String,
+	pub steam_login_secure: String,
+	pub web_cookie: String,
+	pub token: String,
+	pub steam_id: u64,
+}
 
 pub fn get_server_time() -> i64 {
 	let client = reqwest::blocking::Client::new();
