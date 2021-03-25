@@ -38,10 +38,10 @@ struct RsaResponse {
 
 #[derive(Debug)]
 pub enum LoginResult {
-	Ok,
+	Ok{ session: Session },
 	BadRSA,
 	BadCredentials,
-	NeedCaptcha,
+	NeedCaptcha{ captcha_gid: String },
 	Need2FA,
 	NeedEmail,
 	TooManyAttempts,
@@ -103,7 +103,7 @@ impl UserLogin {
 
 	pub fn login(&self) -> LoginResult {
 		if self.captcha_required && self.captcha_text.len() == 0 {
-			return LoginResult::NeedCaptcha;
+			return LoginResult::NeedCaptcha{captcha_gid: self.captcha_gid};
 		}
 
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -187,7 +187,8 @@ impl UserLogin {
 		}
 
 		if login_resp.captcha_needed {
-			return LoginResult::NeedCaptcha;
+			self.captcha_gid = login_resp.captcha_gid;
+			return LoginResult::NeedCaptcha{ captcha_gid: self.captcha_gid };
 		}
 
 		if login_resp.emailauth_needed {
@@ -205,7 +206,7 @@ impl UserLogin {
 		let oauth: OAuthData = serde_json::from_str(login_resp.oauth).unwrap();
 		let session = self.build_session(oauth);
 
-		return LoginResult::Ok;
+		return LoginResult::Ok{session};
 	}
 
 	fn build_session(&self, data: OAuthData) -> Session {
