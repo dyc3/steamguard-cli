@@ -37,7 +37,9 @@ impl Manifest {
 			Ok(file) => {
 				let reader = BufReader::new(file);
 				match serde_json::from_reader(reader) {
-					Ok(manifest) => {
+					Ok(m) => {
+						let mut manifest: Manifest = m;
+						manifest.folder = String::from(path.parent().unwrap().to_str().unwrap());
 						return Ok(manifest);
 					}
 					Err(e) => {
@@ -47,6 +49,29 @@ impl Manifest {
 			}
 			Err(e) => {
 				return Err(Box::new(e));
+			}
+		}
+	}
+
+	pub fn load_accounts(&mut self) {
+		for entry in &self.entries {
+			let path = Path::new(&self.folder).join(&entry.filename);
+			match File::open(path) {
+				Ok(f) => {
+					let reader = BufReader::new(f);
+					match serde_json::from_reader(reader) {
+						Ok(a) => {
+							let account: SteamGuardAccount = a;
+							self.accounts.push(account);
+						}
+						Err(e) => {
+							panic!("invalid json")
+						}
+					}
+				}
+				Err(e) => {
+					panic!(e)
+				}
 			}
 		}
 	}
