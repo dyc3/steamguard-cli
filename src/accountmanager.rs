@@ -3,8 +3,9 @@ use std::io::BufReader;
 use std::path::Path;
 use serde::{Serialize, Deserialize};
 use std::error::Error;
+use steamguard_cli::SteamGuardAccount;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
 	pub encrypted: bool,
 	pub entries: Vec<ManifestEntry>,
@@ -15,8 +16,10 @@ pub struct Manifest {
 	pub auto_confirm_market_transactions: bool,
 	pub auto_confirm_trades: bool,
 
-	// #[serde(skip)]
-	// pub accounts: Vec<SteamGuardAccount>,
+	#[serde(skip)]
+	pub accounts: Vec<SteamGuardAccount>,
+	#[serde(skip)]
+	folder: String, // I wanted to use a Path here, but it was too hard to make it work...
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
