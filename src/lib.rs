@@ -16,8 +16,14 @@ extern crate base64;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SteamGuardAccount {
 	pub account_name: String,
+	pub serial_number: String,
 	pub revocation_code: String,
 	pub shared_secret: String,
+	pub token_gid: String,
+	pub identity_secret: String,
+	pub server_time: u64,
+	pub uri: String,
+	pub fully_enrolled: bool,
 	#[serde(rename = "Session")]
 	pub session: Option<steamapi::Session>,
 }
@@ -51,8 +57,14 @@ impl SteamGuardAccount {
 	pub fn new() -> Self {
 		return SteamGuardAccount{
 			account_name: String::from(""),
+			serial_number: String::from(""),
 			revocation_code: String::from(""),
 			shared_secret: String::from(""),
+			token_gid: String::from(""),
+			identity_secret: String::from(""),
+			server_time: 0,
+			uri: String::from(""),
+			fully_enrolled: false,
 			session: Option::None,
 		}
 	}
