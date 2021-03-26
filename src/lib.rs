@@ -1,4 +1,7 @@
 use std::convert::TryInto;
+use serde::{Serialize, Deserialize};
+
+mod steamapi;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";
 // const COMMUNITY_BASE: String = "https://steamcommunity.com";
@@ -10,11 +13,13 @@ use std::convert::TryInto;
 extern crate hmacsha1;
 extern crate base64;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SteamGuardAccount {
 	pub account_name: String,
 	pub revocation_code: String,
-	pub shared_secret: [u8; 20],
+	pub shared_secret: String,
+	#[serde(rename = "Session")]
+	pub session: Option<steamapi::Session>,
 }
 
 fn build_time_bytes(mut time: i64) -> [u8; 8] {
@@ -47,7 +52,8 @@ impl SteamGuardAccount {
 		return SteamGuardAccount{
 			account_name: String::from(""),
 			revocation_code: String::from(""),
-			shared_secret: [0; 20],
+			shared_secret: String::from(""),
+			session: Option::None,
 		}
 	}
 
@@ -55,8 +61,9 @@ impl SteamGuardAccount {
 		let steam_guard_code_translations: [u8; 26] = [50, 51, 52, 53, 54, 55, 56, 57, 66, 67, 68, 70, 71, 72, 74, 75, 77, 78, 80, 81, 82, 84, 86, 87, 88, 89];
 
 		let time_bytes: [u8; 8] = build_time_bytes(time);
+		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone());
 		// println!("time_bytes: {:?}", time_bytes);
-		let hashed_data = hmacsha1::hmac_sha1(&self.shared_secret, &time_bytes);
+		let hashed_data = hmacsha1::hmac_sha1(&shared_secret, &time_bytes);
 		// println!("hashed_data: {:?}", hashed_data);
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
@@ -84,7 +91,7 @@ mod tests {
 	#[test]
 	fn test_generate_code() {
 		let mut account = SteamGuardAccount::new();
-		account.shared_secret = parse_shared_secret(String::from("zvIayp3JPvtvX/QGHqsqKBk/44s="));
+		account.shared_secret = String::from("zvIayp3JPvtvX/QGHqsqKBk/44s=");
 
 		let code = account.generate_code(1616374841i64);
 		assert_eq!(code, "2F9J5")
