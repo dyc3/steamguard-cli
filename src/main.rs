@@ -31,6 +31,19 @@ fn main() {
 
 	let path = Path::new("test_maFiles/manifest.json");
 	let manifest = accountmanager::Manifest::load(path);
-
 	println!("{:?}", manifest);
+	match manifest {
+		Ok(mut m) => {
+			m.load_accounts();
+			for account in m.accounts {
+				println!("{:?}", account);
+				let server_time = steamapi::get_server_time();
+				let code = account.generate_code(server_time);
+				println!("{}", code);
+			}
+		}
+		Err(e) => {
+			println!("{}", e)
+		}
+	}
 }
