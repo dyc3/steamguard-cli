@@ -231,13 +231,19 @@ struct OAuthData {
 	webcookie: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
+	#[serde(rename = "SessionID")]
 	pub session_id: String,
+	#[serde(rename = "SteamLogin")]
 	pub steam_login: String,
+	#[serde(rename = "SteamLoginSecure")]
 	pub steam_login_secure: String,
+	#[serde(rename = "WebCookie")]
 	pub web_cookie: String,
+	#[serde(rename = "OAuthToken")]
 	pub token: String,
+	#[serde(rename = "SteamID")]
 	pub steam_id: u64,
 }
 
