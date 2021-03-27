@@ -5,6 +5,7 @@ use ::std::*;
 use text_io::read;
 use std::path::Path;
 use clap::{App, Arg, crate_version};
+use log::*;
 
 mod steamapi;
 mod accountmanager;
@@ -40,6 +41,13 @@ fn main() {
 				.short("p")
 				.help("Specify your encryption passkey.")
 		)
+		.arg(
+			Arg::with_name("verbosity")
+				.short("v")
+				.help("Log what is going on verbosely.")
+				.takes_value(false)
+				.multiple(true)
+		)
 		.subcommand(
 			App::new("trade")
 				.about("Interactive interface for trade confirmations")
@@ -52,41 +60,29 @@ fn main() {
 		)
 		.get_matches();
 
-	println!("Hello, world!");
 
-	// let server_time = steamapi::get_server_time();
-	// println!("server time: {}", server_time);
+	let verbosity = matches.occurrences_of("verbosity") as usize + 2;
+	stderrlog::new()
+		.verbosity(verbosity)
+		.module(module_path!()).init().unwrap();
 
-	// let mut account = SteamGuardAccount::new();
-	// account.shared_secret = parse_shared_secret(String::from("K5I0Fmm+sN0yF41vIslTVm+0nPE="));
-
-	// let code = account.generate_code(server_time);
-	// println!("{}", code);
-
-	// print!("Username: ");
-	// let _ = std::io::stdout().flush();
-	// let username: String = read!("{}\n");
-	// let password = rpassword::prompt_password_stdout("Password: ").unwrap();
-	// // println!("{}:{}", username, password);
-	// let login = steamapi::UserLogin::new(username, password);
-	// let result = login.login();
-	// println!("result: {:?}", result);
-
-	let path = Path::new("test_maFiles/manifest.json");
-	let manifest = accountmanager::Manifest::load(path);
-	println!("{:?}", manifest);
-	match manifest {
-		Ok(mut m) => {
-			m.load_accounts();
-			for account in m.accounts {
-				println!("{:?}", account);
-				let server_time = steamapi::get_server_time();
-				let code = account.generate_code(server_time);
-				println!("{}", code);
-			}
+	let path = Path::new(matches.value_of("mafiles-path").unwrap()).join("manifest.json");
+	let mut manifest: accountmanager::Manifest;
+	match accountmanager::Manifest::load(path.as_path()) {
+		Ok(m) => {
+			manifest = m;
 		}
 		Err(e) => {
-			println!("{}", e)
+			error!("Could not load manifest: {}", e);
+			return;
 		}
+	}
+
+	manifest.load_accounts();
+	for account in manifest.accounts {
+		trace!("{:?}", account);
+		let server_time = steamapi::get_server_time();
+		let code = account.generate_code(server_time);
+		println!("{}", code);
 	}
 }

@@ -4,6 +4,7 @@ use std::path::Path;
 use serde::{Serialize, Deserialize};
 use std::error::Error;
 use steamguard_cli::SteamGuardAccount;
+use log::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
@@ -33,6 +34,7 @@ pub struct ManifestEntry {
 
 impl Manifest {
 	pub fn load(path: &Path) -> Result<Manifest, Box<dyn Error>> {
+		debug!("loading manifest: {:?}", &path);
 		match File::open(path) {
 			Ok(file) => {
 				let reader = BufReader::new(file);
@@ -56,6 +58,7 @@ impl Manifest {
 	pub fn load_accounts(&mut self) {
 		for entry in &self.entries {
 			let path = Path::new(&self.folder).join(&entry.filename);
+			debug!("loading account: {:?}", path);
 			match File::open(path) {
 				Ok(f) => {
 					let reader = BufReader::new(f);
@@ -65,12 +68,12 @@ impl Manifest {
 							self.accounts.push(account);
 						}
 						Err(e) => {
-							panic!("invalid json")
+							error!("invalid json: {}", e)
 						}
 					}
 				}
 				Err(e) => {
-					panic!(e)
+					error!("unable to open account: {}", e)
 				}
 			}
 		}

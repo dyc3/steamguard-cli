@@ -18,3 +18,5 @@ rsa = "0.3"
 rand = "0.7.3" # rsa is not compatible with rand 0.8: https://github.com/RustCrypto/RSA/issues/81
 standback = "0.2.17" # required to fix a compilation error on a transient dependency
 clap = "2.33.3"
+log = "0.4.14"
+stderrlog = "0.4"
