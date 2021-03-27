@@ -13,7 +13,7 @@ mod steamapi;
 extern crate hmacsha1;
 extern crate base64;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SteamGuardAccount {
 	pub account_name: String,
 	pub serial_number: String,

@@ -1,4 +1,5 @@
 extern crate rpassword;
+use borrow::BorrowMut;
 use io::Write;
 use steamguard_cli::*;
 use ::std::*;
@@ -26,6 +27,7 @@ fn main() {
 			Arg::with_name("all")
 				.long("all")
 				.short("a")
+				.takes_value(false)
 				.help("Select all accounts in the manifest.")
 		)
 		.arg(
@@ -55,6 +57,7 @@ fn main() {
 					Arg::with_name("accept-all")
 					.short("a")
 					.long("accept-all")
+					.takes_value(false)
 					.help("Accept all open trade confirmations. Does not open interactive interface.")
 				)
 		)
@@ -79,9 +82,30 @@ fn main() {
 	}
 
 	manifest.load_accounts();
-	for account in manifest.accounts {
+	let mut selected_accounts: Vec<SteamGuardAccount> = vec![];
+	if matches.is_present("all") {
+		// manifest.accounts.iter().map(|a| selected_accounts.push(a.b));
+		for account in manifest.accounts {
+			selected_accounts.push(account.clone());
+		}
+	} else {
+		for account in manifest.accounts {
+			if !matches.is_present("username") {
+				selected_accounts.push(account.clone());
+				break;
+			}
+			if matches.value_of("username").unwrap() == account.account_name {
+				selected_accounts.push(account.clone());
+				break;
+			}
+		}
+	}
+
+	debug!("selected accounts: {:?}", selected_accounts.iter().map(|a| a.account_name.clone()).collect::<Vec<String>>());
+
+	let server_time = steamapi::get_server_time();
+	for account in selected_accounts {
 		trace!("{:?}", account);
-		let server_time = steamapi::get_server_time();
 		let code = account.generate_code(server_time);
 		println!("{}", code);
 	}
