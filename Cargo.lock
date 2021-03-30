@@ -1276,6 +1276,7 @@ version = "0.2.0"
 dependencies = [
  "base64",
  "clap",
+ "cookie",
  "hmac-sha1",
  "log",
  "rand 0.7.3",

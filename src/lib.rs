@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use serde::{Serialize, Deserialize};
 
-mod steamapi;
+pub mod steamapi;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";
 // const COMMUNITY_BASE: String = "https://steamcommunity.com";
@@ -12,6 +12,7 @@ mod steamapi;
 
 extern crate hmacsha1;
 extern crate base64;
+extern crate cookie;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SteamGuardAccount {

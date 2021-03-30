@@ -4,11 +4,10 @@ use io::Write;
 use steamguard_cli::*;
 use ::std::*;
 use text_io::read;
-use std::path::Path;
+use std::{io::stdin, path::Path};
 use clap::{App, Arg, crate_version};
 use log::*;
 
-mod steamapi;
 mod accountmanager;
 
 fn main() {
@@ -103,10 +102,55 @@ fn main() {
 
 	debug!("selected accounts: {:?}", selected_accounts.iter().map(|a| a.account_name.clone()).collect::<Vec<String>>());
 
-	let server_time = steamapi::get_server_time();
-	for account in selected_accounts {
-		trace!("{:?}", account);
-		let code = account.generate_code(server_time);
-		println!("{}", code);
+	if matches.is_present("trade") {
+		info!("trade");
+		for account in selected_accounts.iter_mut() {
+			let _ = std::io::stdout().flush();
+			let password = rpassword::prompt_password_stdout("Password: ").unwrap();
+			trace!("password: {}", password);
+			let mut login = steamapi::UserLogin::new(account.account_name.clone(), password);
+			let mut loops = 0;
+			loop {
+				match login.login() {
+					steamapi::LoginResult::Ok(s) => {
+						account.session = Option::Some(s);
+						break;
+					}
+					steamapi::LoginResult::Need2FA => {
+						let server_time = steamapi::get_server_time();
+						login.twofactor_code = account.generate_code(server_time);
+					}
+					steamapi::LoginResult::NeedCaptcha{ captcha_gid } => {
+						// example captchas:
+						// - 3982844815370620954
+						// - 3982844815370767244
+						// - 3982844815370804220
+						// - 3982844815370819607
+						println!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
+						print!("Enter captcha text: ");
+						let _ = std::io::stdout().flush();
+						let mut captcha_text = String::new();
+						stdin().read_line(&mut captcha_text).expect("Did not enter a correct string");
+						login.captcha_text = String::from(captcha_text.strip_suffix('\n').unwrap());
+					}
+					r => {
+						error!("Fatal login result: {:?}", r);
+						return;
+					}
+				}
+				loops += 1;
+				if loops > 2 {
+					error!("Too many loops. Aborting login process, to avoid getting rate limited.");
+					return;
+				}
+			}
+		}
+	} else {
+		let server_time = steamapi::get_server_time();
+		for account in selected_accounts {
+			trace!("{:?}", account);
+			let code = account.generate_code(server_time);
+			println!("{}", code);
+		}
 	}
 }

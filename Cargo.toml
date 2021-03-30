@@ -20,3 +20,4 @@ standback = "0.2.17" # required to fix a compilation error on a transient depend
 clap = "2.33.3"
 log = "0.4.14"
 stderrlog = "0.4"
+cookie = "0.14"
