@@ -141,16 +141,8 @@ impl UserLogin {
 		let rsa_timestamp: String;
 		match resp.json::<RsaResponse>() {
 			Ok(rsa_resp) => {
-				// println!("rsa: {:?}", rsa_resp);
-				let rsa_exponent = rsa::BigUint::parse_bytes(rsa_resp.publickey_exp.as_bytes(), 16).unwrap();
-				let rsa_modulus = rsa::BigUint::parse_bytes(rsa_resp.publickey_mod.as_bytes(), 16).unwrap();
-				let public_key = RSAPublicKey::new(rsa_modulus, rsa_exponent).unwrap();
-				// println!("public key: {:?}", public_key);
-				let mut rng = OsRng;
-				let padding = rsa::PaddingScheme::new_pkcs1v15_encrypt();
-				encrypted_password = base64::encode(public_key.encrypt(&mut rng, padding, self.password.as_bytes()).unwrap());
-				// trace!("encrypted_password: {:?}", encrypted_password);
-				rsa_timestamp = rsa_resp.timestamp;
+				rsa_timestamp = rsa_resp.timestamp.clone();
+				encrypted_password = encrypt_password(rsa_resp, &self.password);
 			}
 			Err(error) => {
 				error!("rsa error: {:?}", error);
@@ -158,10 +150,10 @@ impl UserLogin {
 			}
 		}
 
-		debug!("captchagid: {}", self.captcha_gid);
-		debug!("captcha_text: {}", self.captcha_text);
-		debug!("twofactorcode: {}", self.twofactor_code);
-		debug!("emailauth: {}", self.email_code);
+		trace!("captchagid: {}", self.captcha_gid);
+		trace!("captcha_text: {}", self.captcha_text);
+		trace!("twofactorcode: {}", self.twofactor_code);
+		trace!("emailauth: {}", self.email_code);
 		let mut params = HashMap::new();
 		params.insert("donotcache", format!("{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() * 1000));
 		params.insert("username", self.username.clone());
@@ -344,4 +336,27 @@ pub fn get_server_time() -> i64 {
 	// println!("{}", value["response"]);
 
 	return String::from(value["response"]["server_time"].as_str().unwrap()).parse().unwrap();
+}
+
+fn encrypt_password(rsa_resp: RsaResponse, password: &String) -> String {
+	let rsa_exponent = rsa::BigUint::parse_bytes(rsa_resp.publickey_exp.as_bytes(), 16).unwrap();
+	let rsa_modulus = rsa::BigUint::parse_bytes(rsa_resp.publickey_mod.as_bytes(), 16).unwrap();
+	let public_key = RSAPublicKey::new(rsa_modulus, rsa_exponent).unwrap();
+	let mut rng = OsRng;
+	let padding = rsa::PaddingScheme::new_pkcs1v15_encrypt();
+	let encrypted_password = base64::encode(public_key.encrypt(&mut rng, padding, password.as_bytes()).unwrap());
+	return encrypted_password;
+}
+
+#[test]
+fn test_encrypt_password() {
+	let rsa_resp = RsaResponse{
+		success: true,
+		publickey_exp: String::from("010001"),
+		publickey_mod: String::from("98f9088c1250b17fe19d2b2422d54a1eef0036875301731f11bd17900e215318eb6de1546727c0b7b61b86cefccdcb2f8108c813154d9a7d55631965eece810d4ab9d8a59c486bda778651b876176070598a93c2325c275cb9c17bdbcacf8edc9c18c0c5d59bc35703505ef8a09ed4c62b9f92a3fac5740ce25e490ab0e26d872140e4103d912d1e3958f844264211277ee08d2b4dd3ac58b030b25342bd5c949ae7794e46a8eab26d5a8deca683bfd381da6c305b19868b8c7cd321ce72c693310a6ebf2ecd43642518f825894602f6c239cf193cb4346ce64beac31e20ef88f934f2f776597734bb9eae1ebdf4a453973b6df9d5e90777bffe5db83dd1757b"),
+		timestamp: String::from("asdf"),
+		token_gid: String::from("asdf"),
+	};
+	let result = encrypt_password(rsa_resp, &String::from("kelwleofpsm3n4ofc"));
+	assert_eq!(result.len(), 344); // can't test exact match because the result is different every time (because of OsRng)
 }
