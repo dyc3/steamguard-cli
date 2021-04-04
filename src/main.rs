@@ -7,8 +7,15 @@ use text_io::read;
 use std::{io::stdin, path::Path};
 use clap::{App, Arg, crate_version};
 use log::*;
+use regex::Regex;
 
+#[macro_use]
+extern crate lazy_static;
 mod accountmanager;
+
+lazy_static! {
+	static ref CAPTCHA_VALID_CHARS: Regex = Regex::new("^([A-H]|[J-N]|[P-R]|[T-Z]|[2-4]|[7-9]|[@%&])+$").unwrap();
+}
 
 fn main() {
 	let matches = App::new("steamguard-cli")
@@ -121,17 +128,7 @@ fn main() {
 						login.twofactor_code = account.generate_code(server_time);
 					}
 					steamapi::LoginResult::NeedCaptcha{ captcha_gid } => {
-						// example captchas:
-						// - 3982844815370620954
-						// - 3982844815370767244
-						// - 3982844815370804220
-						// - 3982844815370819607
-						println!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
-						print!("Enter captcha text: ");
-						let _ = std::io::stdout().flush();
-						let mut captcha_text = String::new();
-						stdin().read_line(&mut captcha_text).expect("Did not enter a correct string");
-						login.captcha_text = String::from(captcha_text.strip_suffix('\n').unwrap());
+						login.captcha_text = prompt_captcha_text(&captcha_gid);
 					}
 					r => {
 						error!("Fatal login result: {:?}", r);
@@ -153,4 +150,48 @@ fn main() {
 			println!("{}", code);
 		}
 	}
+}
+
+fn validate_captcha_text(text: &String) -> bool {
+	return CAPTCHA_VALID_CHARS.is_match(text);
+}
+
+#[test]
+fn test_validate_captcha_text() {
+	assert!(validate_captcha_text(&String::from("2WWUA@")));
+	assert!(validate_captcha_text(&String::from("3G8HT2")));
+	assert!(validate_captcha_text(&String::from("3J%@X3")));
+	assert!(validate_captcha_text(&String::from("2GCZ4A")));
+	assert!(validate_captcha_text(&String::from("3G8HT2")));
+	assert!(!validate_captcha_text(&String::from("asd823")));
+	assert!(!validate_captcha_text(&String::from("!PQ4RD")));
+	assert!(!validate_captcha_text(&String::from("1GQ4XZ")));
+	assert!(!validate_captcha_text(&String::from("8GO4XZ")));
+	assert!(!validate_captcha_text(&String::from("IPQ4RD")));
+	assert!(!validate_captcha_text(&String::from("0PT4RD")));
+	assert!(!validate_captcha_text(&String::from("APTSRD")));
+	assert!(!validate_captcha_text(&String::from("AP5TRD")));
+	assert!(!validate_captcha_text(&String::from("AP6TRD")));
+}
+
+/// Prompt the user for text input.
+fn prompt() -> String {
+	let mut text = String::new();
+	let _ = std::io::stdout().flush();
+	stdin().read_line(&mut text).expect("Did not enter a correct string");
+	return String::from(text.strip_suffix('\n').unwrap());
+}
+
+fn prompt_captcha_text(captcha_gid: &String) -> String {
+	println!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
+	let mut captcha_text;
+	loop {
+		print!("Enter captcha text: ");
+		captcha_text = prompt();
+		if captcha_text.len() > 0 && validate_captcha_text(&captcha_text) {
+			break;
+		}
+		warn!("Invalid chars for captcha text found in user's input. Prompting again...");
+	}
+	return captcha_text;
 }
