@@ -1,8 +1,11 @@
 use std::{collections::HashMap, convert::TryInto, thread, time};
 use hmacsha1::hmac_sha1;
+use regex::Regex;
 use reqwest::{Url, cookie::CookieStore, header::{COOKIE, USER_AGENT}};
 use serde::{Serialize, Deserialize};
 use log::*;
+#[macro_use]
+extern crate lazy_static;
 
 pub mod steamapi;
 
@@ -12,6 +15,11 @@ pub mod steamapi;
 // static MOBILEAUTH_GETWGTOKEN: String = MOBILEAUTH_BASE.Replace("%s", "GetWGToken");
 // const TWO_FACTOR_BASE: String = STEAMAPI_BASE + "/ITwoFactorService/%s/v0001";
 // static TWO_FACTOR_TIME_QUERY: String = TWO_FACTOR_BASE.Replace("%s", "QueryTime");
+
+lazy_static! {
+	static ref CONFIRMATION_REGEX: Regex = Regex::new("<div class=\"mobileconf_list_entry\" id=\"conf[0-9]+\" data-confid=\"(\\d+)\" data-key=\"(\\d+)\" data-type=\"(\\d+)\" data-creator=\"(\\d+)\"").unwrap();
+	static ref CONFIRMATION_DESCRIPTION_REGEX: Regex = Regex::new("<div>((Confirm|Trade|Account recovery|Sell -) .+)</div>").unwrap();
+}
 
 extern crate hmacsha1;
 extern crate base64;
@@ -129,31 +137,50 @@ impl SteamGuardAccount {
 		// confirmation details:
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
 		let cookies = reqwest::cookie::Jar::default();
-		let session_id = self.session.clone().unwrap().session_id;
-		let cookie_val = format!("sessionid={}", session_id);
-		cookies.add_cookie_str(cookie_val.as_str(), &url);
+		let session = self.session.clone().unwrap();
+		let session_id = session.session_id;
+		cookies.add_cookie_str("mobileClientVersion=0 (2.1.3)", &url);
+		cookies.add_cookie_str("mobileClient=android", &url);
+		cookies.add_cookie_str("Steam_Language=english", &url);
+		cookies.add_cookie_str("dob=", &url);
+		cookies.add_cookie_str(format!("sessionid={}", session_id).as_str(), &url);
+		cookies.add_cookie_str(format!("steamid={}", session.steam_id).as_str(), &url);
+		cookies.add_cookie_str(format!("steamLogin={}", session.steam_login).as_str(), &url);
+		cookies.add_cookie_str(format!("steamLoginSecure={}", session.steam_login_secure).as_str(), &url);
 		let client = reqwest::blocking::ClientBuilder::new()
+			.cookie_store(true)
 			.build()
 			.unwrap();
 
-		loop {
-			match client
-				.get("https://steamcommunity.com/mobileconf/conf".parse::<Url>().unwrap())
-				.header("X-Requested-With", "com.valvesoftware.android.steam.community")
-				.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
-				.header(COOKIE, cookies.cookies(&url).unwrap())
-				.query(&self.get_confirmation_query_params("conf"))
-				.send() {
-					Ok(resp) => {
-						info!("{:?}", resp);
-						break;
-					}
-					Err(e) => {
-						error!("error: {:?}", e);
-						thread::sleep(time::Duration::from_secs(3));
+		match client
+			.get("https://steamcommunity.com/mobileconf/conf".parse::<Url>().unwrap())
+			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
+			.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
+			.header(COOKIE, cookies.cookies(&url).unwrap())
+			.query(&self.get_confirmation_query_params("conf"))
+			.send() {
+				Ok(resp) => {
+					trace!("{:?}", resp);
+					let text = resp.text().unwrap();
+					trace!("text: {:?}", text);
+					match CONFIRMATION_REGEX.captures(text.as_str()) {
+						Some(caps) => {
+							let conf_id = &caps[1];
+							let conf_key = &caps[2];
+							let conf_type = &caps[3];
+							let conf_creator = &caps[4];
+							debug!("{} {} {} {}", conf_id, conf_key, conf_type, conf_creator);
+						}
+						_ => {
+							info!("No confirmations");
+						}
 					}
 				}
-		}
+				Err(e) => {
+					error!("error: {:?}", e);
+					return;
+				}
+			}
 	}
 }
 
