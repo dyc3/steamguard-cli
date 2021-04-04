@@ -141,6 +141,9 @@ fn main() {
 					return;
 				}
 			}
+
+			info!("Checking for trade confirmations");
+			account.get_trade_confirmations();
 		}
 	} else {
 		let server_time = steamapi::get_server_time();

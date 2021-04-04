@@ -104,7 +104,7 @@ impl UserLogin {
 		self.cookies.add_cookie_str("mobileClient=android", &url);
 		self.cookies.add_cookie_str("Steam_Language=english", &url);
 
-		let _ = self.client
+		let resp = self.client
 			.get("https://steamcommunity.com/login?oauth_client_id=DE45CD61&oauth_scope=read_profile%20write_profile%20read_client%20write_client".parse::<Url>().unwrap())
 			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
 			.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
@@ -113,6 +113,7 @@ impl UserLogin {
 			// .header(COOKIE, "Steam_Language=english")
 			.header(COOKIE, self.cookies.cookies(&url).unwrap())
 			.send();
+		trace!("{:?}", resp);
 
 		trace!("cookies: {:?}", self.cookies);
 	}
