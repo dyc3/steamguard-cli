@@ -42,8 +42,6 @@ pub struct SteamGuardAccount {
 }
 
 fn build_time_bytes(mut time: i64) -> [u8; 8] {
-	time /= 30i64;
-
 	let mut bytes: [u8; 8] = [0; 8];
 	for i in (0..8).rev() {
 		bytes[i] = time as u8;
@@ -66,6 +64,16 @@ pub fn parse_shared_secret(secret: String) -> [u8; 20] {
 	}
 }
 
+fn generate_confirmation_hash_for_time(time: i64, tag: &str, identity_secret: &String) -> String {
+	let decode: &[u8] = &base64::decode(&identity_secret).unwrap();
+	let time_bytes = build_time_bytes(time);
+	let tag_bytes = tag.as_bytes();
+	let array = [&time_bytes, tag_bytes].concat();
+	let hash = hmac_sha1(decode, &array);
+	let encoded = base64::encode(hash);
+	return encoded;
+}
+
 impl SteamGuardAccount {
 	pub fn new() -> Self {
 		return SteamGuardAccount{
@@ -86,7 +94,7 @@ impl SteamGuardAccount {
 	pub fn generate_code(&self, time: i64) -> String {
 		let steam_guard_code_translations: [u8; 26] = [50, 51, 52, 53, 54, 55, 56, 57, 66, 67, 68, 70, 71, 72, 74, 75, 77, 78, 80, 81, 82, 84, 86, 87, 88, 89];
 
-		let time_bytes: [u8; 8] = build_time_bytes(time);
+		let time_bytes: [u8; 8] = build_time_bytes(time / 30i64);
 		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone());
 		// println!("time_bytes: {:?}", time_bytes);
 		let hashed_data = hmacsha1::hmac_sha1(&shared_secret, &time_bytes);
@@ -115,21 +123,11 @@ impl SteamGuardAccount {
 		let mut params = HashMap::new();
 		params.insert("p", self.device_id.clone());
 		params.insert("a", session.steam_id.to_string());
-		params.insert("k", self.generate_confirmation_hash_for_time(time, tag));
+		params.insert("k", generate_confirmation_hash_for_time(time, tag, &self.identity_secret));
 		params.insert("t", time.to_string());
 		params.insert("m", String::from("android"));
 		params.insert("tag", String::from(tag));
 		return params;
-	}
-
-	fn generate_confirmation_hash_for_time(&self, time: i64, tag: &str) -> String {
-		let decode: &[u8] = &base64::decode(&self.identity_secret).unwrap();
-		let time_bytes = build_time_bytes(time);
-		let tag_bytes = tag.as_bytes();
-		let array = [&time_bytes, tag_bytes].concat();
-		let hash = hmac_sha1(decode, &array);
-		let encoded = base64::encode(hash);
-		return encoded;
 	}
 
 	pub fn get_trade_confirmations(&self) {
@@ -163,6 +161,14 @@ impl SteamGuardAccount {
 					trace!("{:?}", resp);
 					let text = resp.text().unwrap();
 					trace!("text: {:?}", text);
+					println!("{}", text);
+					// possible errors:
+					//
+					// Invalid authenticator:
+					// <div>Invalid authenticator</div>
+					// <div>It looks like your Steam Guard Mobile Authenticator is providing incorrect Steam Guard codes. This could be caused by an inaccurate clock or bad timezone settings on your device. If your time settings are correct, it could be that a different device has been set up to provide the Steam Guard codes for your account, which means the authenticator on this device is no longer valid.</div>
+					//
+					// <div>Nothing to confirm</div>
 					match CONFIRMATION_REGEX.captures(text.as_str()) {
 						Some(caps) => {
 							let conf_id = &caps[1];
@@ -195,5 +201,10 @@ mod tests {
 
 		let code = account.generate_code(1616374841i64);
 		assert_eq!(code, "2F9J5")
+	}
+
+	#[test]
+	fn test_generate_confirmation_hash_for_time() {
+		assert_eq!(generate_confirmation_hash_for_time(1617591917, "conf", &String::from("GQP46b73Ws7gr8GmZFR0sDuau5c=")), String::from("NaL8EIMhfy/7vBounJ0CvpKbrPk="));
 	}
 }
