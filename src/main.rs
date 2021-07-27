@@ -128,10 +128,22 @@ fn main() {
 		info!("trade");
 		for a in selected_accounts.iter_mut() {
 			let mut account = a; // why is this necessary?
-			do_login(&mut account);
 
 			info!("Checking for trade confirmations");
-			account.get_trade_confirmations();
+			loop {
+				match account.get_trade_confirmations() {
+					Ok(confs) => {
+						for conf in confs {
+							println!("{}", conf);
+						}
+						break;
+					}
+					Err(_) => {
+						info!("failed to get trade confirmations, asking user to log in");
+						do_login(&mut account);
+					}
+				}
+			}
 		}
 	} else {
 		let server_time = steamapi::get_server_time();

@@ -130,7 +130,7 @@ impl SteamGuardAccount {
 		return params;
 	}
 
-	pub fn get_trade_confirmations(&self) {
+	pub fn get_trade_confirmations(&self) -> Result<Vec<String>, reqwest::Error> {
 		// uri: "https://steamcommunity.com/mobileconf/conf"
 		// confirmation details:
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -175,16 +175,18 @@ impl SteamGuardAccount {
 							let conf_key = &caps[2];
 							let conf_type = &caps[3];
 							let conf_creator = &caps[4];
-							debug!("{} {} {} {}", conf_id, conf_key, conf_type, conf_creator);
+							debug!("conf_id={} conf_key={} conf_type={} conf_creator={}", conf_id, conf_key, conf_type, conf_creator);
+							return Ok(vec![format!("conf_id={} conf_key={} conf_type={} conf_creator={}", conf_id, conf_key, conf_type, conf_creator)]);
 						}
 						_ => {
 							info!("No confirmations");
+							return Ok(vec![]);
 						}
-					}
+					};
 				}
 				Err(e) => {
 					error!("error: {:?}", e);
-					return;
+					return Err(e);
 				}
 			}
 	}
