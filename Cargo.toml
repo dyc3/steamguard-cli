@@ -23,3 +23,4 @@ stderrlog = "0.4"
 cookie = "0.14"
 regex = "1"
 lazy_static = "1.4.0"
+uuid = { version = "0.8", features = ["v4"] }
