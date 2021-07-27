@@ -1,6 +1,7 @@
 extern crate rpassword;
 use borrow::BorrowMut;
 use io::Write;
+use steamapi::Session;
 use steamguard_cli::*;
 use ::std::*;
 use text_io::read;
@@ -12,6 +13,7 @@ use regex::Regex;
 #[macro_use]
 extern crate lazy_static;
 mod accountmanager;
+mod accountlinker;
 
 lazy_static! {
 	static ref CAPTCHA_VALID_CHARS: Regex = Regex::new("^([A-H]|[J-N]|[P-R]|[T-Z]|[2-4]|[7-9]|[@%&])+$").unwrap();
@@ -67,6 +69,10 @@ fn main() {
 					.help("Accept all open trade confirmations. Does not open interactive interface.")
 				)
 		)
+		.subcommand(
+			App::new("setup")
+			.about("Set up a new account with steamguard-cli")
+		)
 		.get_matches();
 
 
@@ -88,6 +94,15 @@ fn main() {
 	}
 
 	manifest.load_accounts();
+
+	if matches.is_present("setup") {
+		info!("setup");
+		let mut linker = accountlinker::AccountLinker::new();
+		do_login(&mut linker.account);
+		// linker.link(linker.account.session.expect("no login session"));
+		return;
+	}
+
 	let mut selected_accounts: Vec<SteamGuardAccount> = vec![];
 	if matches.is_present("all") {
 		// manifest.accounts.iter().map(|a| selected_accounts.push(a.b));
@@ -111,36 +126,9 @@ fn main() {
 
 	if matches.is_present("trade") {
 		info!("trade");
-		for account in selected_accounts.iter_mut() {
-			let _ = std::io::stdout().flush();
-			let password = rpassword::prompt_password_stdout("Password: ").unwrap();
-			trace!("password: {}", password);
-			let mut login = steamapi::UserLogin::new(account.account_name.clone(), password);
-			let mut loops = 0;
-			loop {
-				match login.login() {
-					steamapi::LoginResult::Ok(s) => {
-						account.session = Option::Some(s);
-						break;
-					}
-					steamapi::LoginResult::Need2FA => {
-						let server_time = steamapi::get_server_time();
-						login.twofactor_code = account.generate_code(server_time);
-					}
-					steamapi::LoginResult::NeedCaptcha{ captcha_gid } => {
-						login.captcha_text = prompt_captcha_text(&captcha_gid);
-					}
-					r => {
-						error!("Fatal login result: {:?}", r);
-						return;
-					}
-				}
-				loops += 1;
-				if loops > 2 {
-					error!("Too many loops. Aborting login process, to avoid getting rate limited.");
-					return;
-				}
-			}
+		for a in selected_accounts.iter_mut() {
+			let mut account = a; // why is this necessary?
+			do_login(&mut account);
 
 			info!("Checking for trade confirmations");
 			account.get_trade_confirmations();
@@ -197,4 +185,52 @@ fn prompt_captcha_text(captcha_gid: &String) -> String {
 		warn!("Invalid chars for captcha text found in user's input. Prompting again...");
 	}
 	return captcha_text;
+}
+
+fn do_login(account: &mut SteamGuardAccount) {
+	if account.account_name.len() > 0 {
+		println!("Username: {}", account.account_name);
+	} else {
+		print!("Username: ");
+		account.account_name = prompt();
+	}
+	let _ = std::io::stdout().flush();
+	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
+	if password.len() > 0 {
+		debug!("password is present");
+	} else {
+		debug!("password is empty");
+	}
+	// TODO: reprompt if password is empty
+	let mut login = steamapi::UserLogin::new(account.account_name.clone(), password);
+	let mut loops = 0;
+	loop {
+		match login.login() {
+			steamapi::LoginResult::Ok(s) => {
+				account.session = Option::Some(s);
+				break;
+			}
+			steamapi::LoginResult::Need2FA => {
+				let server_time = steamapi::get_server_time();
+				login.twofactor_code = account.generate_code(server_time);
+			}
+			steamapi::LoginResult::NeedCaptcha{ captcha_gid } => {
+				login.captcha_text = prompt_captcha_text(&captcha_gid);
+			}
+			steamapi::LoginResult::NeedEmail => {
+				println!("You should have received an email with a code.");
+				print!("Enter code");
+				login.email_code = prompt();
+			}
+			r => {
+				error!("Fatal login result: {:?}", r);
+				return;
+			}
+		}
+		loops += 1;
+		if loops > 2 {
+			error!("Too many loops. Aborting login process, to avoid getting rate limited.");
+			return;
+		}
+	}
 }
