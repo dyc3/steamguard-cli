@@ -124,7 +124,7 @@ fn main() {
 
 	debug!("selected accounts: {:?}", selected_accounts.iter().map(|a| a.account_name.clone()).collect::<Vec<String>>());
 
-	if matches.is_present("trade") {
+	if let Some(trade_matches) = matches.subcommand_matches("trade") {
 		info!("trade");
 		for a in selected_accounts.iter_mut() {
 			let mut account = a; // why is this necessary?
@@ -133,8 +133,15 @@ fn main() {
 			loop {
 				match account.get_trade_confirmations() {
 					Ok(confs) => {
-						for conf in confs {
+						for conf in &confs {
 							println!("{}", conf.description());
+						}
+						if trade_matches.is_present("accept-all") {
+							info!("accepting all confirmations");
+							for conf in &confs {
+								let result = account.accept_confirmation(conf);
+								debug!("accept confirmation result: {:?}", result);
+							}
 						}
 						break;
 					}

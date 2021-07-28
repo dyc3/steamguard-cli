@@ -211,7 +211,7 @@ impl SteamGuardAccount {
 	///
 	/// Host: https://steamcommunity.com
 	/// Steam Endpoint: `POST /mobileconf/ajaxop`
-	fn send_confirmation_ajax(&self, conf: Confirmation, operation: String) -> anyhow::Result<()> {
+	fn send_confirmation_ajax(&self, conf: &Confirmation, operation: String) -> anyhow::Result<()> {
 		ensure!(operation == "allow" || operation == "cancel");
 
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -240,6 +240,14 @@ impl SteamGuardAccount {
 
 		ensure!(resp.success);
 		Ok(())
+	}
+
+	pub fn accept_confirmation(&self, conf: &Confirmation) -> anyhow::Result<()> {
+		self.send_confirmation_ajax(conf, "allow".into())
+	}
+
+	pub fn deny_confirmation(&self, conf: &Confirmation) -> anyhow::Result<()> {
+		self.send_confirmation_ajax(conf, "cancel".into())
 	}
 }
 
