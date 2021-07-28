@@ -186,7 +186,6 @@ impl SteamGuardAccount {
 								conf_type: conf_type,
 								creator: conf_creator,
 								int_type: 0,
-								description: "".into(),
 							}]);
 						}
 						_ => {

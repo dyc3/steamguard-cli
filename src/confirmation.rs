@@ -1,5 +1,5 @@
 /// A mobile confirmation. There are multiple things that can be confirmed, like trade offers.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Confirmation {
 	pub id: u64,
 	pub key: u64,
@@ -8,7 +8,13 @@ pub struct Confirmation {
 	/// Trade offer ID or market transaction ID
 	pub creator: u64,
 	pub conf_type: ConfirmationType,
-	pub description: String,
+}
+
+impl Confirmation {
+	/// Human readable representation of this confirmation.
+	pub fn description(&self) -> String {
+		format!("{:?} id={} key={}", self.conf_type, self.id, self.key)
+	}
 }
 
 #[derive(Debug, Clone, Copy)]

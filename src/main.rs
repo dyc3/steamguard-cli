@@ -134,7 +134,7 @@ fn main() {
 				match account.get_trade_confirmations() {
 					Ok(confs) => {
 						for conf in confs {
-							println!("{:?}", conf);
+							println!("{}", conf.description());
 						}
 						break;
 					}
