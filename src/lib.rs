@@ -1,4 +1,5 @@
 use std::{collections::HashMap, convert::TryInto, thread, time};
+use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
 use regex::Regex;
 use reqwest::{Url, cookie::CookieStore, header::{COOKIE, USER_AGENT}};
@@ -6,8 +7,11 @@ use serde::{Serialize, Deserialize};
 use log::*;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate anyhow;
 
 pub mod steamapi;
+mod confirmation;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";
 // const COMMUNITY_BASE: String = "https://steamcommunity.com";
@@ -130,7 +134,7 @@ impl SteamGuardAccount {
 		return params;
 	}
 
-	pub fn get_trade_confirmations(&self) -> Result<Vec<String>, reqwest::Error> {
+	pub fn get_trade_confirmations(&self) -> Result<Vec<Confirmation>, anyhow::Error> {
 		// uri: "https://steamcommunity.com/mobileconf/conf"
 		// confirmation details:
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -171,12 +175,19 @@ impl SteamGuardAccount {
 					// <div>Nothing to confirm</div>
 					match CONFIRMATION_REGEX.captures(text.as_str()) {
 						Some(caps) => {
-							let conf_id = &caps[1];
-							let conf_key = &caps[2];
-							let conf_type = &caps[3];
-							let conf_creator = &caps[4];
-							debug!("conf_id={} conf_key={} conf_type={} conf_creator={}", conf_id, conf_key, conf_type, conf_creator);
-							return Ok(vec![format!("conf_id={} conf_key={} conf_type={} conf_creator={}", conf_id, conf_key, conf_type, conf_creator)]);
+							let conf_id = caps[1].parse()?;
+							let conf_key = caps[2].parse()?;
+							let conf_type = caps[3].try_into().unwrap_or(ConfirmationType::Unknown);
+							let conf_creator = caps[4].parse()?;
+							debug!("conf_id={} conf_key={} conf_type={:?} conf_creator={}", conf_id, conf_key, conf_type, conf_creator);
+							return Ok(vec![Confirmation {
+								id: conf_id,
+								key: conf_key,
+								conf_type: conf_type,
+								creator: conf_creator,
+								int_type: 0,
+								description: "".into(),
+							}]);
 						}
 						_ => {
 							info!("No confirmations");
@@ -186,7 +197,7 @@ impl SteamGuardAccount {
 				}
 				Err(e) => {
 					error!("error: {:?}", e);
-					return Err(e);
+					bail!(e);
 				}
 			}
 	}
