@@ -1,4 +1,5 @@
 use std::{collections::HashMap, convert::TryInto, thread, time};
+use anyhow::Result;
 use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
 use regex::Regex;
@@ -134,9 +135,7 @@ impl SteamGuardAccount {
 		return params;
 	}
 
-	pub fn get_trade_confirmations(&self) -> Result<Vec<Confirmation>, anyhow::Error> {
-		// uri: "https://steamcommunity.com/mobileconf/conf"
-		// confirmation details:
+	fn build_cookie_jar(&self) -> reqwest::cookie::Jar {
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
 		let cookies = reqwest::cookie::Jar::default();
 		let session = self.session.clone().unwrap();
@@ -149,10 +148,17 @@ impl SteamGuardAccount {
 		cookies.add_cookie_str(format!("steamid={}", session.steam_id).as_str(), &url);
 		cookies.add_cookie_str(format!("steamLogin={}", session.steam_login).as_str(), &url);
 		cookies.add_cookie_str(format!("steamLoginSecure={}", session.steam_login_secure).as_str(), &url);
+		return cookies;
+	}
+
+	pub fn get_trade_confirmations(&self) -> Result<Vec<Confirmation>, anyhow::Error> {
+		// uri: "https://steamcommunity.com/mobileconf/conf"
+		// confirmation details:
+		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
+		let cookies = self.build_cookie_jar();
 		let client = reqwest::blocking::ClientBuilder::new()
 			.cookie_store(true)
-			.build()
-			.unwrap();
+			.build()?;
 
 		match client
 			.get("https://steamcommunity.com/mobileconf/conf".parse::<Url>().unwrap())
@@ -199,6 +205,41 @@ impl SteamGuardAccount {
 					bail!(e);
 				}
 			}
+	}
+
+	/// Respond to a confirmation.
+	///
+	/// Host: https://steamcommunity.com
+	/// Steam Endpoint: `POST /mobileconf/ajaxop`
+	fn send_confirmation_ajax(&self, conf: Confirmation, operation: String) -> anyhow::Result<()> {
+		ensure!(operation == "allow" || operation == "cancel");
+
+		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
+		let cookies = self.build_cookie_jar();
+		let client = reqwest::blocking::ClientBuilder::new()
+			.cookie_store(true)
+			.build()?;
+
+		let mut query_params = self.get_confirmation_query_params("conf");
+		query_params.insert("op", operation);
+		query_params.insert("cid", conf.id.to_string());
+		query_params.insert("ck", conf.key.to_string());
+
+		#[derive(Debug, Clone, Copy, Deserialize)]
+		struct SendConfirmationResponse {
+			pub success: bool
+		}
+
+		let resp: SendConfirmationResponse = client.get("https://steamcommunity.com/mobileconf/ajaxop".parse::<Url>().unwrap())
+			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
+			.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
+			.header(COOKIE, cookies.cookies(&url).unwrap())
+			.query(&query_params)
+			.send()?
+			.json()?;
+
+		ensure!(resp.success);
+		Ok(())
 	}
 }
 
