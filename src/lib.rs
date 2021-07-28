@@ -210,7 +210,7 @@ impl SteamGuardAccount {
 	/// Respond to a confirmation.
 	///
 	/// Host: https://steamcommunity.com
-	/// Steam Endpoint: `POST /mobileconf/ajaxop`
+	/// Steam Endpoint: `GET /mobileconf/ajaxop`
 	fn send_confirmation_ajax(&self, conf: &Confirmation, operation: String) -> anyhow::Result<()> {
 		ensure!(operation == "allow" || operation == "cancel");
 
@@ -248,6 +248,34 @@ impl SteamGuardAccount {
 
 	pub fn deny_confirmation(&self, conf: &Confirmation) -> anyhow::Result<()> {
 		self.send_confirmation_ajax(conf, "cancel".into())
+	}
+
+	/// Steam Endpoint: `GET /mobileconf/details/:id`
+	pub fn get_confirmation_details(&self, conf: &Confirmation) -> anyhow::Result<String> {
+		#[derive(Debug, Clone, Deserialize)]
+		struct ConfirmationDetailsResponse {
+			pub success: bool,
+			pub html: String,
+		}
+
+		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
+		let cookies = self.build_cookie_jar();
+		let client = reqwest::blocking::ClientBuilder::new()
+			.cookie_store(true)
+			.build()?;
+
+		let query_params = self.get_confirmation_query_params("details");
+
+		let resp: ConfirmationDetailsResponse = client.get(format!("https://steamcommunity.com/mobileconf/details/{}", conf.id).parse::<Url>().unwrap())
+			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
+			.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
+			.header(COOKIE, cookies.cookies(&url).unwrap())
+			.query(&query_params)
+			.send()?
+			.json()?;
+
+		ensure!(resp.success);
+		Ok(resp.html)
 	}
 }
 
