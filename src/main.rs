@@ -1,14 +1,18 @@
 extern crate rpassword;
 use borrow::BorrowMut;
-use io::Write;
+use collections::HashSet;
+use io::{Write, stdout};
 use steamapi::Session;
 use steamguard_cli::*;
+use termion::{color::Color, raw::IntoRawMode, screen::AlternateScreen};
 use ::std::*;
 use text_io::read;
-use std::{io::stdin, path::Path};
+use std::{convert::TryInto, io::stdin, path::Path, sync::Arc};
 use clap::{App, Arg, crate_version};
 use log::*;
 use regex::Regex;
+use termion::event::{Key, Event};
+use termion::input::{TermRead};
 
 #[macro_use]
 extern crate lazy_static;
@@ -73,6 +77,14 @@ fn main() {
 			App::new("setup")
 			.about("Set up a new account with steamguard-cli")
 		)
+		.subcommand(
+			App::new("debug")
+			.arg(
+				Arg::with_name("demo-conf-menu")
+				.help("Show an example confirmation menu using dummy data.")
+				.takes_value(false)
+			)
+		)
 		.get_matches();
 
 
@@ -80,6 +92,13 @@ fn main() {
 	stderrlog::new()
 		.verbosity(verbosity)
 		.module(module_path!()).init().unwrap();
+
+	if let Some(demo_matches) = matches.subcommand_matches("debug") {
+		if demo_matches.is_present("demo-conf-menu") {
+			demo_confirmation_menu();
+		}
+		return;
+	}
 
 	let path = Path::new(matches.value_of("mafiles-path").unwrap()).join("manifest.json");
 	let mut manifest: accountmanager::Manifest;
@@ -144,9 +163,6 @@ fn main() {
 				}
 			}
 
-			for conf in &confirmations {
-				println!("{}", conf.description());
-			}
 			if trade_matches.is_present("accept-all") {
 				info!("accepting all confirmations");
 				for conf in &confirmations {
@@ -155,7 +171,23 @@ fn main() {
 				}
 			}
 			else {
-				todo!("check atty, show UI for accepting/denying confirmations");
+				if termion::is_tty(&stdout()) {
+					let (accept, deny) = prompt_confirmation_menu(confirmations);
+					for conf in &accept {
+						let result = account.accept_confirmation(conf);
+						debug!("accept confirmation result: {:?}", result);
+					}
+					for conf in &deny {
+						let result = account.deny_confirmation(conf);
+						debug!("deny confirmation result: {:?}", result);
+					}
+				}
+				else {
+					warn!("not a tty, not showing menu");
+					for conf in &confirmations {
+						println!("{}", conf.description());
+					}
+				}
 			}
 		}
 	} else {
@@ -212,6 +244,88 @@ fn prompt_captcha_text(captcha_gid: &String) -> String {
 	return captcha_text;
 }
 
+/// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
+fn prompt_confirmation_menu(confirmations: Vec<Confirmation>) -> (Vec<Confirmation>, Vec<Confirmation>) {
+	println!("press a key other than enter to show the menu.");
+	let mut to_accept_idx: HashSet<usize> = HashSet::new();
+	let mut to_deny_idx: HashSet<usize> = HashSet::new();
+
+	let mut screen = AlternateScreen::from(stdout().into_raw_mode().unwrap());
+	let stdin = stdin();
+
+	let mut selected_idx = 0;
+
+	for c in stdin.events() {
+		match c.expect("could not get events") {
+			Event::Key(Key::Char('a')) => {
+				to_accept_idx.insert(selected_idx);
+				to_deny_idx.remove(&selected_idx);
+			}
+			Event::Key(Key::Char('d')) => {
+				to_accept_idx.remove(&selected_idx);
+				to_deny_idx.insert(selected_idx);
+			}
+			Event::Key(Key::Char('i')) => {
+				to_accept_idx.remove(&selected_idx);
+				to_deny_idx.remove(&selected_idx);
+			}
+			Event::Key(Key::Char('A')) => {
+				(0..confirmations.len()).for_each(|i| { to_accept_idx.insert(i); to_deny_idx.remove(&i); });
+			}
+			Event::Key(Key::Char('D')) => {
+				(0..confirmations.len()).for_each(|i| { to_accept_idx.remove(&i); to_deny_idx.insert(i); });
+			}
+			Event::Key(Key::Char('I')) => {
+				(0..confirmations.len()).for_each(|i| { to_accept_idx.remove(&i); to_deny_idx.remove(&i); });
+			}
+			Event::Key(Key::Up) if selected_idx > 0 => {
+				selected_idx -= 1;
+			}
+			Event::Key(Key::Down) if selected_idx < confirmations.len() - 1 => {
+				selected_idx += 1;
+			}
+			Event::Key(Key::Char('\n')) => {
+				break;
+			}
+			Event::Key(Key::Esc) | Event::Key(Key::Ctrl('c')) => {
+				return (vec![], vec![]);
+			}
+			_ => {}
+		}
+
+		write!(screen, "{}{}{}arrow keys to select, [a]ccept, [d]eny, [i]gnore, [enter] confirm choices\n\n", termion::clear::All, termion::cursor::Goto(1, 1), termion::color::Fg(termion::color::White)).unwrap();
+		for i in 0..confirmations.len() {
+			if selected_idx == i {
+				write!(screen, "\r{} >", termion::color::Fg(termion::color::LightYellow)).unwrap();
+			}
+			else {
+				write!(screen, "\r{}  ", termion::color::Fg(termion::color::White)).unwrap();
+			}
+
+			if to_accept_idx.contains(&i) {
+				write!(screen, "{}[a]", termion::color::Fg(termion::color::LightGreen)).unwrap();
+			}
+			else if to_deny_idx.contains(&i) {
+				write!(screen, "{}[d]", termion::color::Fg(termion::color::LightRed)).unwrap();
+			}
+			else {
+				write!(screen, "[ ]").unwrap();
+			}
+
+			if selected_idx == i {
+				write!(screen, "{}", termion::color::Fg(termion::color::LightYellow)).unwrap();
+			}
+
+			write!(screen, " {}\n", confirmations[i].description()).unwrap();
+		}
+	}
+
+	return (
+		to_accept_idx.iter().map(|i| confirmations[*i]).collect(),
+		to_deny_idx.iter().map(|i| confirmations[*i]).collect(),
+	);
+}
+
 fn do_login(account: &mut SteamGuardAccount) {
 	if account.account_name.len() > 0 {
 		println!("Username: {}", account.account_name);
@@ -258,4 +372,39 @@ fn do_login(account: &mut SteamGuardAccount) {
 			return;
 		}
 	}
+}
+
+fn demo_confirmation_menu() {
+	info!("showing demo menu");
+	let (accept, deny) = prompt_confirmation_menu(vec![
+		Confirmation {
+			id: 1234,
+			key: 12345,
+			conf_type: ConfirmationType::Trade,
+			int_type: 0,
+			creator: 09870987,
+		},
+		Confirmation {
+			id: 1234,
+			key: 12345,
+			conf_type: ConfirmationType::MarketSell,
+			int_type: 0,
+			creator: 09870987,
+		},
+		Confirmation {
+			id: 1234,
+			key: 12345,
+			conf_type: ConfirmationType::AccountRecovery,
+			int_type: 0,
+			creator: 09870987,
+		},
+		Confirmation {
+			id: 1234,
+			key: 12345,
+			conf_type: ConfirmationType::Trade,
+			int_type: 0,
+			creator: 09870987,
+		},
+	]);
+	println!("accept: {}, deny: {}", accept.len(), deny.len());
 }

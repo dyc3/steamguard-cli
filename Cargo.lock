@@ -1307,6 +1307,7 @@ dependencies = [
  "serde_json",
  "standback",
  "stderrlog",
+ "termion",
  "text_io",
  "uuid",
 ]
