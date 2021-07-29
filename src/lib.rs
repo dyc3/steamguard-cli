@@ -1,6 +1,6 @@
 use std::{collections::HashMap, convert::TryInto, thread, time};
 use anyhow::Result;
-use confirmation::{Confirmation, ConfirmationType};
+pub use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
 use regex::Regex;
 use reqwest::{Url, cookie::CookieStore, header::{COOKIE, USER_AGENT}};

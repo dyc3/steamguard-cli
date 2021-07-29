@@ -130,19 +130,11 @@ fn main() {
 			let mut account = a; // why is this necessary?
 
 			info!("Checking for trade confirmations");
+			let confirmations: Vec<Confirmation>;
 			loop {
 				match account.get_trade_confirmations() {
 					Ok(confs) => {
-						for conf in &confs {
-							println!("{}", conf.description());
-						}
-						if trade_matches.is_present("accept-all") {
-							info!("accepting all confirmations");
-							for conf in &confs {
-								let result = account.accept_confirmation(conf);
-								debug!("accept confirmation result: {:?}", result);
-							}
-						}
+						confirmations = confs;
 						break;
 					}
 					Err(_) => {
@@ -150,6 +142,20 @@ fn main() {
 						do_login(&mut account);
 					}
 				}
+			}
+
+			for conf in &confirmations {
+				println!("{}", conf.description());
+			}
+			if trade_matches.is_present("accept-all") {
+				info!("accepting all confirmations");
+				for conf in &confirmations {
+					let result = account.accept_confirmation(conf);
+					debug!("accept confirmation result: {:?}", result);
+				}
+			}
+			else {
+				todo!("check atty, show UI for accepting/denying confirmations");
 			}
 		}
 	} else {
