@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use reqwest::{Url, cookie::{CookieStore}, header::COOKIE, header::{SET_COOKIE, USER_AGENT}};
-use rsa::{PublicKey, RSAPublicKey};
+use rsa::{PublicKey, RsaPublicKey};
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
 use serde::de::{Visitor};
@@ -342,7 +342,7 @@ pub fn get_server_time() -> i64 {
 fn encrypt_password(rsa_resp: RsaResponse, password: &String) -> String {
 	let rsa_exponent = rsa::BigUint::parse_bytes(rsa_resp.publickey_exp.as_bytes(), 16).unwrap();
 	let rsa_modulus = rsa::BigUint::parse_bytes(rsa_resp.publickey_mod.as_bytes(), 16).unwrap();
-	let public_key = RSAPublicKey::new(rsa_modulus, rsa_exponent).unwrap();
+	let public_key = RsaPublicKey::new(rsa_modulus, rsa_exponent).unwrap();
 	let mut rng = OsRng;
 	let padding = rsa::PaddingScheme::new_pkcs1v15_encrypt();
 	let encrypted_password = base64::encode(public_key.encrypt(&mut rng, padding, password.as_bytes()).unwrap());
