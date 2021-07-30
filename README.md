@@ -2,8 +2,6 @@
 A linux utility for setting up and using Steam Mobile Authenticator (AKA Steam 2FA) on the command line.
 **This utility is in beta.**
 
-**We are in the process of rewriting steamguard-cli from scratch in Rust.** Any help would be greatly appreciated! See #55 for discussion. The instructions in this document refer to the C# version.
-
 # Disclaimer
 **Use this software at your own risk.**
 
@@ -66,7 +64,7 @@ Coming soon...
 To install the latest version on Debian-based systems, download the package from the releases section and type
 
     sudo dpkg --install steamguard-cli_x.x.x.x-x.deb
-
+    
 For Archlinux, install [steamguard-cli-git](https://aur.archlinux.org/packages/steamguard-cli-git/) from the AUR.
 
 To install after building from source, run:
