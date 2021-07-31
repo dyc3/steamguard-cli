@@ -3,7 +3,6 @@ use reqwest::{Url, cookie::{CookieStore}, header::COOKIE, header::{SET_COOKIE, U
 use rsa::{PublicKey, RsaPublicKey};
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
-use rand::rngs::OsRng;
 use log::*;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -342,7 +341,7 @@ fn encrypt_password(rsa_resp: RsaResponse, password: &String) -> String {
 	#[cfg(test)]
 	let mut rng = rand::rngs::mock::StepRng::new(2, 1);
 	#[cfg(not(test))]
-	let mut rng = OsRng;
+	let mut rng = rand::rngs::OsRng;
 	let padding = rsa::PaddingScheme::new_pkcs1v15_encrypt();
 	let encrypted_password = base64::encode(public_key.encrypt(&mut rng, padding, password.as_bytes()).unwrap());
 	return encrypted_password;
