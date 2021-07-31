@@ -1,10 +1,8 @@
 /// A mobile confirmation. There are multiple things that can be confirmed, like trade offers.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Confirmation {
 	pub id: u64,
 	pub key: u64,
-	/// Comes from the `data-type` attribute in the HTML
-	pub int_type: i32,
 	/// Trade offer ID or market transaction ID
 	pub creator: u64,
 	pub conf_type: ConfirmationType,
@@ -17,7 +15,7 @@ impl Confirmation {
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfirmationType {
 	Generic = 1,
 	Trade = 2,
