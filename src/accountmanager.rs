@@ -3,7 +3,7 @@ use std::io::BufReader;
 use std::path::Path;
 use serde::{Serialize, Deserialize};
 use std::error::Error;
-use steamguard_cli::SteamGuardAccount;
+use steamguard::SteamGuardAccount;
 use log::*;
 
 #[derive(Debug, Serialize, Deserialize)]

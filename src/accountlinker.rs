@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use reqwest::{Url, cookie::{CookieStore}, header::COOKIE};
 use serde::Deserialize;
 use serde_json::Value;
-use steamguard_cli::{SteamGuardAccount, steamapi::Session};
+use steamguard::{SteamGuardAccount, steamapi::Session};
 use log::*;
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,5 @@
 extern crate rpassword;
-use steamguard_cli::*;
+use steamguard::{SteamGuardAccount, Confirmation, ConfirmationType, steamapi};
 use std::collections::HashSet;
 use std::{io::{Write, stdout, stdin}, path::Path};
 use clap::{App, Arg, crate_version};
