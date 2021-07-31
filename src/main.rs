@@ -1,18 +1,11 @@
 extern crate rpassword;
-use borrow::BorrowMut;
-use collections::HashSet;
-use io::{Write, stdout};
-use steamapi::Session;
 use steamguard_cli::*;
-use termion::{color::Color, raw::IntoRawMode, screen::AlternateScreen};
-use ::std::*;
-use text_io::read;
-use std::{convert::TryInto, io::stdin, path::Path, sync::Arc};
+use std::collections::HashSet;
+use std::{io::{Write, stdout, stdin}, path::Path};
 use clap::{App, Arg, crate_version};
 use log::*;
 use regex::Regex;
-use termion::event::{Key, Event};
-use termion::input::{TermRead};
+use termion::{raw::IntoRawMode, screen::AlternateScreen, event::{Key, Event}, input::{TermRead}};
 
 #[macro_use]
 extern crate lazy_static;
