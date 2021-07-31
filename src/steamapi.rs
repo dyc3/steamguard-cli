@@ -3,9 +3,7 @@ use reqwest::{Url, cookie::{CookieStore}, header::COOKIE, header::{SET_COOKIE, U
 use rsa::{PublicKey, RsaPublicKey};
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
-use serde::de::{Visitor};
 use rand::rngs::OsRng;
-use std::fmt;
 use log::*;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -334,8 +332,6 @@ pub fn get_server_time() -> i64 {
 		.send();
 	let value: serde_json::Value = resp.unwrap().json().unwrap();
 
-	// println!("{}", value["response"]);
-
 	return String::from(value["response"]["server_time"].as_str().unwrap()).parse().unwrap();
 }
 
@@ -343,6 +339,9 @@ fn encrypt_password(rsa_resp: RsaResponse, password: &String) -> String {
 	let rsa_exponent = rsa::BigUint::parse_bytes(rsa_resp.publickey_exp.as_bytes(), 16).unwrap();
 	let rsa_modulus = rsa::BigUint::parse_bytes(rsa_resp.publickey_mod.as_bytes(), 16).unwrap();
 	let public_key = RsaPublicKey::new(rsa_modulus, rsa_exponent).unwrap();
+	#[cfg(test)]
+	let mut rng = rand::rngs::mock::StepRng::new(2, 1);
+	#[cfg(not(test))]
 	let mut rng = OsRng;
 	let padding = rsa::PaddingScheme::new_pkcs1v15_encrypt();
 	let encrypted_password = base64::encode(public_key.encrypt(&mut rng, padding, password.as_bytes()).unwrap());
@@ -359,5 +358,6 @@ fn test_encrypt_password() {
 		token_gid: String::from("asdf"),
 	};
 	let result = encrypt_password(rsa_resp, &String::from("kelwleofpsm3n4ofc"));
-	assert_eq!(result.len(), 344); // can't test exact match because the result is different every time (because of OsRng)
+	assert_eq!(result.len(), 344);
+	assert_eq!(result, "RUo/3IfbkVcJi1q1S5QlpKn1mEn3gNJoc/Z4VwxRV9DImV6veq/YISEuSrHB3885U5MYFLn1g94Y+cWRL6HGXoV+gOaVZe43m7O92RwiVz6OZQXMfAv3UC/jcqn/xkitnj+tNtmx55gCxmGbO2KbqQ0TQqAyqCOOw565B+Cwr2OOorpMZAViv9sKA/G3Q6yzscU6rhua179c8QjC1Hk3idUoSzpWfT4sHNBW/EREXZ3Dkjwu17xzpfwIUpnBVIlR8Vj3coHgUCpTsKVRA3T814v9BYPlvLYwmw5DW3ddx+2SyTY0P5uuog36TN2PqYS7ioF5eDe16gyfRR4Nzn/7wA==");
 }
