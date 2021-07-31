@@ -55,18 +55,10 @@ fn build_time_bytes(mut time: i64) -> [u8; 8] {
 	return bytes
 }
 
-pub fn parse_shared_secret(secret: String) -> [u8; 20] {
-	if secret.len() == 0 {
-		panic!("unable to parse empty shared secret")
-	}
-	match base64::decode(secret) {
-		Result::Ok(v) => {
-			return v.try_into().unwrap()
-		}
-		_ => {
-			panic!("unable to parse shared secret")
-		}
-	}
+pub fn parse_shared_secret(secret: String) -> anyhow::Result<[u8; 20]> {
+	ensure!(secret.len() != 0, "unable to parse empty shared secret");
+	let result = base64::decode(secret)?.try_into();
+	return Ok(result.unwrap());
 }
 
 fn generate_confirmation_hash_for_time(time: i64, tag: &str, identity_secret: &String) -> String {
@@ -100,7 +92,7 @@ impl SteamGuardAccount {
 		let steam_guard_code_translations: [u8; 26] = [50, 51, 52, 53, 54, 55, 56, 57, 66, 67, 68, 70, 71, 72, 74, 75, 77, 78, 80, 81, 82, 84, 86, 87, 88, 89];
 
 		let time_bytes: [u8; 8] = build_time_bytes(time / 30i64);
-		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone());
+		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone()).unwrap();
 		let hashed_data = hmacsha1::hmac_sha1(&shared_secret, &time_bytes);
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
@@ -278,6 +270,13 @@ impl SteamGuardAccount {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn test_build_time_bytes() {
+		let t1 = build_time_bytes(1617591917i64);
+		let t2: [u8; 8] = [0, 0, 0, 0, 96, 106, 126, 109];
+		assert!(t1.iter().zip(t2.iter()).all(|(a,b)| a == b), "Arrays are not equal, got {:?}", t1);
+	}
 
 	#[test]
 	fn test_generate_code() {
