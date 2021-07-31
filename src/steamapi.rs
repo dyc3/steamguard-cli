@@ -10,8 +10,6 @@ struct LoginResponse {
 	success: bool,
 	#[serde(default)]
 	login_complete: bool,
-	// #[serde(default)]
-	// oauth: String,
 	#[serde(default)]
 	captcha_needed: bool,
 	#[serde(default)]
@@ -69,7 +67,6 @@ pub struct UserLogin {
 	pub steam_id: u64,
 
 	cookies: reqwest::cookie::Jar,
-	// cookies: Arc<reqwest::cookie::Jar>,
 	client: reqwest::blocking::Client,
 }
 
@@ -85,7 +82,6 @@ impl UserLogin {
 			email_code: String::from(""),
 			steam_id: 0,
 			cookies: reqwest::cookie::Jar::default(),
-			// cookies: Arc::<reqwest::cookie::Jar>::new(reqwest::cookie::Jar::default()),
 			client: reqwest::blocking::ClientBuilder::new()
 				.cookie_store(true)
 				.build()
@@ -257,7 +253,6 @@ impl UserLogin {
 			}
 		}
 
-		// let oauth: OAuthData = serde_json::from_str(login_resp.oauth.as_str()).unwrap();
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
 		let cookies = self.cookies.cookies(&url).unwrap();
 		let all_cookies = cookies.to_str().unwrap();

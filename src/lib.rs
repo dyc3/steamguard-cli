@@ -101,9 +101,7 @@ impl SteamGuardAccount {
 
 		let time_bytes: [u8; 8] = build_time_bytes(time / 30i64);
 		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone());
-		// println!("time_bytes: {:?}", time_bytes);
 		let hashed_data = hmacsha1::hmac_sha1(&shared_secret, &time_bytes);
-		// println!("hashed_data: {:?}", hashed_data);
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
 		let mut code_point: i32 =
@@ -116,8 +114,6 @@ impl SteamGuardAccount {
 			code_array[i] = steam_guard_code_translations[code_point as usize % steam_guard_code_translations.len()];
 			code_point /= steam_guard_code_translations.len() as i32;
 		}
-
-		// println!("code_array: {:?}", code_array);
 
 		return String::from_utf8(code_array.iter().map(|c| *c).collect()).unwrap()
 	}
