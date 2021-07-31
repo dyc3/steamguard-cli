@@ -3,9 +3,6 @@ use reqwest::{Url, cookie::{CookieStore}, header::COOKIE, header::{SET_COOKIE, U
 use rsa::{PublicKey, RsaPublicKey};
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
-use serde::de::{Visitor};
-use rand::rngs::OsRng;
-use std::fmt;
 use log::*;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -13,8 +10,6 @@ struct LoginResponse {
 	success: bool,
 	#[serde(default)]
 	login_complete: bool,
-	// #[serde(default)]
-	// oauth: String,
 	#[serde(default)]
 	captcha_needed: bool,
 	#[serde(default)]
@@ -50,8 +45,7 @@ struct RsaResponse {
 }
 
 #[derive(Debug)]
-pub enum LoginResult {
-	Ok(Session),
+pub enum LoginError {
 	BadRSA,
 	BadCredentials,
 	NeedCaptcha{ captcha_gid: String },
@@ -73,7 +67,6 @@ pub struct UserLogin {
 	pub steam_id: u64,
 
 	cookies: reqwest::cookie::Jar,
-	// cookies: Arc<reqwest::cookie::Jar>,
 	client: reqwest::blocking::Client,
 }
 
@@ -89,7 +82,6 @@ impl UserLogin {
 			email_code: String::from(""),
 			steam_id: 0,
 			cookies: reqwest::cookie::Jar::default(),
-			// cookies: Arc::<reqwest::cookie::Jar>::new(reqwest::cookie::Jar::default()),
 			client: reqwest::blocking::ClientBuilder::new()
 				.cookie_store(true)
 				.build()
@@ -97,6 +89,7 @@ impl UserLogin {
 		}
 	}
 
+	/// Updates the cookie jar with the session cookies by pinging steam servers.
 	fn update_session(&self) {
 		trace!("UserLogin::update_session");
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -118,10 +111,10 @@ impl UserLogin {
 		trace!("cookies: {:?}", self.cookies);
 	}
 
-	pub fn login(&mut self) -> LoginResult {
+	pub fn login(&mut self) -> anyhow::Result<Session, LoginError> {
 		trace!("UserLogin::login");
 		if self.captcha_required && self.captcha_text.len() == 0 {
-			return LoginResult::NeedCaptcha{captcha_gid: self.captcha_gid.clone()};
+			return Err(LoginError::NeedCaptcha{captcha_gid: self.captcha_gid.clone()});
 		}
 
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -147,7 +140,7 @@ impl UserLogin {
 			}
 			Err(error) => {
 				error!("rsa error: {:?}", error);
-				return LoginResult::BadRSA
+				return Err(LoginError::BadRSA);
 			}
 		}
 
@@ -185,40 +178,40 @@ impl UserLogin {
 						Err(error) => {
 							debug!("login response did not have normal schema");
 							error!("login parse error: {:?}", error);
-							return LoginResult::OtherFailure;
+							return Err(LoginError::OtherFailure);
 						}
 					}
 				}
 				Err(error) => {
 					error!("login request error: {:?}", error);
-					return LoginResult::OtherFailure;
+					return Err(LoginError::OtherFailure);
 				}
 		}
 
 		if login_resp.message.contains("too many login") {
-			return LoginResult::TooManyAttempts;
+			return Err(LoginError::TooManyAttempts);
 		}
 
 		if login_resp.message.contains("Incorrect login") {
-			return LoginResult::BadCredentials;
+			return Err(LoginError::BadCredentials);
 		}
 
 		if login_resp.captcha_needed {
 			self.captcha_gid = login_resp.captcha_gid.clone();
-			return LoginResult::NeedCaptcha{ captcha_gid: self.captcha_gid.clone() };
+			return Err(LoginError::NeedCaptcha{ captcha_gid: self.captcha_gid.clone() });
 		}
 
 		if login_resp.emailauth_needed {
 			self.steam_id = login_resp.emailsteamid.clone();
-			return LoginResult::NeedEmail;
+			return Err(LoginError::NeedEmail);
 		}
 
 		if login_resp.requires_twofactor {
-			return LoginResult::Need2FA;
+			return Err(LoginError::Need2FA);
 		}
 
 		if !login_resp.login_complete {
-			return LoginResult::BadCredentials;
+			return Err(LoginError::BadCredentials);
 		}
 
 
@@ -256,11 +249,10 @@ impl UserLogin {
 			}
 			_ => {
 				error!("did not receive transfer_urls and transfer_parameters");
-				return LoginResult::OtherFailure;
+				return Err(LoginError::OtherFailure);
 			}
 		}
 
-		// let oauth: OAuthData = serde_json::from_str(login_resp.oauth.as_str()).unwrap();
 		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
 		let cookies = self.cookies.cookies(&url).unwrap();
 		let all_cookies = cookies.to_str().unwrap();
@@ -273,7 +265,7 @@ impl UserLogin {
 		trace!("cookies {:?}", cookies);
 		let session = self.build_session(oauth, session_id);
 
-		return LoginResult::Ok(session);
+		return Ok(session);
 	}
 
 	fn build_session(&self, data: OAuthData, session_id: String) -> Session {
@@ -334,8 +326,6 @@ pub fn get_server_time() -> i64 {
 		.send();
 	let value: serde_json::Value = resp.unwrap().json().unwrap();
 
-	// println!("{}", value["response"]);
-
 	return String::from(value["response"]["server_time"].as_str().unwrap()).parse().unwrap();
 }
 
@@ -343,7 +333,10 @@ fn encrypt_password(rsa_resp: RsaResponse, password: &String) -> String {
 	let rsa_exponent = rsa::BigUint::parse_bytes(rsa_resp.publickey_exp.as_bytes(), 16).unwrap();
 	let rsa_modulus = rsa::BigUint::parse_bytes(rsa_resp.publickey_mod.as_bytes(), 16).unwrap();
 	let public_key = RsaPublicKey::new(rsa_modulus, rsa_exponent).unwrap();
-	let mut rng = OsRng;
+	#[cfg(test)]
+	let mut rng = rand::rngs::mock::StepRng::new(2, 1);
+	#[cfg(not(test))]
+	let mut rng = rand::rngs::OsRng;
 	let padding = rsa::PaddingScheme::new_pkcs1v15_encrypt();
 	let encrypted_password = base64::encode(public_key.encrypt(&mut rng, padding, password.as_bytes()).unwrap());
 	return encrypted_password;
@@ -359,5 +352,6 @@ fn test_encrypt_password() {
 		token_gid: String::from("asdf"),
 	};
 	let result = encrypt_password(rsa_resp, &String::from("kelwleofpsm3n4ofc"));
-	assert_eq!(result.len(), 344); // can't test exact match because the result is different every time (because of OsRng)
+	assert_eq!(result.len(), 344);
+	assert_eq!(result, "RUo/3IfbkVcJi1q1S5QlpKn1mEn3gNJoc/Z4VwxRV9DImV6veq/YISEuSrHB3885U5MYFLn1g94Y+cWRL6HGXoV+gOaVZe43m7O92RwiVz6OZQXMfAv3UC/jcqn/xkitnj+tNtmx55gCxmGbO2KbqQ0TQqAyqCOOw565B+Cwr2OOorpMZAViv9sKA/G3Q6yzscU6rhua179c8QjC1Hk3idUoSzpWfT4sHNBW/EREXZ3Dkjwu17xzpfwIUpnBVIlR8Vj3coHgUCpTsKVRA3T814v9BYPlvLYwmw5DW3ddx+2SyTY0P5uuog36TN2PqYS7ioF5eDe16gyfRR4Nzn/7wA==");
 }

@@ -1,14 +1,8 @@
-[workspace]
-
-members = [
-	"steamguard"
-]
-
 [package]
-name = "steamguard-cli"
-version = "0.2.0"
-authors = ["Carson McManus <carson.mcmanus1@gmail.com>"]
+name = "steamguard"
+version = "0.1.0"
 edition = "2018"
+description = "Library for generating 2fa codes for Steam and responding to mobile confirmations."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,20 +10,14 @@ edition = "2018"
 anyhow = "^1.0"
 hmac-sha1 = "^0.1"
 base64 = "0.13.0"
-text_io = "0.1.8"
-rpassword = "5.0"
 reqwest = { version = "0.11", features = ["blocking", "json", "cookies", "gzip"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rsa = "0.5.0"
 rand = "0.8.4"
 standback = "0.2.17" # required to fix a compilation error on a transient dependency
-clap = "2.33.3"
-log = "0.4.14"
-stderrlog = "0.4"
 cookie = "0.14"
 regex = "1"
 lazy_static = "1.4.0"
 uuid = { version = "0.8", features = ["v4"] }
-termion = "1.5.6"
-steamguard = { path = "./steamguard" }
+log = "0.4.14"

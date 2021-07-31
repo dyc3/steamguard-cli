@@ -46,27 +46,14 @@ pub struct SteamGuardAccount {
 	pub session: Option<steamapi::Session>,
 }
 
-fn build_time_bytes(mut time: i64) -> [u8; 8] {
-	let mut bytes: [u8; 8] = [0; 8];
-	for i in (0..8).rev() {
-		bytes[i] = time as u8;
-		time >>= 8;
-	}
-	return bytes
+fn build_time_bytes(time: i64) -> [u8; 8] {
+	return time.to_be_bytes();
 }
 
-pub fn parse_shared_secret(secret: String) -> [u8; 20] {
-	if secret.len() == 0 {
-		panic!("unable to parse empty shared secret")
-	}
-	match base64::decode(secret) {
-		Result::Ok(v) => {
-			return v.try_into().unwrap()
-		}
-		_ => {
-			panic!("unable to parse shared secret")
-		}
-	}
+pub fn parse_shared_secret(secret: String) -> anyhow::Result<[u8; 20]> {
+	ensure!(secret.len() != 0, "unable to parse empty shared secret");
+	let result = base64::decode(secret)?.try_into();
+	return Ok(result.unwrap());
 }
 
 fn generate_confirmation_hash_for_time(time: i64, tag: &str, identity_secret: &String) -> String {
@@ -99,11 +86,10 @@ impl SteamGuardAccount {
 	pub fn generate_code(&self, time: i64) -> String {
 		let steam_guard_code_translations: [u8; 26] = [50, 51, 52, 53, 54, 55, 56, 57, 66, 67, 68, 70, 71, 72, 74, 75, 77, 78, 80, 81, 82, 84, 86, 87, 88, 89];
 
+		// this effectively makes it so that it creates a new code every 30 seconds.
 		let time_bytes: [u8; 8] = build_time_bytes(time / 30i64);
-		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone());
-		// println!("time_bytes: {:?}", time_bytes);
+		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone()).unwrap();
 		let hashed_data = hmacsha1::hmac_sha1(&shared_secret, &time_bytes);
-		// println!("hashed_data: {:?}", hashed_data);
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
 		let mut code_point: i32 =
@@ -116,8 +102,6 @@ impl SteamGuardAccount {
 			code_array[i] = steam_guard_code_translations[code_point as usize % steam_guard_code_translations.len()];
 			code_point /= steam_guard_code_translations.len() as i32;
 		}
-
-		// println!("code_array: {:?}", code_array);
 
 		return String::from_utf8(code_array.iter().map(|c| *c).collect()).unwrap()
 	}
@@ -282,6 +266,13 @@ impl SteamGuardAccount {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn test_build_time_bytes() {
+		let t1 = build_time_bytes(1617591917i64);
+		let t2: [u8; 8] = [0, 0, 0, 0, 96, 106, 126, 109];
+		assert!(t1.iter().zip(t2.iter()).all(|(a,b)| a == b), "Arrays are not equal, got {:?}", t1);
+	}
 
 	#[test]
 	fn test_generate_code() {
