@@ -345,18 +345,18 @@ fn do_login(account: &mut SteamGuardAccount) {
 	let mut loops = 0;
 	loop {
 		match login.login() {
-			steamapi::LoginResult::Ok(s) => {
+			Ok(s) => {
 				account.session = Option::Some(s);
 				break;
 			}
-			steamapi::LoginResult::Need2FA => {
+			Err(steamapi::LoginError::Need2FA) => {
 				let server_time = steamapi::get_server_time();
 				login.twofactor_code = account.generate_code(server_time);
 			}
-			steamapi::LoginResult::NeedCaptcha{ captcha_gid } => {
+			Err(steamapi::LoginError::NeedCaptcha{ captcha_gid }) => {
 				login.captcha_text = prompt_captcha_text(&captcha_gid);
 			}
-			steamapi::LoginResult::NeedEmail => {
+			Err(steamapi::LoginError::NeedEmail) => {
 				println!("You should have received an email with a code.");
 				print!("Enter code");
 				login.email_code = prompt();
