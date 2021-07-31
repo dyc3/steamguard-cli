@@ -46,13 +46,8 @@ pub struct SteamGuardAccount {
 	pub session: Option<steamapi::Session>,
 }
 
-fn build_time_bytes(mut time: i64) -> [u8; 8] {
-	let mut bytes: [u8; 8] = [0; 8];
-	for i in (0..8).rev() {
-		bytes[i] = time as u8;
-		time >>= 8;
-	}
-	return bytes
+fn build_time_bytes(time: i64) -> [u8; 8] {
+	return time.to_be_bytes();
 }
 
 pub fn parse_shared_secret(secret: String) -> anyhow::Result<[u8; 20]> {
