@@ -2,10 +2,10 @@ use std::{collections::HashMap, convert::TryInto, thread, time};
 use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
-use regex::Regex;
 use reqwest::{Url, cookie::CookieStore, header::{COOKIE, USER_AGENT}};
 use serde::{Serialize, Deserialize};
 use log::*;
+use scraper::{Html, Selector};
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -20,11 +20,6 @@ mod confirmation;
 // static MOBILEAUTH_GETWGTOKEN: String = MOBILEAUTH_BASE.Replace("%s", "GetWGToken");
 // const TWO_FACTOR_BASE: String = STEAMAPI_BASE + "/ITwoFactorService/%s/v0001";
 // static TWO_FACTOR_TIME_QUERY: String = TWO_FACTOR_BASE.Replace("%s", "QueryTime");
-
-lazy_static! {
-	static ref CONFIRMATION_REGEX: Regex = Regex::new("<div class=\"mobileconf_list_entry\" id=\"conf[0-9]+\" data-confid=\"(\\d+)\" data-key=\"(\\d+)\" data-type=\"(\\d+)\" data-creator=\"(\\d+)\"").unwrap();
-	static ref CONFIRMATION_DESCRIPTION_REGEX: Regex = Regex::new("<div>((Confirm|Trade|Account recovery|Sell -) .+)</div>").unwrap();
-}
 
 extern crate hmacsha1;
 extern crate base64;
@@ -144,51 +139,19 @@ impl SteamGuardAccount {
 			.cookie_store(true)
 			.build()?;
 
-		match client
+		let resp = client
 			.get("https://steamcommunity.com/mobileconf/conf".parse::<Url>().unwrap())
 			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
 			.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
 			.header(COOKIE, cookies.cookies(&url).unwrap())
 			.query(&self.get_confirmation_query_params("conf"))
-			.send() {
-				Ok(resp) => {
-					trace!("{:?}", resp);
-					let text = resp.text().unwrap();
-					trace!("text: {:?}", text);
-					println!("{}", text);
-					// possible errors:
-					//
-					// Invalid authenticator:
-					// <div>Invalid authenticator</div>
-					// <div>It looks like your Steam Guard Mobile Authenticator is providing incorrect Steam Guard codes. This could be caused by an inaccurate clock or bad timezone settings on your device. If your time settings are correct, it could be that a different device has been set up to provide the Steam Guard codes for your account, which means the authenticator on this device is no longer valid.</div>
-					//
-					// <div>Nothing to confirm</div>
-					match CONFIRMATION_REGEX.captures(text.as_str()) {
-						Some(caps) => {
-							let conf_id = caps[1].parse()?;
-							let conf_key = caps[2].parse()?;
-							let conf_type = caps[3].try_into().unwrap_or(ConfirmationType::Unknown);
-							let conf_creator = caps[4].parse()?;
-							debug!("conf_id={} conf_key={} conf_type={:?} conf_creator={}", conf_id, conf_key, conf_type, conf_creator);
-							return Ok(vec![Confirmation {
-								id: conf_id,
-								key: conf_key,
-								conf_type: conf_type,
-								creator: conf_creator,
-								int_type: 0,
-							}]);
-						}
-						_ => {
-							info!("No confirmations");
-							return Ok(vec![]);
-						}
-					};
-				}
-				Err(e) => {
-					error!("error: {:?}", e);
-					bail!(e);
-				}
-			}
+			.send()?;
+
+		trace!("{:?}", resp);
+		let text = resp.text().unwrap();
+		trace!("text: {:?}", text);
+		println!("{}", text);
+		return parse_confirmations(text);
 	}
 
 	/// Respond to a confirmation.
@@ -263,6 +226,30 @@ impl SteamGuardAccount {
 	}
 }
 
+fn parse_confirmations(text: String) -> anyhow::Result<Vec<Confirmation>> {
+	// possible errors:
+	//
+	// Invalid authenticator:
+	// <div>Invalid authenticator</div>
+	// <div>It looks like your Steam Guard Mobile Authenticator is providing incorrect Steam Guard codes. This could be caused by an inaccurate clock or bad timezone settings on your device. If your time settings are correct, it could be that a different device has been set up to provide the Steam Guard codes for your account, which means the authenticator on this device is no longer valid.</div>
+	//
+	// <div>Nothing to confirm</div>
+
+	let fragment = Html::parse_fragment(&text);
+	let selector = Selector::parse(".mobileconf_list_entry").unwrap();
+	let mut confirmations = vec![];
+	for elem in fragment.select(&selector) {
+		let conf = Confirmation {
+			id: elem.value().attr("data-confid").unwrap().parse()?,
+			key: elem.value().attr("data-key").unwrap().parse()?,
+			conf_type: elem.value().attr("data-type").unwrap().try_into().unwrap_or(ConfirmationType::Unknown),
+			creator: elem.value().attr("data-creator").unwrap().parse()?,
+		};
+		confirmations.push(conf);
+	}
+	return Ok(confirmations);
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -286,5 +273,42 @@ mod tests {
 	#[test]
 	fn test_generate_confirmation_hash_for_time() {
 		assert_eq!(generate_confirmation_hash_for_time(1617591917, "conf", &String::from("GQP46b73Ws7gr8GmZFR0sDuau5c=")), String::from("NaL8EIMhfy/7vBounJ0CvpKbrPk="));
+	}
+
+	#[test]
+	fn test_parse_multiple_confirmations() {
+		let text = include_str!("fixtures/confirmations/multiple-confirmations.html");
+		let confirmations = parse_confirmations(text.into()).unwrap();
+		assert_eq!(confirmations.len(), 5);
+		assert_eq!(confirmations[0], Confirmation {
+			id: 9890792058,
+			key: 15509106087034649470,
+			conf_type: ConfirmationType::MarketSell,
+			creator: 3392884950693131245,
+		});
+		assert_eq!(confirmations[1], Confirmation {
+			id: 9890791666,
+			key: 2661901169510258722,
+			conf_type: ConfirmationType::MarketSell,
+			creator: 3392884950693130525,
+		});
+		assert_eq!(confirmations[2], Confirmation {
+			id: 9890791241,
+			key: 15784514761287735229,
+			conf_type: ConfirmationType::MarketSell,
+			creator: 3392884950693129565,
+		});
+		assert_eq!(confirmations[3], Confirmation {
+			id: 9890790828,
+			key: 5049250785011653560,
+			conf_type: ConfirmationType::MarketSell,
+			creator: 3392884950693128685,
+		});
+		assert_eq!(confirmations[4], Confirmation {
+			id: 9890790159,
+			key: 6133112455066694993,
+			conf_type: ConfirmationType::MarketSell,
+			creator: 3392884950693127345,
+		});
 	}
 }

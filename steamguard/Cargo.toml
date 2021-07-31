@@ -21,3 +21,4 @@ regex = "1"
 lazy_static = "1.4.0"
 uuid = { version = "0.8", features = ["v4"] }
 log = "0.4.14"
+scraper = "0.12.0"

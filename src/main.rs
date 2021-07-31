@@ -374,28 +374,24 @@ fn demo_confirmation_menu() {
 			id: 1234,
 			key: 12345,
 			conf_type: ConfirmationType::Trade,
-			int_type: 0,
 			creator: 09870987,
 		},
 		Confirmation {
 			id: 1234,
 			key: 12345,
 			conf_type: ConfirmationType::MarketSell,
-			int_type: 0,
 			creator: 09870987,
 		},
 		Confirmation {
 			id: 1234,
 			key: 12345,
 			conf_type: ConfirmationType::AccountRecovery,
-			int_type: 0,
 			creator: 09870987,
 		},
 		Confirmation {
 			id: 1234,
 			key: 12345,
 			conf_type: ConfirmationType::Trade,
-			int_type: 0,
 			creator: 09870987,
 		},
 	]);
