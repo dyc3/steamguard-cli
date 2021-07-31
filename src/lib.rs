@@ -86,6 +86,7 @@ impl SteamGuardAccount {
 	pub fn generate_code(&self, time: i64) -> String {
 		let steam_guard_code_translations: [u8; 26] = [50, 51, 52, 53, 54, 55, 56, 57, 66, 67, 68, 70, 71, 72, 74, 75, 77, 78, 80, 81, 82, 84, 86, 87, 88, 89];
 
+		// this effectively makes it so that it creates a new code every 30 seconds.
 		let time_bytes: [u8; 8] = build_time_bytes(time / 30i64);
 		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone()).unwrap();
 		let hashed_data = hmacsha1::hmac_sha1(&shared_secret, &time_bytes);
