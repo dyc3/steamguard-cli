@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::{
     io::{stdin, stdout, Write},
     path::Path,
+    sync::{Arc, Mutex},
 };
 use steamguard::{steamapi, Confirmation, ConfirmationType, SteamGuardAccount};
 use termion::{
@@ -122,12 +123,12 @@ fn main() {
     if matches.is_present("setup") {
         info!("setup");
         let mut linker = accountlinker::AccountLinker::new();
-        do_login(&mut linker.account);
+        // do_login(&mut linker.account);
         // linker.link(linker.account.session.expect("no login session"));
         return;
     }
 
-    let mut selected_accounts: Vec<SteamGuardAccount> = vec![];
+    let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
     if matches.is_present("all") {
         // manifest.accounts.iter().map(|a| selected_accounts.push(a.b));
         for account in &manifest.accounts {
@@ -139,7 +140,7 @@ fn main() {
                 selected_accounts.push(account.clone());
                 break;
             }
-            if matches.value_of("username").unwrap() == account.account_name {
+            if matches.value_of("username").unwrap() == account.lock().unwrap().account_name {
                 selected_accounts.push(account.clone());
                 break;
             }
@@ -150,14 +151,14 @@ fn main() {
         "selected accounts: {:?}",
         selected_accounts
             .iter()
-            .map(|a| a.account_name.clone())
+            .map(|a| a.lock().unwrap().account_name.clone())
             .collect::<Vec<String>>()
     );
 
     if let Some(trade_matches) = matches.subcommand_matches("trade") {
         info!("trade");
         for a in selected_accounts.iter_mut() {
-            let mut account = a; // why is this necessary?
+            let mut account = a.lock().unwrap();
 
             info!("Checking for trade confirmations");
             let confirmations: Vec<Confirmation>;
@@ -205,7 +206,7 @@ fn main() {
         let server_time = steamapi::get_server_time();
         for account in selected_accounts {
             trace!("{:?}", account);
-            let code = account.generate_code(server_time);
+            let code = account.lock().unwrap().generate_code(server_time);
             println!("{}", code);
         }
     }

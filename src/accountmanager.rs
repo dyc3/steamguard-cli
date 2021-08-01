@@ -1,8 +1,9 @@
 use log::*;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::{cell::Cell, fs::File};
 use steamguard::SteamGuardAccount;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,7 +18,7 @@ pub struct Manifest {
     pub auto_confirm_trades: bool,
 
     #[serde(skip)]
-    pub accounts: Vec<SteamGuardAccount>,
+    pub accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
     #[serde(skip)]
     folder: String, // I wanted to use a Path here, but it was too hard to make it work...
 }
@@ -48,21 +49,21 @@ impl Manifest {
             let file = File::open(path)?;
             let reader = BufReader::new(file);
             let account: SteamGuardAccount = serde_json::from_reader(reader)?;
-            self.accounts.push(account);
+            self.accounts.push(Arc::new(Mutex::new(account)));
         }
         Ok(())
     }
 
-    pub fn add_account(&mut self, account: &SteamGuardAccount) {
+    pub fn add_account(&mut self, account: SteamGuardAccount) {
         debug!("adding account to manifest: {}", account.account_name);
         let steamid = account.session.clone().unwrap().steam_id;
-        self.accounts.push(account.clone());
         self.entries.push(ManifestEntry {
-            filename: format!("{}.maFile", account.account_name),
+            filename: format!("{}.maFile", &account.account_name),
             steam_id: steamid,
             encryption_iv: None,
             encryption_salt: None,
         });
+        self.accounts.push(Arc::new(Mutex::new(account)));
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
@@ -72,7 +73,7 @@ impl Manifest {
         );
         for (entry, account) in self.entries.iter().zip(&self.accounts) {
             debug!("saving {}", entry.filename);
-            let serialized = serde_json::to_string(&account)?;
+            let serialized = serde_json::to_string(account.as_ref())?;
             ensure!(
                 serialized.len() > 2,
                 "Something extra weird happened and the account was serialized into nothing."
