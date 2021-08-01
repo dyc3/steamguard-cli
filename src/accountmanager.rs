@@ -1,6 +1,5 @@
 use log::*;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
@@ -33,49 +32,24 @@ pub struct ManifestEntry {
 }
 
 impl Manifest {
-    pub fn load(path: &Path) -> Result<Manifest, Box<dyn Error>> {
+    pub fn load(path: &Path) -> anyhow::Result<Manifest> {
         debug!("loading manifest: {:?}", &path);
-        match File::open(path) {
-            Ok(file) => {
-                let reader = BufReader::new(file);
-                match serde_json::from_reader(reader) {
-                    Ok(m) => {
-                        let mut manifest: Manifest = m;
-                        manifest.folder = String::from(path.parent().unwrap().to_str().unwrap());
-                        return Ok(manifest);
-                    }
-                    Err(e) => {
-                        return Err(Box::new(e));
-                    }
-                }
-            }
-            Err(e) => {
-                return Err(Box::new(e));
-            }
-        }
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let mut manifest: Manifest = serde_json::from_reader(reader)?;
+        manifest.folder = String::from(path.parent().unwrap().to_str().unwrap());
+        return Ok(manifest);
     }
 
-    pub fn load_accounts(&mut self) {
+    pub fn load_accounts(&mut self) -> anyhow::Result<()> {
         for entry in &self.entries {
             let path = Path::new(&self.folder).join(&entry.filename);
             debug!("loading account: {:?}", path);
-            match File::open(path) {
-                Ok(f) => {
-                    let reader = BufReader::new(f);
-                    match serde_json::from_reader(reader) {
-                        Ok(a) => {
-                            let account: SteamGuardAccount = a;
-                            self.accounts.push(account);
-                        }
-                        Err(e) => {
-                            error!("invalid json: {}", e)
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("unable to open account: {}", e)
-                }
-            }
+            let file = File::open(path)?;
+            let reader = BufReader::new(file);
+            let account: SteamGuardAccount = serde_json::from_reader(reader)?;
+            self.accounts.push(account);
         }
+        Ok(())
     }
 }
