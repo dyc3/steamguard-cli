@@ -1,7 +1,7 @@
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Write};
 use std::path::Path;
 use steamguard::SteamGuardAccount;
 
@@ -50,6 +50,44 @@ impl Manifest {
             let account: SteamGuardAccount = serde_json::from_reader(reader)?;
             self.accounts.push(account);
         }
+        Ok(())
+    }
+
+    pub fn add_account(&mut self, account: &SteamGuardAccount) {
+        debug!("adding account to manifest: {}", account.account_name);
+        let steamid = account.session.clone().unwrap().steam_id;
+        self.accounts.push(account.clone());
+        self.entries.push(ManifestEntry {
+            filename: format!("{}.maFile", account.account_name),
+            steam_id: steamid,
+            encryption_iv: None,
+            encryption_salt: None,
+        });
+    }
+
+    pub fn save(&self) -> anyhow::Result<()> {
+        ensure!(
+            self.entries.len() == self.accounts.len(),
+            "Manifest entries don't match accounts."
+        );
+        for (entry, account) in self.entries.iter().zip(&self.accounts) {
+            debug!("saving {}", entry.filename);
+            let serialized = serde_json::to_string(&account)?;
+            ensure!(
+                serialized.len() > 2,
+                "Something extra weird happened and the account was serialized into nothing."
+            );
+            let path = Path::new(&self.folder).join(&entry.filename);
+            let mut file = File::create(path)?;
+            file.write_all(serialized.as_bytes())?;
+            file.sync_data()?;
+        }
+        debug!("saving manifest");
+        let manifest_serialized = serde_json::to_string(&self)?;
+        let path = Path::new(&self.folder).join("manifest.json");
+        let mut file = File::create(path)?;
+        file.write_all(manifest_serialized.as_bytes())?;
+        file.sync_data()?;
         Ok(())
     }
 }

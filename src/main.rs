@@ -17,6 +17,8 @@ use termion::{
 
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate anyhow;
 mod accountlinker;
 mod accountmanager;
 
@@ -128,11 +130,11 @@ fn main() {
     let mut selected_accounts: Vec<SteamGuardAccount> = vec![];
     if matches.is_present("all") {
         // manifest.accounts.iter().map(|a| selected_accounts.push(a.b));
-        for account in manifest.accounts {
+        for account in &manifest.accounts {
             selected_accounts.push(account.clone());
         }
     } else {
-        for account in manifest.accounts {
+        for account in &manifest.accounts {
             if !matches.is_present("username") {
                 selected_accounts.push(account.clone());
                 break;
@@ -197,6 +199,8 @@ fn main() {
                 }
             }
         }
+
+        manifest.save();
     } else {
         let server_time = steamapi::get_server_time();
         for account in selected_accounts {
