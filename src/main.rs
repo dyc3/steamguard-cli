@@ -9,7 +9,7 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use steamguard::{
-	steamapi, Confirmation, ConfirmationType, LoginError, SteamGuardAccount, UserLogin,
+	steamapi, AccountLinker, Confirmation, ConfirmationType, LoginError, SteamGuardAccount, UserLogin,
 };
 use termion::{
 	event::{Event, Key},
@@ -22,7 +22,6 @@ use termion::{
 extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
-mod accountlinker;
 mod accountmanager;
 
 lazy_static! {
@@ -124,7 +123,7 @@ fn main() {
 
 	if matches.is_present("setup") {
 		info!("setup");
-		let mut linker = accountlinker::AccountLinker::new();
+		let mut linker = AccountLinker::new();
 		// do_login(&mut linker.account);
 		// linker.link(linker.account.session.expect("no login session"));
 		return;

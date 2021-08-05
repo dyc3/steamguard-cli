@@ -1,3 +1,4 @@
+pub use accountlinker::{AccountLinkError, AccountLinker, AddAuthenticatorResponse};
 use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
@@ -18,6 +19,7 @@ extern crate anyhow;
 #[macro_use]
 extern crate maplit;
 
+mod accountlinker;
 mod confirmation;
 pub mod steamapi;
 mod userlogin;
