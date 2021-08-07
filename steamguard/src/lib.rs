@@ -14,6 +14,8 @@ use std::{collections::HashMap, convert::TryInto, thread, time};
 extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
+#[macro_use]
+extern crate maplit;
 
 mod confirmation;
 pub mod steamapi;

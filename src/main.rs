@@ -399,10 +399,12 @@ fn do_login(account: &mut SteamGuardAccount) {
                 break;
             }
             Err(steamapi::LoginError::Need2FA) => {
+				debug!("generating 2fa code and retrying");
                 let server_time = steamapi::get_server_time();
                 login.twofactor_code = account.generate_code(server_time);
             }
             Err(steamapi::LoginError::NeedCaptcha { captcha_gid }) => {
+				debug!("need captcha to log in");
                 login.captcha_text = prompt_captcha_text(&captcha_gid);
             }
             Err(steamapi::LoginError::NeedEmail) => {

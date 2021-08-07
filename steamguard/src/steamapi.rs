@@ -1,13 +1,16 @@
 use log::*;
 use reqwest::{
+    blocking::RequestBuilder,
     cookie::CookieStore,
     header::COOKIE,
-    header::{SET_COOKIE, USER_AGENT},
+    header::{HeaderMap, HeaderName, HeaderValue, SET_COOKIE},
     Url,
 };
 use rsa::{PublicKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::iter::FromIterator;
+use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -27,6 +30,7 @@ struct LoginResponse {
     requires_twofactor: bool,
     #[serde(default)]
     message: String,
+    oauth: Option<OAuthData>,
     transfer_urls: Option<Vec<String>>,
     transfer_parameters: Option<LoginTransferParameters>,
 }
@@ -57,7 +61,28 @@ pub enum LoginError {
     Need2FA,
     NeedEmail,
     TooManyAttempts,
-    OtherFailure,
+    NetworkFailure(reqwest::Error),
+    OtherFailure(anyhow::Error),
+}
+
+impl std::fmt::Display for LoginError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for LoginError {}
+
+impl From<reqwest::Error> for LoginError {
+    fn from(err: reqwest::Error) -> Self {
+        LoginError::NetworkFailure(err)
+    }
+}
+
+impl From<anyhow::Error> for LoginError {
+    fn from(err: anyhow::Error) -> Self {
+        LoginError::OtherFailure(err)
+    }
 }
 
 #[derive(Debug)]
@@ -71,8 +96,7 @@ pub struct UserLogin {
     pub email_code: String,
     pub steam_id: u64,
 
-    cookies: reqwest::cookie::Jar,
-    client: reqwest::blocking::Client,
+    client: SteamApiClient,
 }
 
 impl UserLogin {
@@ -86,35 +110,8 @@ impl UserLogin {
             twofactor_code: String::from(""),
             email_code: String::from(""),
             steam_id: 0,
-            cookies: reqwest::cookie::Jar::default(),
-            client: reqwest::blocking::ClientBuilder::new()
-                .cookie_store(true)
-                .build()
-                .unwrap(),
+            client: SteamApiClient::new(),
         };
-    }
-
-    /// Updates the cookie jar with the session cookies by pinging steam servers.
-    fn update_session(&self) {
-        trace!("UserLogin::update_session");
-        let url = "https://steamcommunity.com".parse::<Url>().unwrap();
-        self.cookies
-            .add_cookie_str("mobileClientVersion=0 (2.1.3)", &url);
-        self.cookies.add_cookie_str("mobileClient=android", &url);
-        self.cookies.add_cookie_str("Steam_Language=english", &url);
-
-        let resp = self.client
-			.get("https://steamcommunity.com/login?oauth_client_id=DE45CD61&oauth_scope=read_profile%20write_profile%20read_client%20write_client".parse::<Url>().unwrap())
-			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
-			.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
-			// .header(COOKIE, "mobileClientVersion=0 (2.1.3)")
-			// .header(COOKIE, "mobileClient=android")
-			// .header(COOKIE, "Steam_Language=english")
-			.header(COOKIE, self.cookies.cookies(&url).unwrap())
-			.send();
-        trace!("{:?}", resp);
-
-        trace!("cookies: {:?}", self.cookies);
     }
 
     pub fn login(&mut self) -> anyhow::Result<Session, LoginError> {
@@ -125,9 +122,8 @@ impl UserLogin {
             });
         }
 
-        let url = "https://steamcommunity.com".parse::<Url>().unwrap();
-        if self.cookies.cookies(&url) == Option::None {
-            self.update_session()
+        if self.client.session.is_none() {
+            self.client.update_session()?;
         }
 
         let mut params = HashMap::new();
@@ -147,8 +143,7 @@ impl UserLogin {
             .client
             .post("https://steamcommunity.com/login/getrsakey")
             .form(&params)
-            .send()
-            .unwrap();
+            .send()?;
 
         let encrypted_password: String;
         let rsa_timestamp: String;
@@ -167,60 +162,16 @@ impl UserLogin {
         trace!("captcha_text: {}", self.captcha_text);
         trace!("twofactorcode: {}", self.twofactor_code);
         trace!("emailauth: {}", self.email_code);
-        let mut params = HashMap::new();
-        params.insert(
-            "donotcache",
-            format!(
-                "{}",
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-                    * 1000
-            ),
-        );
-        params.insert("username", self.username.clone());
-        params.insert("password", encrypted_password);
-        params.insert("twofactorcode", self.twofactor_code.clone());
-        params.insert("emailauth", self.email_code.clone());
-        params.insert("captchagid", self.captcha_gid.clone());
-        params.insert("captcha_text", self.captcha_text.clone());
-        params.insert("rsatimestamp", rsa_timestamp);
-        params.insert("remember_login", String::from("true"));
-        params.insert("oauth_client_id", String::from("DE45CD61"));
-        params.insert(
-            "oauth_scope",
-            String::from("read_profile write_profile read_client write_client"),
-        );
 
-        let login_resp: LoginResponse;
-        match self
-            .client
-            .post("https://steamcommunity.com/login/dologin")
-            .form(&params)
-            .send()
-        {
-            Ok(resp) => {
-                // https://stackoverflow.com/questions/49928648/rubys-mechanize-error-401-while-sending-a-post-request-steam-trade-offer-send
-                let text = resp.text().unwrap();
-                trace!("resp content: {}", text);
-                match serde_json::from_str(text.as_str()) {
-                    Ok(lr) => {
-                        info!("login resp: {:?}", lr);
-                        login_resp = lr;
-                    }
-                    Err(error) => {
-                        debug!("login response did not have normal schema");
-                        error!("login parse error: {:?}", error);
-                        return Err(LoginError::OtherFailure);
-                    }
-                }
-            }
-            Err(error) => {
-                error!("login request error: {:?}", error);
-                return Err(LoginError::OtherFailure);
-            }
-        }
+        let login_resp: LoginResponse = self.client.login(
+            self.username.clone(),
+            encrypted_password,
+            self.twofactor_code.clone(),
+            self.email_code.clone(),
+            self.captcha_gid.clone(),
+            self.captcha_text.clone(),
+            rsa_timestamp,
+        )?;
 
         if login_resp.message.contains("too many login") {
             return Err(LoginError::TooManyAttempts);
@@ -250,86 +201,18 @@ impl UserLogin {
             return Err(LoginError::BadCredentials);
         }
 
-        // transfer login parameters? Not completely sure what this is for.
-        // i guess steam changed their authentication scheme slightly
-        let oauth;
-        match (login_resp.transfer_urls, login_resp.transfer_parameters) {
-            (Some(urls), Some(params)) => {
-                debug!("received transfer parameters, relaying data...");
-                for url in urls {
-                    trace!("posting transfer to {}", url);
-                    let result = self.client.post(url).json(&params).send();
-                    trace!("result: {:?}", result);
-                    match result {
-                        Ok(resp) => {
-                            debug!("result status: {}", resp.status());
-                            self.save_cookies_from_response(&resp);
-                        }
-                        Err(e) => {
-                            error!("failed to transfer parameters: {:?}", e);
-                        }
-                    }
-                }
-
-                oauth = OAuthData {
-                    oauth_token: params.auth,
-                    steamid: params.steamid.parse().unwrap(),
-                    wgtoken: params.token_secure.clone(), // guessing
-                    wgtoken_secure: params.token_secure,
-                    webcookie: params.webcookie,
-                };
-            }
-            _ => {
-                error!("did not receive transfer_urls and transfer_parameters");
-                return Err(LoginError::OtherFailure);
-            }
+        if login_resp.transfer_urls.is_some() || login_resp.transfer_parameters.is_some() {
+            self.client.transfer_login(login_resp)?;
         }
 
-        let url = "https://steamcommunity.com".parse::<Url>().unwrap();
-        let cookies = self.cookies.cookies(&url).unwrap();
-        let all_cookies = cookies.to_str().unwrap();
-        let mut session_id = String::from("");
-        for cookie in all_cookies
-            .split(";")
-            .map(|s| cookie::Cookie::parse(s).unwrap())
-        {
-            if cookie.name() == "sessionid" {
-                session_id = String::from(cookie.value());
-            }
-        }
-        trace!("cookies {:?}", cookies);
-        let session = self.build_session(oauth, session_id);
-
-        return Ok(session);
-    }
-
-    fn build_session(&self, data: OAuthData, session_id: String) -> Session {
-        return Session {
-            token: data.oauth_token,
-            steam_id: data.steamid,
-            steam_login: format!("{}%7C%7C{}", data.steamid, data.wgtoken),
-            steam_login_secure: format!("{}%7C%7C{}", data.steamid, data.wgtoken_secure),
-            session_id: session_id,
-            web_cookie: data.webcookie,
-        };
-    }
-
-    fn save_cookies_from_response(&mut self, response: &reqwest::blocking::Response) {
-        let set_cookie_iter = response.headers().get_all(SET_COOKIE);
-        let url = "https://steamcommunity.com".parse::<Url>().unwrap();
-
-        for c in set_cookie_iter {
-            c.to_str()
-                .into_iter()
-                .for_each(|cookie_str| self.cookies.add_cookie_str(cookie_str, &url));
-        }
+        return Ok(self.client.session.clone().unwrap());
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 struct OAuthData {
     oauth_token: String,
-    steamid: u64,
+    steamid: String,
     wgtoken: String,
     wgtoken_secure: String,
     webcookie: String,
@@ -393,4 +276,197 @@ fn test_encrypt_password() {
     let result = encrypt_password(rsa_resp, &String::from("kelwleofpsm3n4ofc"));
     assert_eq!(result.len(), 344);
     assert_eq!(result, "RUo/3IfbkVcJi1q1S5QlpKn1mEn3gNJoc/Z4VwxRV9DImV6veq/YISEuSrHB3885U5MYFLn1g94Y+cWRL6HGXoV+gOaVZe43m7O92RwiVz6OZQXMfAv3UC/jcqn/xkitnj+tNtmx55gCxmGbO2KbqQ0TQqAyqCOOw565B+Cwr2OOorpMZAViv9sKA/G3Q6yzscU6rhua179c8QjC1Hk3idUoSzpWfT4sHNBW/EREXZ3Dkjwu17xzpfwIUpnBVIlR8Vj3coHgUCpTsKVRA3T814v9BYPlvLYwmw5DW3ddx+2SyTY0P5uuog36TN2PqYS7ioF5eDe16gyfRR4Nzn/7wA==");
+}
+
+lazy_static! {
+    static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
+}
+
+/// Provides raw access to the Steam API. Handles cookies, some deserialization, etc. to make it easier.
+#[derive(Debug)]
+struct SteamApiClient {
+    cookies: reqwest::cookie::Jar,
+    client: reqwest::blocking::Client,
+    pub session: Option<Session>,
+}
+
+impl SteamApiClient {
+    pub fn new() -> SteamApiClient {
+        SteamApiClient {
+			cookies: reqwest::cookie::Jar::default(),
+			client: reqwest::blocking::ClientBuilder::new()
+				.cookie_store(true)
+				.user_agent("Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
+				.default_headers(HeaderMap::from_iter(hashmap! {
+					HeaderName::from_str("X-Requested-With").expect("could not build default request headers") => HeaderValue::from_str("com.valvesoftware.android.steam.community").expect("could not build default request headers")
+				}.into_iter()))
+				.build()
+				.unwrap(),
+			session: None,
+		}
+    }
+
+    fn build_session(&self, data: &OAuthData) -> Session {
+        return Session {
+            token: data.oauth_token.clone(),
+            steam_id: data.steamid.parse().unwrap(),
+            steam_login: format!("{}%7C%7C{}", data.steamid, data.wgtoken),
+            steam_login_secure: format!("{}%7C%7C{}", data.steamid, data.wgtoken_secure),
+            session_id: self.extract_session_id().unwrap(),
+            web_cookie: data.webcookie.clone(),
+        };
+    }
+
+    fn extract_session_id(&self) -> Option<String> {
+        let cookies = self.cookies.cookies(&STEAM_COOKIE_URL).unwrap();
+        let all_cookies = cookies.to_str().unwrap();
+        for cookie in all_cookies
+            .split(";")
+            .map(|s| cookie::Cookie::parse(s).unwrap())
+        {
+            if cookie.name() == "sessionid" {
+                return Some(cookie.value().into());
+            }
+        }
+        return None;
+    }
+
+    pub fn save_cookies_from_response(&mut self, response: &reqwest::blocking::Response) {
+        let set_cookie_iter = response.headers().get_all(SET_COOKIE);
+
+        for c in set_cookie_iter {
+            c.to_str()
+                .into_iter()
+                .for_each(|cookie_str| self.cookies.add_cookie_str(cookie_str, &STEAM_COOKIE_URL));
+        }
+    }
+
+    pub fn request<U: reqwest::IntoUrl>(&self, method: reqwest::Method, url: U) -> RequestBuilder {
+        self.cookies
+            .add_cookie_str("mobileClientVersion=0 (2.1.3)", &STEAM_COOKIE_URL);
+        self.cookies
+            .add_cookie_str("mobileClient=android", &STEAM_COOKIE_URL);
+        self.cookies
+            .add_cookie_str("Steam_Language=english", &STEAM_COOKIE_URL);
+
+        self.client
+            .request(method, url)
+            .header(COOKIE, self.cookies.cookies(&STEAM_COOKIE_URL).unwrap())
+    }
+
+    pub fn get<U: reqwest::IntoUrl>(&self, url: U) -> RequestBuilder {
+        self.request(reqwest::Method::GET, url)
+    }
+
+    pub fn post<U: reqwest::IntoUrl>(&self, url: U) -> RequestBuilder {
+        self.request(reqwest::Method::POST, url)
+    }
+
+    /// Updates the cookie jar with the session cookies by pinging steam servers.
+    fn update_session(&mut self) -> anyhow::Result<()> {
+        trace!("SteamApiClient::update_session");
+
+        let resp = self
+			.get("https://steamcommunity.com/login?oauth_client_id=DE45CD61&oauth_scope=read_profile%20write_profile%20read_client%20write_client".parse::<Url>().unwrap())
+			.send()?;
+        self.save_cookies_from_response(&resp);
+        trace!("{:?}", resp);
+
+        trace!("cookies: {:?}", self.cookies);
+        Ok(())
+    }
+
+    /// Endpoint: POST /login/dologin
+    pub fn login(
+        &mut self,
+        username: String,
+        encrypted_password: String,
+        twofactor_code: String,
+        email_code: String,
+        captcha_gid: String,
+        captcha_text: String,
+        rsa_timestamp: String,
+    ) -> anyhow::Result<LoginResponse> {
+        let params = hashmap! {
+            "donotcache" => format!(
+                "{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    * 1000
+            ),
+            "username" => username,
+            "password" => encrypted_password,
+            "twofactorcode" => twofactor_code,
+            "emailauth" => email_code,
+            "captchagid" => captcha_gid,
+            "captcha_text" => captcha_text,
+            "rsatimestamp" => rsa_timestamp,
+            "remember_login" => "true".into(),
+            "oauth_client_id" => "DE45CD61".into(),
+            "oauth_scope" => "read_profile write_profile read_client write_client".into(),
+        };
+
+        let resp = self
+            .post("https://steamcommunity.com/login/dologin")
+            .form(&params)
+            .send()?;
+        let text = resp.text()?;
+        trace!("raw login response: {}", text);
+
+        let login_resp: LoginResponse = serde_json::from_str(text.as_str())?;
+
+        if let Some(oauth) = &login_resp.oauth {
+            self.session = Some(self.build_session(&oauth));
+        }
+
+        return Ok(login_resp);
+    }
+
+    /// A secondary step in the login flow. Does not seem to always be needed?
+    /// Endpoints: provided by `login()`
+    fn transfer_login(&mut self, login_resp: LoginResponse) -> anyhow::Result<OAuthData> {
+        match (login_resp.transfer_urls, login_resp.transfer_parameters) {
+            (Some(urls), Some(params)) => {
+                debug!("received transfer parameters, relaying data...");
+                for url in urls {
+                    trace!("posting transfer to {}", url);
+                    let resp = self.client.post(url).json(&params).send()?;
+                    self.save_cookies_from_response(&resp);
+                }
+
+                let oauth = OAuthData {
+                    oauth_token: params.auth,
+                    steamid: params.steamid.parse().unwrap(),
+                    wgtoken: params.token_secure.clone(), // guessing
+                    wgtoken_secure: params.token_secure,
+                    webcookie: params.webcookie,
+                };
+                self.session = Some(self.build_session(&oauth));
+                return Ok(oauth);
+            }
+            (None, None) => {
+                bail!("did not receive transfer_urls and transfer_parameters");
+            }
+            (_, None) => {
+                bail!("did not receive transfer_parameters");
+            }
+            (None, _) => {
+                bail!("did not receive transfer_urls");
+            }
+        }
+    }
+}
+
+#[test]
+fn test_oauth_data_parse() {
+    // This example is from a login response that did not contain any transfer URLs.
+	let oauth: OAuthData = serde_json::from_str("{\"steamid\":\"78562647129469312\",\"account_name\":\"feuarus\",\"oauth_token\":\"fd2fdb3d0717bcd2220d98c7ec61c7bd\",\"wgtoken\":\"72E7013D598A4F68C7E268F6FA3767D89D763732\",\"wgtoken_secure\":\"21061EA13C36D7C29812CAED900A215171AD13A2\",\"webcookie\":\"6298070A226E5DAD49938D78BCF36F7A7118FDD5\"}").unwrap();
+
+	assert_eq!(oauth.steamid, "78562647129469312");
+	assert_eq!(oauth.oauth_token, "fd2fdb3d0717bcd2220d98c7ec61c7bd");
+	assert_eq!(oauth.wgtoken, "72E7013D598A4F68C7E268F6FA3767D89D763732");
+	assert_eq!(oauth.wgtoken_secure, "21061EA13C36D7C29812CAED900A215171AD13A2");
+	assert_eq!(oauth.webcookie, "6298070A226E5DAD49938D78BCF36F7A7118FDD5");
 }
