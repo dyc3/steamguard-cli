@@ -370,9 +370,9 @@ impl SteamApiClient {
 			.text()?;
 		trace!("raw login response: {}", text);
 
-		let resp: AddAuthenticatorResponse = serde_json::from_str(text.as_str())?;
+		let resp: SteamApiResponse<AddAuthenticatorResponse> = serde_json::from_str(text.as_str())?;
 
-		Ok(resp)
+		Ok(resp.response)
 	}
 
 	///
@@ -393,7 +393,7 @@ impl SteamApiClient {
 			"authenticator_time" => time_2fa.to_string(),
 		};
 
-		let resp = self
+		let resp: SteamApiResponse<FinalizeAddAuthenticatorResponse> = self
 			.post(format!(
 				"{}/ITwoFactorService/FinalizeAddAuthenticator/v0001",
 				STEAM_API_BASE.to_string()
@@ -446,12 +446,12 @@ fn test_login_response_parse() {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct AddAuthenticatorResponse {
-	pub response: AddAuthenticatorResponseInner,
+pub struct SteamApiResponse<T> {
+	pub response: T
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct AddAuthenticatorResponseInner {
+pub struct AddAuthenticatorResponse {
 	/// Shared secret between server and authenticator
 	pub shared_secret: String,
 	/// Authenticator serial number (unique per token)
@@ -477,15 +477,15 @@ pub struct AddAuthenticatorResponseInner {
 impl AddAuthenticatorResponse {
 	pub fn to_steam_guard_account(&self) -> SteamGuardAccount {
 		SteamGuardAccount {
-			shared_secret: self.response.shared_secret.clone(),
-			serial_number: self.response.serial_number.clone(),
-			revocation_code: self.response.revocation_code.clone(),
-			uri: self.response.uri.clone(),
-			server_time: self.response.server_time,
-			account_name: self.response.account_name.clone(),
-			token_gid: self.response.token_gid.clone(),
-			identity_secret: self.response.identity_secret.clone(),
-			secret_1: self.response.secret_1.clone(),
+			shared_secret: self.shared_secret.clone(),
+			serial_number: self.serial_number.clone(),
+			revocation_code: self.revocation_code.clone(),
+			uri: self.uri.clone(),
+			server_time: self.server_time,
+			account_name: self.account_name.clone(),
+			token_gid: self.token_gid.clone(),
+			identity_secret: self.identity_secret.clone(),
+			secret_1: self.secret_1.clone(),
 			fully_enrolled: false,
 			device_id: "".into(),
 			session: None,
@@ -493,4 +493,5 @@ impl AddAuthenticatorResponse {
 	}
 }
 
+#[derive(Debug, Clone, Deserialize)]
 pub struct FinalizeAddAuthenticatorResponse {}

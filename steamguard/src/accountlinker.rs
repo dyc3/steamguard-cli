@@ -59,7 +59,7 @@ impl AccountLinker {
 		let resp: AddAuthenticatorResponse =
 			self.client.add_authenticator(self.device_id.clone())?;
 
-		match resp.response.status {
+		match resp.status {
 			29 => {
 				return Err(AccountLinkError::AuthenticatorPresent);
 			}
