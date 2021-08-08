@@ -402,7 +402,7 @@ impl SteamApiClient {
 			.send()?
 			.json()?;
 
-		todo!();
+		return Ok(resp.response);
 	}
 }
 
