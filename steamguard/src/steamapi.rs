@@ -12,8 +12,11 @@ use std::iter::FromIterator;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::SteamGuardAccount;
+
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
+	static ref STEAM_API_BASE: String = "https://api.steampowered.com".into();
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -340,6 +343,37 @@ impl SteamApiClient {
 	pub fn add_phone_number(&self, phone_number: String) -> anyhow::Result<bool> {
 		return self.phoneajax("add_phone_number", phone_number.as_str());
 	}
+
+	/// Starts the authenticator linking process.
+	/// This doesn't check any prereqisites to ensure the request will pass validation on Steam's side (eg. sms/email confirmations).
+	/// A valid `Session` is required for this request. Cookies are not needed for this request, but they are set anyway.
+	///
+	/// Host: api.steampowered.com
+	/// Endpoint: POST /ITwoFactorService/AddAuthenticator/v0001
+	pub fn add_authenticator(&self, device_id: String) -> anyhow::Result<AddAuthenticatorResponse> {
+		ensure!(matches!(self.session, Some(_)));
+		let params = hashmap! {
+			"access_token" => self.session.as_ref().unwrap().token.clone(),
+			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
+			"authenticator_type" => "1".into(),
+			"device_identifier" => device_id,
+			"sms_phone_id" => "1".into(),
+		};
+
+		let text = self
+			.post(format!(
+				"{}/ITwoFactorService/AddAuthenticator/v0001",
+				STEAM_API_BASE.to_string()
+			))
+			.form(&params)
+			.send()?
+			.text()?;
+		trace!("raw login response: {}", text);
+
+		let resp: AddAuthenticatorResponse = serde_json::from_str(text.as_str())?;
+
+		Ok(resp)
+	}
 }
 
 #[test]
@@ -379,4 +413,52 @@ fn test_login_response_parse() {
 		"21061EA13C36D7C29812CAED900A215171AD13A2"
 	);
 	assert_eq!(oauth.webcookie, "6298070A226E5DAD49938D78BCF36F7A7118FDD5");
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AddAuthenticatorResponse {
+	pub response: AddAuthenticatorResponseInner,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AddAuthenticatorResponseInner {
+	/// Shared secret between server and authenticator
+	pub shared_secret: String,
+	/// Authenticator serial number (unique per token)
+	pub serial_number: String,
+	/// code used to revoke authenticator
+	pub revocation_code: String,
+	/// URI for QR code generation
+	pub uri: String,
+	/// Current server time
+	pub server_time: u64,
+	/// Account name to display on token client
+	pub account_name: String,
+	/// Token GID assigned by server
+	pub token_gid: String,
+	/// Secret used for identity attestation (e.g., for eventing)
+	pub identity_secret: String,
+	/// Spare shared secret
+	pub secret_1: String,
+	/// Result code
+	pub status: String,
+}
+
+impl AddAuthenticatorResponse {
+	pub fn to_steam_guard_account(&self) -> SteamGuardAccount {
+		SteamGuardAccount {
+			shared_secret: self.response.shared_secret,
+			serial_number: self.response.serial_number,
+			revocation_code: self.response.revocation_code,
+			uri: self.response.uri,
+			server_time: self.response.server_time,
+			account_name: self.response.account_name,
+			token_gid: self.response.token_gid,
+			identity_secret: self.response.identity_secret,
+			secret_1: self.response.secret_1,
+			fully_enrolled: false,
+			device_id: "".into(),
+			session: None,
+		}
+	}
 }

@@ -47,6 +47,7 @@ pub struct SteamGuardAccount {
 	pub uri: String,
 	pub fully_enrolled: bool,
 	pub device_id: String,
+	pub secret_1: String,
 	#[serde(rename = "Session")]
 	pub session: Option<steamapi::Session>,
 }
@@ -84,6 +85,7 @@ impl SteamGuardAccount {
 			uri: String::from(""),
 			fully_enrolled: false,
 			device_id: String::from(""),
+			secret_1: "".into(),
 			session: Option::None,
 		};
 	}

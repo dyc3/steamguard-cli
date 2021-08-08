@@ -1,5 +1,7 @@
-use crate::{steamapi::Session, SteamGuardAccount};
-use serde::Deserialize;
+use crate::{
+	steamapi::{AddAuthenticatorResponse, Session},
+	SteamGuardAccount,
+};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
@@ -53,11 +55,6 @@ impl AccountLinker {
 
 fn generate_device_id() -> String {
 	return format!("android:{}", uuid::Uuid::new_v4().to_string());
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct AddAuthenticatorResponse {
-	pub response: SteamGuardAccount,
 }
 
 #[derive(Debug)]
