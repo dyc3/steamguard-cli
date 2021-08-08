@@ -7,7 +7,7 @@ use reqwest::{
     Url,
 };
 use rsa::{PublicKey, RsaPublicKey};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::str::FromStr;
@@ -30,9 +30,24 @@ struct LoginResponse {
     requires_twofactor: bool,
     #[serde(default)]
     message: String,
+    // #[serde(rename = "oauth")]
+    // oauth_raw: String,
+    #[serde(default, deserialize_with = "oauth_data_from_string")]
     oauth: Option<OAuthData>,
     transfer_urls: Option<Vec<String>>,
     transfer_parameters: Option<LoginTransferParameters>,
+}
+
+/// For some reason, the `oauth` field in the login response is a string of JSON, not a JSON object.
+/// Deserializes to `Option` because the `oauth` field is not always there.
+fn oauth_data_from_string<'de, D>(deserializer: D) -> Result<Option<OAuthData>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    // for some reason, deserializing to &str doesn't work but this does.
+    let s: String = Deserialize::deserialize(deserializer)?;
+	let data: OAuthData = serde_json::from_str(s.as_str()).map_err(serde::de::Error::custom)?;
+    Ok(Some(data))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -414,6 +429,7 @@ impl SteamApiClient {
             .send()?;
         let text = resp.text()?;
         trace!("raw login response: {}", text);
+        println!("raw login response: {}", text);
 
         let login_resp: LoginResponse = serde_json::from_str(text.as_str())?;
 
@@ -466,6 +482,21 @@ fn test_oauth_data_parse() {
 
 	assert_eq!(oauth.steamid, "78562647129469312");
 	assert_eq!(oauth.oauth_token, "fd2fdb3d0717bcd2220d98c7ec61c7bd");
+	assert_eq!(oauth.wgtoken, "72E7013D598A4F68C7E268F6FA3767D89D763732");
+	assert_eq!(oauth.wgtoken_secure, "21061EA13C36D7C29812CAED900A215171AD13A2");
+	assert_eq!(oauth.webcookie, "6298070A226E5DAD49938D78BCF36F7A7118FDD5");
+}
+
+#[test]
+fn test_login_response_parse() {
+	let result = serde_json::from_str::<LoginResponse>(include_str!("fixtures/api-responses/login-response1.json"));
+
+	assert!(matches!(result, Ok(_)), "got error: {}", result.unwrap_err());
+	let resp = result.unwrap();
+
+	let oauth = resp.oauth.unwrap();
+	assert_eq!(oauth.steamid, "78562647129469312");
+	assert_eq!(oauth.oauth_token, "fd2fdb3d0717bad2220d98c7ec61c7bd");
 	assert_eq!(oauth.wgtoken, "72E7013D598A4F68C7E268F6FA3767D89D763732");
 	assert_eq!(oauth.wgtoken_secure, "21061EA13C36D7C29812CAED900A215171AD13A2");
 	assert_eq!(oauth.webcookie, "6298070A226E5DAD49938D78BCF36F7A7118FDD5");
