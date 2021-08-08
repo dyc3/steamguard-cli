@@ -1,4 +1,4 @@
-pub use accountlinker::{AccountLinkError, AccountLinker, AddAuthenticatorResponse};
+pub use accountlinker::{AccountLinkError, AccountLinker};
 use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
@@ -10,7 +10,8 @@ use reqwest::{
 };
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, convert::TryInto, thread, time};
+use std::{collections::HashMap, convert::TryInto};
+pub use steamapi::AddAuthenticatorResponse;
 pub use userlogin::{LoginError, UserLogin};
 #[macro_use]
 extern crate lazy_static;

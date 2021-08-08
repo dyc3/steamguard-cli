@@ -374,6 +374,36 @@ impl SteamApiClient {
 
 		Ok(resp)
 	}
+
+	///
+	/// Host: api.steampowered.com
+	/// Endpoint: POST /ITwoFactorService/FinalizeAddAuthenticator/v0001
+	pub fn finalize_authenticator(
+		&self,
+		sms_code: String,
+		code_2fa: String,
+		time_2fa: u64,
+	) -> anyhow::Result<FinalizeAddAuthenticatorResponse> {
+		ensure!(matches!(self.session, Some(_)));
+		let params = hashmap! {
+			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
+			"access_token" => self.session.as_ref().unwrap().token.clone(),
+			"activation_code" => sms_code,
+			"authenticator_code" => code_2fa,
+			"authenticator_time" => time_2fa.to_string(),
+		};
+
+		let resp = self
+			.post(format!(
+				"{}/ITwoFactorService/FinalizeAddAuthenticator/v0001",
+				STEAM_API_BASE.to_string()
+			))
+			.form(&params)
+			.send()?
+			.json()?;
+
+		todo!();
+	}
 }
 
 #[test]
@@ -441,24 +471,26 @@ pub struct AddAuthenticatorResponseInner {
 	/// Spare shared secret
 	pub secret_1: String,
 	/// Result code
-	pub status: String,
+	pub status: i32,
 }
 
 impl AddAuthenticatorResponse {
 	pub fn to_steam_guard_account(&self) -> SteamGuardAccount {
 		SteamGuardAccount {
-			shared_secret: self.response.shared_secret,
-			serial_number: self.response.serial_number,
-			revocation_code: self.response.revocation_code,
-			uri: self.response.uri,
+			shared_secret: self.response.shared_secret.clone(),
+			serial_number: self.response.serial_number.clone(),
+			revocation_code: self.response.revocation_code.clone(),
+			uri: self.response.uri.clone(),
 			server_time: self.response.server_time,
-			account_name: self.response.account_name,
-			token_gid: self.response.token_gid,
-			identity_secret: self.response.identity_secret,
-			secret_1: self.response.secret_1,
+			account_name: self.response.account_name.clone(),
+			token_gid: self.response.token_gid.clone(),
+			identity_secret: self.response.identity_secret.clone(),
+			secret_1: self.response.secret_1.clone(),
 			fully_enrolled: false,
 			device_id: "".into(),
 			session: None,
 		}
 	}
 }
+
+pub struct FinalizeAddAuthenticatorResponse {}

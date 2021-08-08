@@ -120,13 +120,49 @@ fn main() {
 		}
 	}
 
-	manifest.load_accounts();
+	manifest
+		.load_accounts()
+		.expect("Failed to load accounts in manifest");
 
 	if matches.is_present("setup") {
-		info!("setup");
-		let mut linker = AccountLinker::new();
-		// do_login(&mut linker.account);
-		// linker.link(linker.account.session.expect("no login session"));
+		println!("Log in to the account that you want to link to steamguard-cli");
+		let session = do_login_raw().expect("Failed to log in. Account has not been linked.");
+
+		let mut linker = AccountLinker::new(session);
+		let account: SteamGuardAccount;
+		loop {
+			match linker.link() {
+				Ok(a) => {
+					account = a;
+					break;
+				}
+				Err(err) => {
+					error!(
+						"Failed to link authenticator. Account has not been linked. {}",
+						err
+					);
+					return;
+				}
+			}
+		}
+		manifest.add_account(account);
+		match manifest.save() {
+			Ok(_) => {}
+			Err(err) => {
+				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
+				println!(
+					"Just in case, here is the account info. Save it somewhere just in case!\n{:?}",
+					manifest.accounts.last().as_ref().unwrap()
+				);
+				return;
+			}
+		}
+
+		debug!("attempting link finalization");
+		print!("Enter SMS code: ");
+		let sms_code = prompt();
+		linker.finalize(sms_code);
+
 		return;
 	}
 
@@ -423,6 +459,51 @@ fn do_login(account: &mut SteamGuardAccount) {
 		if loops > 2 {
 			error!("Too many loops. Aborting login process, to avoid getting rate limited.");
 			return;
+		}
+	}
+}
+
+fn do_login_raw() -> anyhow::Result<steamapi::Session> {
+	print!("Username: ");
+	let username = prompt();
+	let _ = std::io::stdout().flush();
+	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
+	if password.len() > 0 {
+		debug!("password is present");
+	} else {
+		debug!("password is empty");
+	}
+	// TODO: reprompt if password is empty
+	let mut login = UserLogin::new(username, password);
+	let mut loops = 0;
+	loop {
+		match login.login() {
+			Ok(s) => {
+				return Ok(s);
+			}
+			Err(LoginError::Need2FA) => {
+				print!("Enter 2fa code: ");
+				let server_time = steamapi::get_server_time();
+				login.twofactor_code = prompt();
+			}
+			Err(LoginError::NeedCaptcha { captcha_gid }) => {
+				debug!("need captcha to log in");
+				login.captcha_text = prompt_captcha_text(&captcha_gid);
+			}
+			Err(LoginError::NeedEmail) => {
+				println!("You should have received an email with a code.");
+				print!("Enter code: ");
+				login.email_code = prompt();
+			}
+			Err(r) => {
+				error!("Fatal login result: {:?}", r);
+				bail!(r);
+			}
+		}
+		loops += 1;
+		if loops > 2 {
+			error!("Too many loops. Aborting login process, to avoid getting rate limited.");
+			bail!("Too many loops. Login process aborted to avoid getting rate limited.");
 		}
 	}
 }
