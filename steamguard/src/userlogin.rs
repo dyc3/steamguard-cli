@@ -1,7 +1,7 @@
+use crate::steamapi::{LoginResponse, RsaResponse, Session, SteamApiClient};
 use log::*;
 use rsa::{PublicKey, RsaPublicKey};
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::steamapi::{SteamApiClient, LoginResponse, RsaResponse, Session};
 
 #[derive(Debug)]
 pub enum LoginError {
@@ -77,17 +77,17 @@ impl UserLogin {
             self.client.update_session()?;
         }
 
-        let params = hashmap!{
-			"donotcache" => format!(
-				"{}",
-				SystemTime::now()
-					.duration_since(UNIX_EPOCH)
-					.unwrap()
-					.as_secs()
-					* 1000
-			),
-			"username" => self.username.clone(),
-		};
+        let params = hashmap! {
+            "donotcache" => format!(
+                "{}",
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    * 1000
+            ),
+            "username" => self.username.clone(),
+        };
         let resp = self
             .client
             .post("https://steamcommunity.com/login/getrsakey")
