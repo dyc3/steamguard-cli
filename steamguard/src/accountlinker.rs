@@ -1,8 +1,5 @@
 use crate::{steamapi::Session, SteamGuardAccount};
-use log::*;
-use reqwest::{cookie::CookieStore, header::COOKIE, Url};
 use serde::Deserialize;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
@@ -52,47 +49,6 @@ impl AccountLinker {
 	}
 
 	pub fn finalize(&self, session: &Session) {}
-
-	fn has_phone(&self, session: &Session) -> bool {
-		return self._phoneajax(session, "has_phone", "null");
-	}
-
-	fn _phoneajax(&self, session: &Session, op: &str, arg: &str) -> bool {
-		trace!("_phoneajax: op={}", op);
-		let url = "https://steamcommunity.com".parse::<Url>().unwrap();
-		let cookies = reqwest::cookie::Jar::default();
-		cookies.add_cookie_str("mobileClientVersion=0 (2.1.3)", &url);
-		cookies.add_cookie_str("mobileClient=android", &url);
-		cookies.add_cookie_str("Steam_Language=english", &url);
-
-		let mut params = HashMap::new();
-		params.insert("op", op);
-		params.insert("arg", arg);
-		params.insert("sessionid", session.session_id.as_str());
-		if op == "check_sms_code" {
-			params.insert("checkfortos", "0");
-			params.insert("skipvoip", "1");
-		}
-
-		let resp = self
-			.client
-			.post("https://steamcommunity.com/steamguard/phoneajax")
-			.header(COOKIE, cookies.cookies(&url).unwrap())
-			.send()
-			.unwrap();
-
-		let result: Value = resp.json().unwrap();
-		if result["has_phone"] != Value::Null {
-			trace!("found has_phone field");
-			return result["has_phone"].as_bool().unwrap();
-		} else if result["success"] != Value::Null {
-			trace!("found success field");
-			return result["success"].as_bool().unwrap();
-		} else {
-			trace!("did not find any expected field");
-			return false;
-		}
-	}
 }
 
 fn generate_device_id() -> String {

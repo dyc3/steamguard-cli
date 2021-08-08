@@ -9,7 +9,8 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use steamguard::{
-	steamapi, AccountLinker, Confirmation, ConfirmationType, LoginError, SteamGuardAccount, UserLogin,
+	steamapi, AccountLinker, Confirmation, ConfirmationType, LoginError, SteamGuardAccount,
+	UserLogin,
 };
 use termion::{
 	event::{Event, Key},

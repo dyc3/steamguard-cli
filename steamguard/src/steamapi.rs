@@ -7,6 +7,7 @@ use reqwest::{
 	Url,
 };
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 use std::iter::FromIterator;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -288,6 +289,56 @@ impl SteamApiClient {
 				bail!("did not receive transfer_urls");
 			}
 		}
+	}
+
+	/// Endpoint: POST /steamguard/phoneajax
+	fn phoneajax(&self, op: &str, arg: &str) -> anyhow::Result<bool> {
+		let mut params = hashmap! {
+			"op" => op,
+			"arg" => arg,
+			"sessionid" => self.session.as_ref().unwrap().session_id.as_str(),
+		};
+		if op == "check_sms_code" {
+			params.insert("checkfortos", "0");
+			params.insert("skipvoip", "1");
+		}
+
+		let resp = self
+			.post("https://steamcommunity.com/steamguard/phoneajax")
+			.form(&params)
+			.send()?;
+
+		let result: Value = resp.json()?;
+		if result["has_phone"] != Value::Null {
+			trace!("found has_phone field");
+			return result["has_phone"]
+				.as_bool()
+				.ok_or(anyhow!("failed to parse has_phone field into boolean"));
+		} else if result["success"] != Value::Null {
+			trace!("found success field");
+			return result["success"]
+				.as_bool()
+				.ok_or(anyhow!("failed to parse success field into boolean"));
+		} else {
+			trace!("did not find any expected field");
+			return Ok(false);
+		}
+	}
+
+	pub fn has_phone(&self) -> anyhow::Result<bool> {
+		return self.phoneajax("has_phone", "null");
+	}
+
+	pub fn check_sms_code(&self, sms_code: String) -> anyhow::Result<bool> {
+		return self.phoneajax("check_sms_code", sms_code.as_str());
+	}
+
+	pub fn check_email_confirmation(&self) -> anyhow::Result<bool> {
+		return self.phoneajax("email_confirmation", "");
+	}
+
+	pub fn add_phone_number(&self, phone_number: String) -> anyhow::Result<bool> {
+		return self.phoneajax("add_phone_number", phone_number.as_str());
 	}
 }
 
