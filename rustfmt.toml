@@ -1,0 +1,3 @@
+tab_spaces = 4
+hard_tabs = true
+normalize_comments = true
