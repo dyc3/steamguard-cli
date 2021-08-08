@@ -1,5 +1,6 @@
 use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
+pub use userlogin::{LoginError, UserLogin};
 use hmacsha1::hmac_sha1;
 use log::*;
 use reqwest::{
@@ -19,6 +20,7 @@ extern crate maplit;
 
 mod confirmation;
 pub mod steamapi;
+mod userlogin;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";
 // const COMMUNITY_BASE: String = "https://steamcommunity.com";

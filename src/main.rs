@@ -8,7 +8,7 @@ use std::{
     path::Path,
     sync::{Arc, Mutex},
 };
-use steamguard::{steamapi, Confirmation, ConfirmationType, SteamGuardAccount};
+use steamguard::{steamapi, Confirmation, ConfirmationType, SteamGuardAccount, UserLogin, LoginError};
 use termion::{
     event::{Event, Key},
     input::TermRead,
@@ -390,7 +390,7 @@ fn do_login(account: &mut SteamGuardAccount) {
         debug!("password is empty");
     }
     // TODO: reprompt if password is empty
-    let mut login = steamapi::UserLogin::new(account.account_name.clone(), password);
+    let mut login = UserLogin::new(account.account_name.clone(), password);
     let mut loops = 0;
     loop {
         match login.login() {
@@ -398,16 +398,16 @@ fn do_login(account: &mut SteamGuardAccount) {
                 account.session = Option::Some(s);
                 break;
             }
-            Err(steamapi::LoginError::Need2FA) => {
+            Err(LoginError::Need2FA) => {
 				debug!("generating 2fa code and retrying");
                 let server_time = steamapi::get_server_time();
                 login.twofactor_code = account.generate_code(server_time);
             }
-            Err(steamapi::LoginError::NeedCaptcha { captcha_gid }) => {
+            Err(LoginError::NeedCaptcha { captcha_gid }) => {
 				debug!("need captcha to log in");
                 login.captcha_text = prompt_captcha_text(&captcha_gid);
             }
-            Err(steamapi::LoginError::NeedEmail) => {
+            Err(LoginError::NeedEmail) => {
                 println!("You should have received an email with a code.");
                 print!("Enter code");
                 login.email_code = prompt();
