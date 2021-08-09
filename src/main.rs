@@ -98,6 +98,7 @@ fn main() {
 	stderrlog::new()
 		.verbosity(verbosity)
 		.module(module_path!())
+		.module("steamguard")
 		.init()
 		.unwrap();
 
