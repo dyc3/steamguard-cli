@@ -9,8 +9,8 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use steamguard::{
-	steamapi, AccountLinker, Confirmation, ConfirmationType, FinalizeLinkError, LoginError,
-	SteamGuardAccount, UserLogin,
+	steamapi, AccountLinkError, AccountLinker, Confirmation, ConfirmationType, FinalizeLinkError,
+	LoginError, SteamGuardAccount, UserLogin,
 };
 use termion::{
 	event::{Event, Key},
@@ -135,6 +135,22 @@ fn main() {
 				Ok(a) => {
 					account = a;
 					break;
+				}
+				Err(AccountLinkError::MustRemovePhoneNumber) => {
+					println!("There is already a phone number on this account, please remove it and try again.");
+					return;
+				}
+				Err(AccountLinkError::MustProvidePhoneNumber) => {
+					print!("Enter your phone number:");
+					linker.phone_number = prompt();
+				}
+				Err(AccountLinkError::AuthenticatorPresent) => {
+					println!("An authenticator is already present on this account.");
+					return;
+				}
+				Err(AccountLinkError::MustConfirmEmail) => {
+					println!("Check your email and click the link.");
+					pause();
 				}
 				Err(err) => {
 					error!(
@@ -510,7 +526,6 @@ fn do_login_raw() -> anyhow::Result<steamapi::Session> {
 			}
 			Err(LoginError::Need2FA) => {
 				print!("Enter 2fa code: ");
-				let server_time = steamapi::get_server_time();
 				login.twofactor_code = prompt();
 			}
 			Err(LoginError::NeedCaptcha { captcha_gid }) => {
@@ -533,6 +548,13 @@ fn do_login_raw() -> anyhow::Result<steamapi::Session> {
 			bail!("Too many loops. Login process aborted to avoid getting rate limited.");
 		}
 	}
+}
+
+fn pause() {
+	println!("Press any key to continue...");
+	let mut stdout = stdout().into_raw_mode().unwrap();
+	stdout.flush().unwrap();
+	stdin().events().next();
 }
 
 fn demo_confirmation_menu() {

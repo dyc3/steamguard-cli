@@ -1,15 +1,16 @@
 use crate::{
-	steamapi::{AddAuthenticatorResponse, Session, SteamApiClient, FinalizeAddAuthenticatorResponse},
+	steamapi::{
+		AddAuthenticatorResponse, FinalizeAddAuthenticatorResponse, Session, SteamApiClient,
+	},
 	SteamGuardAccount,
 };
 use log::*;
 use thiserror::Error;
-use std::fmt::Display;
 
 #[derive(Debug)]
 pub struct AccountLinker {
 	device_id: String,
-	phone_number: String,
+	pub phone_number: String,
 	pub account: Option<SteamGuardAccount>,
 	pub finalized: bool,
 	sent_confirmation_email: bool,
@@ -31,7 +32,6 @@ impl AccountLinker {
 	}
 
 	pub fn link(&mut self) -> anyhow::Result<SteamGuardAccount, AccountLinkError> {
-
 		let has_phone = self.client.has_phone()?;
 
 		if has_phone && !self.phone_number.is_empty() {
@@ -81,9 +81,9 @@ impl AccountLinker {
 	) -> anyhow::Result<(), FinalizeLinkError> {
 		let time = crate::steamapi::get_server_time();
 		let code = account.generate_code(time);
-		let resp: FinalizeAddAuthenticatorResponse = self
-			.client
-			.finalize_authenticator(sms_code.clone(), code, time)?;
+		let resp: FinalizeAddAuthenticatorResponse =
+			self.client
+				.finalize_authenticator(sms_code.clone(), code, time)?;
 		info!("finalize response status: {}", resp.status);
 
 		match resp.status {
@@ -94,7 +94,9 @@ impl AccountLinker {
 		}
 
 		if !resp.success {
-			return Err(FinalizeLinkError::Failure { status: resp.status })?;
+			return Err(FinalizeLinkError::Failure {
+				status: resp.status,
+			})?;
 		}
 
 		if resp.want_more {
@@ -122,9 +124,6 @@ pub enum AccountLinkError {
 	/// User need to click link from confirmation email
 	#[error("An email has been sent to the user's email, click the link in that email.")]
 	MustConfirmEmail,
-	/// Must provide an SMS code
-	#[error("Awaiting finalization")]
-	AwaitingFinalization,
 	#[error("Authenticator is already present.")]
 	AuthenticatorPresent,
 	#[error(transparent)]
@@ -139,7 +138,7 @@ pub enum FinalizeLinkError {
 	#[error("Steam wants more 2fa codes for verification.")]
 	WantMore,
 	#[error("Finalization was not successful. Status code {status:?}")]
-	Failure{ status: i32 },
+	Failure { status: i32 },
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }
