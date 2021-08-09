@@ -86,6 +86,7 @@ pub struct OAuthData {
 	steamid: String,
 	wgtoken: String,
 	wgtoken_secure: String,
+	#[serde(default)]
 	webcookie: String,
 }
 
@@ -97,7 +98,7 @@ pub struct Session {
 	pub steam_login: String,
 	#[serde(rename = "SteamLoginSecure")]
 	pub steam_login_secure: String,
-	#[serde(rename = "WebCookie")]
+	#[serde(default, rename = "WebCookie")]
 	pub web_cookie: String,
 	#[serde(rename = "OAuthToken")]
 	pub token: String,
@@ -443,6 +444,30 @@ fn test_login_response_parse() {
 		"21061EA13C36D7C29812CAED900A215171AD13A2"
 	);
 	assert_eq!(oauth.webcookie, "6298070A226E5DAD49938D78BCF36F7A7118FDD5");
+}
+
+#[test]
+fn test_login_response_parse_missing_webcookie() {
+	let result = serde_json::from_str::<LoginResponse>(include_str!(
+		"fixtures/api-responses/login-response-missing-webcookie.json"
+	));
+
+	assert!(
+		matches!(result, Ok(_)),
+		"got error: {}",
+		result.unwrap_err()
+	);
+	let resp = result.unwrap();
+
+	let oauth = resp.oauth.unwrap();
+	assert_eq!(oauth.steamid, "92591609556178617");
+	assert_eq!(oauth.oauth_token, "1cc83205dab2979e558534dab29f6f3aa");
+	assert_eq!(oauth.wgtoken, "3EDA9DEF07D7B39361D95203525D8AFE82A");
+	assert_eq!(
+		oauth.wgtoken_secure,
+		"F31641B9AFC2F8B0EE7B6F44D7E73EA3FA48"
+	);
+	assert_eq!(oauth.webcookie, "");
 }
 
 #[derive(Debug, Clone, Deserialize)]
