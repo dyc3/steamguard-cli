@@ -10,7 +10,7 @@ use std::{
 };
 use steamguard::{
 	steamapi, AccountLinker, Confirmation, ConfirmationType, LoginError, SteamGuardAccount,
-	UserLogin,
+	UserLogin, FinalizeLinkError
 };
 use termion::{
 	event::{Event, Key},
@@ -152,16 +152,43 @@ fn main() {
 				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
 				println!(
 					"Just in case, here is the account info. Save it somewhere just in case!\n{:?}",
-					manifest.accounts.last().as_ref().unwrap()
+					manifest.accounts.last().unwrap().lock().unwrap()
 				);
 				return;
 			}
 		}
 
+		let mut account = manifest
+			.accounts
+			.last()
+			.as_ref()
+			.unwrap()
+			.clone()
+			.lock()
+			.unwrap();
+
 		debug!("attempting link finalization");
 		print!("Enter SMS code: ");
 		let sms_code = prompt();
-		linker.finalize(sms_code);
+		let mut tries = 0;
+		loop {
+			match linker.finalize(&mut account, sms_code) {
+				Ok(_) => break,
+				Err(FinalizeLinkError::WantMore) => {
+					debug!("steam wants more 2fa codes (tries: {})", tries);
+					tries += 1;
+					if tries >= 30 {
+						error!("Failed to finalize: unable to generate valid 2fa codes");
+						break;
+					}
+					continue;
+				},
+				Err(err) => {
+					error!("Failed to finalize: {}", err);
+					break;
+				}
+			}
+		}
 
 		return;
 	}

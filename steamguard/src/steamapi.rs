@@ -118,7 +118,7 @@ pub fn get_server_time() -> i64 {
 		.unwrap();
 }
 
-/// Provides raw access to the Steam API. Handles cookies, some deserialization, etc. to make it easier.
+/// Provides raw access to the Steam API. Handles cookies, some deserialization, etc. to make it easier. It covers `ITwoFactorService` from the Steam web API, and some mobile app specific api endpoints.
 #[derive(Debug)]
 pub struct SteamApiClient {
 	cookies: reqwest::cookie::Jar,
@@ -382,7 +382,7 @@ impl SteamApiClient {
 		&self,
 		sms_code: String,
 		code_2fa: String,
-		time_2fa: u64,
+		time_2fa: i64,
 	) -> anyhow::Result<FinalizeAddAuthenticatorResponse> {
 		ensure!(matches!(self.session, Some(_)));
 		let params = hashmap! {
@@ -447,7 +447,7 @@ fn test_login_response_parse() {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SteamApiResponse<T> {
-	pub response: T
+	pub response: T,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -494,4 +494,9 @@ impl AddAuthenticatorResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct FinalizeAddAuthenticatorResponse {}
+pub struct FinalizeAddAuthenticatorResponse {
+	pub status: i32,
+	pub server_time: u64,
+	pub want_more: bool,
+	pub success: bool,
+}

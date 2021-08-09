@@ -2,6 +2,7 @@ use crate::{
 	steamapi::{AddAuthenticatorResponse, Session, SteamApiClient},
 	SteamGuardAccount,
 };
+use log::*;
 use std::error::Error;
 use std::fmt::Display;
 
@@ -29,30 +30,28 @@ impl AccountLinker {
 		};
 	}
 
-	pub fn link(&mut self) -> anyhow::Result<SteamGuardAccount, AccountLinkError> {
+	pub fn link(&mut self) -> anyhow::Result<SteamGuardAccount> {
+		ensure!(!self.finalized);
+
 		let has_phone = self.client.has_phone()?;
 
 		if has_phone && !self.phone_number.is_empty() {
-			return Err(AccountLinkError::MustRemovePhoneNumber);
+			bail!(AccountLinkError::MustRemovePhoneNumber);
 		}
 		if !has_phone && self.phone_number.is_empty() {
-			return Err(AccountLinkError::MustProvidePhoneNumber);
+			bail!(AccountLinkError::MustProvidePhoneNumber);
 		}
 
 		if !has_phone {
 			if self.sent_confirmation_email {
 				if !self.client.check_email_confirmation()? {
-					return Err(AccountLinkError::Unknown(anyhow!(
-						"Failed email confirmation check"
-					)));
+					bail!("Failed email confirmation check");
 				}
 			} else if !self.client.add_phone_number(self.phone_number.clone())? {
-				return Err(AccountLinkError::Unknown(anyhow!(
-					"Failed to add phone number"
-				)));
+				bail!("Failed to add phone number");
 			} else {
 				self.sent_confirmation_email = true;
-				return Err(AccountLinkError::MustConfirmEmail);
+				bail!(AccountLinkError::MustConfirmEmail);
 			}
 		}
 
@@ -61,7 +60,7 @@ impl AccountLinker {
 
 		match resp.status {
 			29 => {
-				return Err(AccountLinkError::AuthenticatorPresent);
+				bail!(AccountLinkError::AuthenticatorPresent);
 			}
 			1 => {
 				let mut account = resp.to_steam_guard_account();
@@ -70,15 +69,46 @@ impl AccountLinker {
 				return Ok(account);
 			}
 			status => {
-				return Err(AccountLinkError::Unknown(anyhow!(
-					"Unknown add authenticator status code: {}",
-					status
-				)));
+				bail!("Unknown add authenticator status code: {}", status);
 			}
 		}
 	}
 
-	pub fn finalize(&self, account: &SteamGuardAccount, sms_code: String) {}
+	/// You may have to call this multiple times. If you have to call it a bunch of times, then you can assume that you are unable to generate correct 2fa codes.
+	pub fn finalize(
+		&mut self,
+		account: &mut SteamGuardAccount,
+		sms_code: String,
+	) -> anyhow::Result<()> {
+		ensure!(!account.fully_enrolled);
+		ensure!(!self.finalized);
+
+		let time = crate::steamapi::get_server_time();
+		let code = account.generate_code(time);
+		let resp = self
+			.client
+			.finalize_authenticator(sms_code.clone(), code, time)?;
+		info!("finalize response status: {}", resp.status);
+
+		match resp.status {
+			89 => {
+				bail!(FinalizeLinkError::BadSmsCode);
+			}
+			_ => {}
+		}
+
+		if !resp.success {
+			bail!("Failed to finalize authenticator. Status: {}", resp.status);
+		}
+
+		if resp.want_more {
+			bail!(FinalizeLinkError::WantMore);
+		}
+
+		self.finalized = true;
+		account.fully_enrolled = true;
+		return Ok(());
+	}
 }
 
 fn generate_device_id() -> String {
@@ -96,8 +126,6 @@ pub enum AccountLinkError {
 	/// Must provide an SMS code
 	AwaitingFinalization,
 	AuthenticatorPresent,
-	NetworkFailure(reqwest::Error),
-	Unknown(anyhow::Error),
 }
 
 impl Display for AccountLinkError {
@@ -108,14 +136,17 @@ impl Display for AccountLinkError {
 
 impl Error for AccountLinkError {}
 
-impl From<reqwest::Error> for AccountLinkError {
-	fn from(err: reqwest::Error) -> AccountLinkError {
-		AccountLinkError::NetworkFailure(err)
+#[derive(Debug)]
+pub enum FinalizeLinkError {
+	BadSmsCode,
+	/// Steam wants more 2fa codes to verify that we can generate valid codes. Call finalize again.
+	WantMore,
+}
+
+impl Display for FinalizeLinkError {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+		write!(f, "{:?}", self)
 	}
 }
 
-impl From<anyhow::Error> for AccountLinkError {
-	fn from(err: anyhow::Error) -> AccountLinkError {
-		AccountLinkError::Unknown(err)
-	}
-}
+impl Error for FinalizeLinkError {}
