@@ -9,8 +9,8 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use steamguard::{
-	steamapi, AccountLinker, Confirmation, ConfirmationType, LoginError, SteamGuardAccount,
-	UserLogin, FinalizeLinkError
+	steamapi, AccountLinker, Confirmation, ConfirmationType, FinalizeLinkError, LoginError,
+	SteamGuardAccount, UserLogin,
 };
 use termion::{
 	event::{Event, Key},
@@ -172,7 +172,7 @@ fn main() {
 		let sms_code = prompt();
 		let mut tries = 0;
 		loop {
-			match linker.finalize(&mut account, sms_code) {
+			match linker.finalize(&mut account, sms_code.clone()) {
 				Ok(_) => break,
 				Err(FinalizeLinkError::WantMore) => {
 					debug!("steam wants more 2fa codes (tries: {})", tries);
@@ -182,7 +182,7 @@ fn main() {
 						break;
 					}
 					continue;
-				},
+				}
 				Err(err) => {
 					error!("Failed to finalize: {}", err);
 					break;

@@ -1,9 +1,9 @@
 use crate::{
-	steamapi::{AddAuthenticatorResponse, Session, SteamApiClient},
+	steamapi::{AddAuthenticatorResponse, Session, SteamApiClient, FinalizeAddAuthenticatorResponse},
 	SteamGuardAccount,
 };
 use log::*;
-use std::error::Error;
+use thiserror::Error;
 use std::fmt::Display;
 
 #[derive(Debug)]
@@ -30,28 +30,27 @@ impl AccountLinker {
 		};
 	}
 
-	pub fn link(&mut self) -> anyhow::Result<SteamGuardAccount> {
-		ensure!(!self.finalized);
+	pub fn link(&mut self) -> anyhow::Result<SteamGuardAccount, AccountLinkError> {
 
 		let has_phone = self.client.has_phone()?;
 
 		if has_phone && !self.phone_number.is_empty() {
-			bail!(AccountLinkError::MustRemovePhoneNumber);
+			return Err(AccountLinkError::MustRemovePhoneNumber);
 		}
 		if !has_phone && self.phone_number.is_empty() {
-			bail!(AccountLinkError::MustProvidePhoneNumber);
+			return Err(AccountLinkError::MustProvidePhoneNumber);
 		}
 
 		if !has_phone {
 			if self.sent_confirmation_email {
 				if !self.client.check_email_confirmation()? {
-					bail!("Failed email confirmation check");
+					return Err(anyhow!("Failed email confirmation check"))?;
 				}
 			} else if !self.client.add_phone_number(self.phone_number.clone())? {
-				bail!("Failed to add phone number");
+				return Err(anyhow!("Failed to add phone number"))?;
 			} else {
 				self.sent_confirmation_email = true;
-				bail!(AccountLinkError::MustConfirmEmail);
+				return Err(AccountLinkError::MustConfirmEmail);
 			}
 		}
 
@@ -60,7 +59,7 @@ impl AccountLinker {
 
 		match resp.status {
 			29 => {
-				bail!(AccountLinkError::AuthenticatorPresent);
+				return Err(AccountLinkError::AuthenticatorPresent);
 			}
 			1 => {
 				let mut account = resp.to_steam_guard_account();
@@ -69,7 +68,7 @@ impl AccountLinker {
 				return Ok(account);
 			}
 			status => {
-				bail!("Unknown add authenticator status code: {}", status);
+				return Err(anyhow!("Unknown add authenticator status code: {}", status))?;
 			}
 		}
 	}
@@ -79,30 +78,27 @@ impl AccountLinker {
 		&mut self,
 		account: &mut SteamGuardAccount,
 		sms_code: String,
-	) -> anyhow::Result<()> {
-		ensure!(!account.fully_enrolled);
-		ensure!(!self.finalized);
-
+	) -> anyhow::Result<(), FinalizeLinkError> {
 		let time = crate::steamapi::get_server_time();
 		let code = account.generate_code(time);
-		let resp = self
+		let resp: FinalizeAddAuthenticatorResponse = self
 			.client
 			.finalize_authenticator(sms_code.clone(), code, time)?;
 		info!("finalize response status: {}", resp.status);
 
 		match resp.status {
 			89 => {
-				bail!(FinalizeLinkError::BadSmsCode);
+				return Err(FinalizeLinkError::BadSmsCode);
 			}
 			_ => {}
 		}
 
 		if !resp.success {
-			bail!("Failed to finalize authenticator. Status: {}", resp.status);
+			return Err(FinalizeLinkError::Failure { status: resp.status })?;
 		}
 
 		if resp.want_more {
-			bail!(FinalizeLinkError::WantMore);
+			return Err(FinalizeLinkError::WantMore);
 		}
 
 		self.finalized = true;
@@ -115,38 +111,35 @@ fn generate_device_id() -> String {
 	return format!("android:{}", uuid::Uuid::new_v4().to_string());
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum AccountLinkError {
 	/// No phone number on the account
+	#[error("A phone number is needed, but not already present on the account.")]
 	MustProvidePhoneNumber,
 	/// A phone number is already on the account
+	#[error("A phone number was provided, but one is already present on the account.")]
 	MustRemovePhoneNumber,
 	/// User need to click link from confirmation email
+	#[error("An email has been sent to the user's email, click the link in that email.")]
 	MustConfirmEmail,
 	/// Must provide an SMS code
+	#[error("Awaiting finalization")]
 	AwaitingFinalization,
+	#[error("Authenticator is already present.")]
 	AuthenticatorPresent,
+	#[error(transparent)]
+	Unknown(#[from] anyhow::Error),
 }
 
-impl Display for AccountLinkError {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-		write!(f, "{:?}", self)
-	}
-}
-
-impl Error for AccountLinkError {}
-
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum FinalizeLinkError {
+	#[error("Provided SMS code was incorrect.")]
 	BadSmsCode,
 	/// Steam wants more 2fa codes to verify that we can generate valid codes. Call finalize again.
+	#[error("Steam wants more 2fa codes for verification.")]
 	WantMore,
+	#[error("Finalization was not successful. Status code {status:?}")]
+	Failure{ status: i32 },
+	#[error(transparent)]
+	Unknown(#[from] anyhow::Error),
 }
-
-impl Display for FinalizeLinkError {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-		write!(f, "{:?}", self)
-	}
-}
-
-impl Error for FinalizeLinkError {}
