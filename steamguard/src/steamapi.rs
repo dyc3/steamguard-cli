@@ -513,6 +513,7 @@ pub struct AddAuthenticatorResponse {
 	/// URI for QR code generation
 	pub uri: String,
 	/// Current server time
+	#[serde(deserialize_with = "parse_json_string_as_number")]
 	pub server_time: u64,
 	/// Account name to display on token client
 	pub account_name: String,
@@ -551,4 +552,31 @@ pub struct FinalizeAddAuthenticatorResponse {
 	pub server_time: u64,
 	pub want_more: bool,
 	pub success: bool,
+}
+
+fn parse_json_string_as_number<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	// for some reason, deserializing to &str doesn't work but this does.
+	let s: String = Deserialize::deserialize(deserializer)?;
+	Ok(s.parse().unwrap())
+}
+
+#[test]
+fn test_parse_add_auth_response() {
+	let result = serde_json::from_str::<SteamApiResponse<AddAuthenticatorResponse>>(include_str!(
+		"fixtures/api-responses/add-authenticator-1.json"
+	));
+
+	assert!(
+		matches!(result, Ok(_)),
+		"got error: {}",
+		result.unwrap_err()
+	);
+	let resp = result.unwrap().response;
+
+	assert_eq!(resp.server_time, 1628559846);
+	assert_eq!(resp.shared_secret, "wGwZx=sX5MmTxi6QgA3Gi");
+	assert_eq!(resp.revocation_code, "R123456");
 }
