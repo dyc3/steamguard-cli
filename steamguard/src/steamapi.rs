@@ -150,7 +150,9 @@ impl SteamApiClient {
 			steam_id: data.steamid.parse().unwrap(),
 			steam_login: format!("{}%7C%7C{}", data.steamid, data.wgtoken),
 			steam_login_secure: format!("{}%7C%7C{}", data.steamid, data.wgtoken_secure),
-			session_id: self.extract_session_id().expect("failed to extract session id from cookies"),
+			session_id: self
+				.extract_session_id()
+				.expect("failed to extract session id from cookies"),
 			web_cookie: data.webcookie.clone(),
 		};
 	}
@@ -179,7 +181,11 @@ impl SteamApiClient {
 		}
 	}
 
-	pub fn request<U: reqwest::IntoUrl + std::fmt::Display>(&self, method: reqwest::Method, url: U) -> RequestBuilder {
+	pub fn request<U: reqwest::IntoUrl + std::fmt::Display>(
+		&self,
+		method: reqwest::Method,
+		url: U,
+	) -> RequestBuilder {
 		trace!("making request: {} {}", method, url);
 		self.cookies
 			.add_cookie_str("mobileClientVersion=0 (2.1.3)", &STEAM_COOKIE_URL);
@@ -188,7 +194,10 @@ impl SteamApiClient {
 		self.cookies
 			.add_cookie_str("Steam_Language=english", &STEAM_COOKIE_URL);
 		if let Some(session) = &self.session {
-			self.cookies.add_cookie_str(format!("sessionid={}", session.session_id).as_str(), &STEAM_COOKIE_URL);
+			self.cookies.add_cookie_str(
+				format!("sessionid={}", session.session_id).as_str(),
+				&STEAM_COOKIE_URL,
+			);
 		}
 
 		self.client
@@ -363,7 +372,7 @@ impl SteamApiClient {
 	/// Endpoint: POST /phone/validate
 	/// Found on page: https://store.steampowered.com/phone/add
 	pub fn phone_validate(&self, phone_number: String) -> anyhow::Result<bool> {
-		let params = hashmap!{
+		let params = hashmap! {
 			"sessionID" => "",
 			"phoneNumber" => "",
 		};
@@ -377,7 +386,10 @@ impl SteamApiClient {
 	///
 	/// Host: api.steampowered.com
 	/// Endpoint: POST /ITwoFactorService/AddAuthenticator/v0001
-	pub fn add_authenticator(&mut self, device_id: String) -> anyhow::Result<AddAuthenticatorResponse> {
+	pub fn add_authenticator(
+		&mut self,
+		device_id: String,
+	) -> anyhow::Result<AddAuthenticatorResponse> {
 		ensure!(matches!(self.session, Some(_)));
 		let params = hashmap! {
 			"access_token" => self.session.as_ref().unwrap().token.clone(),
@@ -432,15 +444,19 @@ impl SteamApiClient {
 		let text = resp.text()?;
 		trace!("raw finalize authenticator response: {}", text);
 
-		let resp: SteamApiResponse<FinalizeAddAuthenticatorResponse> = serde_json::from_str(text.as_str())?;
+		let resp: SteamApiResponse<FinalizeAddAuthenticatorResponse> =
+			serde_json::from_str(text.as_str())?;
 
 		return Ok(resp.response);
 	}
 
 	/// Host: api.steampowered.com
 	/// Endpoint: POST /ITwoFactorService/RemoveAuthenticator/v0001
-	pub fn remove_authenticator(&self, revocation_code: String) -> anyhow::Result<RemoveAuthenticatorResponse> {
-		let params = hashmap!{
+	pub fn remove_authenticator(
+		&self,
+		revocation_code: String,
+	) -> anyhow::Result<RemoveAuthenticatorResponse> {
+		let params = hashmap! {
 			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
 			"steamguard_scheme" => "2".into(),
 			"revocation_code" => revocation_code,
@@ -458,7 +474,8 @@ impl SteamApiClient {
 		let text = resp.text()?;
 		trace!("raw remove authenticator response: {}", text);
 
-		let resp: SteamApiResponse<RemoveAuthenticatorResponse> = serde_json::from_str(text.as_str())?;
+		let resp: SteamApiResponse<RemoveAuthenticatorResponse> =
+			serde_json::from_str(text.as_str())?;
 
 		return Ok(resp.response);
 	}
@@ -520,10 +537,7 @@ fn test_login_response_parse_missing_webcookie() {
 	assert_eq!(oauth.steamid, "92591609556178617");
 	assert_eq!(oauth.oauth_token, "1cc83205dab2979e558534dab29f6f3aa");
 	assert_eq!(oauth.wgtoken, "3EDA9DEF07D7B39361D95203525D8AFE82A");
-	assert_eq!(
-		oauth.wgtoken_secure,
-		"F31641B9AFC2F8B0EE7B6F44D7E73EA3FA48"
-	);
+	assert_eq!(oauth.wgtoken_secure, "F31641B9AFC2F8B0EE7B6F44D7E73EA3FA48");
 	assert_eq!(oauth.webcookie, "");
 }
 
@@ -595,7 +609,7 @@ pub struct FinalizeAddAuthenticatorResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct RemoveAuthenticatorResponse {
-	pub success: bool
+	pub success: bool,
 }
 
 fn parse_json_string_as_number<'de, D>(deserializer: D) -> Result<u64, D::Error>
