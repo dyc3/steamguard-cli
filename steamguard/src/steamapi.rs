@@ -509,23 +509,31 @@ pub struct SteamApiResponse<T> {
 #[derive(Debug, Clone, Deserialize)]
 pub struct AddAuthenticatorResponse {
 	/// Shared secret between server and authenticator
+	#[serde(default)]
 	pub shared_secret: String,
 	/// Authenticator serial number (unique per token)
+	#[serde(default)]
 	pub serial_number: String,
 	/// code used to revoke authenticator
+	#[serde(default)]
 	pub revocation_code: String,
 	/// URI for QR code generation
+	#[serde(default)]
 	pub uri: String,
 	/// Current server time
-	#[serde(deserialize_with = "parse_json_string_as_number")]
+	#[serde(default, deserialize_with = "parse_json_string_as_number")]
 	pub server_time: u64,
 	/// Account name to display on token client
+	#[serde(default)]
 	pub account_name: String,
 	/// Token GID assigned by server
+	#[serde(default)]
 	pub token_gid: String,
 	/// Secret used for identity attestation (e.g., for eventing)
+	#[serde(default)]
 	pub identity_secret: String,
 	/// Spare shared secret
+	#[serde(default)]
 	pub secret_1: String,
 	/// Result code
 	pub status: i32,
@@ -584,4 +592,20 @@ fn test_parse_add_auth_response() {
 	assert_eq!(resp.server_time, 1628559846);
 	assert_eq!(resp.shared_secret, "wGwZx=sX5MmTxi6QgA3Gi");
 	assert_eq!(resp.revocation_code, "R123456");
+}
+
+#[test]
+fn test_parse_add_auth_response2() {
+	let result = serde_json::from_str::<SteamApiResponse<AddAuthenticatorResponse>>(include_str!(
+		"fixtures/api-responses/add-authenticator-2.json"
+	));
+
+	assert!(
+		matches!(result, Ok(_)),
+		"got error: {}",
+		result.unwrap_err()
+	);
+	let resp = result.unwrap().response;
+
+	assert_eq!(resp.status, 29);
 }
