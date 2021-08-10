@@ -436,6 +436,32 @@ impl SteamApiClient {
 
 		return Ok(resp.response);
 	}
+
+	/// Host: api.steampowered.com
+	/// Endpoint: POST /ITwoFactorService/RemoveAuthenticator/v0001
+	pub fn remove_authenticator(&self, revocation_code: String) -> anyhow::Result<RemoveAuthenticatorResponse> {
+		let params = hashmap!{
+			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
+			"steamguard_scheme" => "2".into(),
+			"revocation_code" => revocation_code,
+			"access_token" => self.session.as_ref().unwrap().token.to_string(),
+		};
+
+		let resp = self
+			.post(format!(
+				"{}/ITwoFactorService/RemoveAuthenticator/v0001",
+				STEAM_API_BASE.to_string()
+			))
+			.form(&params)
+			.send()?;
+
+		let text = resp.text()?;
+		trace!("raw remove authenticator response: {}", text);
+
+		let resp: SteamApiResponse<RemoveAuthenticatorResponse> = serde_json::from_str(text.as_str())?;
+
+		return Ok(resp.response);
+	}
 }
 
 #[test]
@@ -565,6 +591,11 @@ pub struct FinalizeAddAuthenticatorResponse {
 	pub server_time: u64,
 	pub want_more: bool,
 	pub success: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RemoveAuthenticatorResponse {
+	pub success: bool
 }
 
 fn parse_json_string_as_number<'de, D>(deserializer: D) -> Result<u64, D::Error>
