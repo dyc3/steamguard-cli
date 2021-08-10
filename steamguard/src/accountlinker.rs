@@ -32,27 +32,27 @@ impl AccountLinker {
 	}
 
 	pub fn link(&mut self) -> anyhow::Result<SteamGuardAccount, AccountLinkError> {
-		let has_phone = self.client.has_phone()?;
+		// let has_phone = self.client.has_phone()?;
 
-		if has_phone && !self.phone_number.is_empty() {
-			return Err(AccountLinkError::MustRemovePhoneNumber);
-		}
-		if !has_phone && self.phone_number.is_empty() {
-			return Err(AccountLinkError::MustProvidePhoneNumber);
-		}
+		// if has_phone && !self.phone_number.is_empty() {
+		// 	return Err(AccountLinkError::MustRemovePhoneNumber);
+		// }
+		// if !has_phone && self.phone_number.is_empty() {
+		// 	return Err(AccountLinkError::MustProvidePhoneNumber);
+		// }
 
-		if !has_phone {
-			if self.sent_confirmation_email {
-				if !self.client.check_email_confirmation()? {
-					return Err(anyhow!("Failed email confirmation check"))?;
-				}
-			} else if !self.client.add_phone_number(self.phone_number.clone())? {
-				return Err(anyhow!("Failed to add phone number"))?;
-			} else {
-				self.sent_confirmation_email = true;
-				return Err(AccountLinkError::MustConfirmEmail);
-			}
-		}
+		// if !has_phone {
+		// 	if self.sent_confirmation_email {
+		// 		if !self.client.check_email_confirmation()? {
+		// 			return Err(anyhow!("Failed email confirmation check"))?;
+		// 		}
+		// 	} else if !self.client.add_phone_number(self.phone_number.clone())? {
+		// 		return Err(anyhow!("Failed to add phone number"))?;
+		// 	} else {
+		// 		self.sent_confirmation_email = true;
+		// 		return Err(AccountLinkError::MustConfirmEmail);
+		// 	}
+		// }
 
 		let resp: AddAuthenticatorResponse =
 			self.client.add_authenticator(self.device_id.clone())?;

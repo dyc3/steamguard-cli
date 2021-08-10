@@ -301,6 +301,9 @@ impl SteamApiClient {
 		}
 	}
 
+	/// One of the endpoints that handles phone number things. Can check to see if phone is present on account, and maybe do some other stuff. It's not really super clear.
+	///
+	/// Host: steamcommunity.com
 	/// Endpoint: POST /steamguard/phoneajax
 	/// Requires `sessionid` cookie to be set.
 	fn phoneajax(&self, op: &str, arg: &str) -> anyhow::Result<bool> {
@@ -319,6 +322,7 @@ impl SteamApiClient {
 			.form(&params)
 			.send()?;
 
+		trace!("phoneajax: status={}", resp.status());
 		let result: Value = resp.json()?;
 		trace!("phoneajax: {:?}", result);
 		if result["has_phone"] != Value::Null {
@@ -350,7 +354,21 @@ impl SteamApiClient {
 	}
 
 	pub fn add_phone_number(&self, phone_number: String) -> anyhow::Result<bool> {
-		return self.phoneajax("add_phone_number", phone_number.as_str());
+		// return self.phoneajax("add_phone_number", phone_number.as_str());
+		todo!();
+	}
+
+	/// Provides lots of juicy information, like if the number is a VOIP number.
+	/// Host: store.steampowered.com
+	/// Endpoint: POST /phone/validate
+	/// Found on page: https://store.steampowered.com/phone/add
+	pub fn phone_validate(&self, phone_number: String) -> anyhow::Result<bool> {
+		let params = hashmap!{
+			"sessionID" => "",
+			"phoneNumber" => "",
+		};
+
+		todo!();
 	}
 
 	/// Starts the authenticator linking process.

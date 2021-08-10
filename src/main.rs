@@ -142,8 +142,9 @@ fn main() {
 					return;
 				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
-					print!("Enter your phone number: ");
-					linker.phone_number = prompt();
+					println!("Enter your phone number in the following format: +1 123-456-7890");
+					print!("Phone number: ");
+					linker.phone_number = prompt().replace(&['(', ')', '-'][..], "");
 				}
 				Err(AccountLinkError::AuthenticatorPresent) => {
 					println!("An authenticator is already present on this account.");
