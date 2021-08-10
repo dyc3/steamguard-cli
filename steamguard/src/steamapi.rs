@@ -315,18 +315,19 @@ impl SteamApiClient {
 			.send()?;
 
 		let result: Value = resp.json()?;
+		trace!("phoneajax: {:?}", result);
 		if result["has_phone"] != Value::Null {
-			trace!("found has_phone field");
+			trace!("op: {} - found has_phone field", op);
 			return result["has_phone"]
 				.as_bool()
 				.ok_or(anyhow!("failed to parse has_phone field into boolean"));
 		} else if result["success"] != Value::Null {
-			trace!("found success field");
+			trace!("op: {} - found success field", op);
 			return result["success"]
 				.as_bool()
 				.ok_or(anyhow!("failed to parse success field into boolean"));
 		} else {
-			trace!("did not find any expected field");
+			trace!("op: {} - did not find any expected field", op);
 			return Ok(false);
 		}
 	}

@@ -142,7 +142,7 @@ fn main() {
 					return;
 				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
-					print!("Enter your phone number:");
+					print!("Enter your phone number: ");
 					linker.phone_number = prompt();
 				}
 				Err(AccountLinkError::AuthenticatorPresent) => {
