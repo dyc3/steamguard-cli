@@ -421,14 +421,18 @@ impl SteamApiClient {
 			"authenticator_time" => time_2fa.to_string(),
 		};
 
-		let resp: SteamApiResponse<FinalizeAddAuthenticatorResponse> = self
+		let resp = self
 			.post(format!(
 				"{}/ITwoFactorService/FinalizeAddAuthenticator/v0001",
 				STEAM_API_BASE.to_string()
 			))
 			.form(&params)
-			.send()?
-			.json()?;
+			.send()?;
+
+		let text = resp.text()?;
+		trace!("raw finalize authenticator response: {}", text);
+
+		let resp: SteamApiResponse<FinalizeAddAuthenticatorResponse> = serde_json::from_str(text.as_str())?;
 
 		return Ok(resp.response);
 	}
@@ -549,6 +553,7 @@ impl AddAuthenticatorResponse {
 #[derive(Debug, Clone, Deserialize)]
 pub struct FinalizeAddAuthenticatorResponse {
 	pub status: i32,
+	#[serde(deserialize_with = "parse_json_string_as_number")]
 	pub server_time: u64,
 	pub want_more: bool,
 	pub success: bool,
