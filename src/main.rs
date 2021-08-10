@@ -40,6 +40,7 @@ fn main() {
 			Arg::with_name("username")
 				.long("username")
 				.short("u")
+				.takes_value(true)
 				.help("Select the account you want by steam username. By default, the first account in the manifest is selected.")
 		)
 		.arg(
