@@ -179,24 +179,28 @@ impl SteamApiClient {
 		}
 	}
 
-	pub fn request<U: reqwest::IntoUrl>(&self, method: reqwest::Method, url: U) -> RequestBuilder {
+	pub fn request<U: reqwest::IntoUrl + std::fmt::Display>(&self, method: reqwest::Method, url: U) -> RequestBuilder {
+		trace!("making request: {} {}", method, url);
 		self.cookies
 			.add_cookie_str("mobileClientVersion=0 (2.1.3)", &STEAM_COOKIE_URL);
 		self.cookies
 			.add_cookie_str("mobileClient=android", &STEAM_COOKIE_URL);
 		self.cookies
 			.add_cookie_str("Steam_Language=english", &STEAM_COOKIE_URL);
+		if let Some(session) = &self.session {
+			self.cookies.add_cookie_str(format!("sessionid={}", session.session_id).as_str(), &STEAM_COOKIE_URL);
+		}
 
 		self.client
 			.request(method, url)
 			.header(COOKIE, self.cookies.cookies(&STEAM_COOKIE_URL).unwrap())
 	}
 
-	pub fn get<U: reqwest::IntoUrl>(&self, url: U) -> RequestBuilder {
+	pub fn get<U: reqwest::IntoUrl + std::fmt::Display>(&self, url: U) -> RequestBuilder {
 		self.request(reqwest::Method::GET, url)
 	}
 
-	pub fn post<U: reqwest::IntoUrl>(&self, url: U) -> RequestBuilder {
+	pub fn post<U: reqwest::IntoUrl + std::fmt::Display>(&self, url: U) -> RequestBuilder {
 		self.request(reqwest::Method::POST, url)
 	}
 
@@ -298,6 +302,7 @@ impl SteamApiClient {
 	}
 
 	/// Endpoint: POST /steamguard/phoneajax
+	/// Requires `sessionid` cookie to be set.
 	fn phoneajax(&self, op: &str, arg: &str) -> anyhow::Result<bool> {
 		let mut params = hashmap! {
 			"op" => op,
