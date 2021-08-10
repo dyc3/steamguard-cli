@@ -26,8 +26,8 @@ impl AccountLinker {
 			account: None,
 			finalized: false,
 			sent_confirmation_email: false,
-			session: session,
-			client: SteamApiClient::new(),
+			session: session.clone(),
+			client: SteamApiClient::new(Some(session)),
 		};
 	}
 

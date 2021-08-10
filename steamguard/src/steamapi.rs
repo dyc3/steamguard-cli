@@ -128,7 +128,7 @@ pub struct SteamApiClient {
 }
 
 impl SteamApiClient {
-	pub fn new() -> SteamApiClient {
+	pub fn new(session: Option<Session>) -> SteamApiClient {
 		SteamApiClient {
 			cookies: reqwest::cookie::Jar::default(),
 			client: reqwest::blocking::ClientBuilder::new()
@@ -139,17 +139,18 @@ impl SteamApiClient {
 				}.into_iter()))
 				.build()
 				.unwrap(),
-			session: None,
+			session: session,
 		}
 	}
 
 	fn build_session(&self, data: &OAuthData) -> Session {
+		trace!("SteamApiClient::build_session");
 		return Session {
 			token: data.oauth_token.clone(),
 			steam_id: data.steamid.parse().unwrap(),
 			steam_login: format!("{}%7C%7C{}", data.steamid, data.wgtoken),
 			steam_login_secure: format!("{}%7C%7C{}", data.steamid, data.wgtoken_secure),
-			session_id: self.extract_session_id().unwrap(),
+			session_id: self.extract_session_id().expect("failed to extract session id from cookies"),
 			web_cookie: data.webcookie.clone(),
 		};
 	}
@@ -249,6 +250,7 @@ impl SteamApiClient {
 			.post("https://steamcommunity.com/login/dologin")
 			.form(&params)
 			.send()?;
+		self.save_cookies_from_response(&resp);
 		let text = resp.text()?;
 		trace!("raw login response: {}", text);
 
@@ -351,7 +353,7 @@ impl SteamApiClient {
 	///
 	/// Host: api.steampowered.com
 	/// Endpoint: POST /ITwoFactorService/AddAuthenticator/v0001
-	pub fn add_authenticator(&self, device_id: String) -> anyhow::Result<AddAuthenticatorResponse> {
+	pub fn add_authenticator(&mut self, device_id: String) -> anyhow::Result<AddAuthenticatorResponse> {
 		ensure!(matches!(self.session, Some(_)));
 		let params = hashmap! {
 			"access_token" => self.session.as_ref().unwrap().token.clone(),
@@ -361,15 +363,16 @@ impl SteamApiClient {
 			"sms_phone_id" => "1".into(),
 		};
 
-		let text = self
+		let resp = self
 			.post(format!(
 				"{}/ITwoFactorService/AddAuthenticator/v0001",
 				STEAM_API_BASE.to_string()
 			))
 			.form(&params)
-			.send()?
-			.text()?;
-		trace!("raw login response: {}", text);
+			.send()?;
+		self.save_cookies_from_response(&resp);
+		let text = resp.text()?;
+		trace!("raw add authenticator response: {}", text);
 
 		let resp: SteamApiResponse<AddAuthenticatorResponse> = serde_json::from_str(text.as_str())?;
 
