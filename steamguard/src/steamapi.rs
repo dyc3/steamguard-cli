@@ -354,7 +354,9 @@ impl SteamApiClient {
 	/// Valid ops:
 	/// - get_phone_number => `input` is treated as a phone number to add to the account. Yes, this is somewhat counter intuitive.
 	/// - resend_sms
-	/// - get_sms_code => `input` is treated as a the SMS code that was texted to the phone number. Again, this is somewhat counter intuitive.
+	/// - get_sms_code => `input` is treated as a the SMS code that was texted to the phone number. Again, this is somewhat counter intuitive. After this succeeds, the phone number is added to the account.
+	/// - email_verification => If the account is protected with steam guard email, a verification link is sent. After the link in the email is clicked, send this op. After, an SMS code is sent to the phone number.
+	/// - retry_email_verification
 	///
 	/// Host: store.steampowered.com
 	/// Endpoint: /phone/add_ajaxop
@@ -367,7 +369,7 @@ impl SteamApiClient {
 		};
 
 		let resp = self
-			.post("https://steamcommunity.com/steamguard/phoneajax")
+			.post("https://store.steampowered.com/phone/add_ajaxop")
 			.form(&params)
 			.send()?;
 		trace!("phone_add_ajaxop: http status={}", resp.status());
