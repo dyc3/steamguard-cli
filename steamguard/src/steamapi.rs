@@ -350,6 +350,33 @@ impl SteamApiClient {
 		}
 	}
 
+	/// Works similar to phoneajax. Used in the process to add a phone number to a steam account.
+	/// Valid ops:
+	/// - get_phone_number => `input` is treated as a phone number to add to the account. Yes, this is somewhat counter intuitive.
+	/// - resend_sms
+	/// - get_sms_code => `input` is treated as a the SMS code that was texted to the phone number. Again, this is somewhat counter intuitive.
+	///
+	/// Host: store.steampowered.com
+	/// Endpoint: /phone/add_ajaxop
+	fn phone_add_ajaxop(&self, op: &str, input: &str) -> anyhow::Result<()> {
+		trace!("phone_add_ajaxop: op={} input={}", op, input);
+		let params = hashmap! {
+			"op" => op,
+			"input" => input,
+			"sessionid" => self.session.as_ref().unwrap().session_id.as_str(),
+		};
+
+		let resp = self
+			.post("https://steamcommunity.com/steamguard/phoneajax")
+			.form(&params)
+			.send()?;
+		trace!("phone_add_ajaxop: http status={}", resp.status());
+		let text = resp.text()?;
+		trace!("phone_add_ajaxop response: {}", text);
+
+		todo!();
+	}
+
 	pub fn has_phone(&self) -> anyhow::Result<bool> {
 		return self.phoneajax("has_phone", "null");
 	}
@@ -542,6 +569,7 @@ fn test_login_response_parse_missing_webcookie() {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(transparent)]
 pub struct SteamApiResponse<T> {
 	pub response: T,
 }
