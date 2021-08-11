@@ -61,7 +61,7 @@ impl UserLogin {
 			twofactor_code: String::from(""),
 			email_code: String::from(""),
 			steam_id: 0,
-			client: SteamApiClient::new(),
+			client: SteamApiClient::new(None),
 		};
 	}
 

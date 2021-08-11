@@ -1,3 +1,4 @@
+pub use accountlinker::{AccountLinkError, AccountLinker, FinalizeLinkError};
 use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
@@ -9,7 +10,7 @@ use reqwest::{
 };
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, convert::TryInto, thread, time};
+use std::{collections::HashMap, convert::TryInto};
 pub use userlogin::{LoginError, UserLogin};
 #[macro_use]
 extern crate lazy_static;
@@ -18,6 +19,7 @@ extern crate anyhow;
 #[macro_use]
 extern crate maplit;
 
+mod accountlinker;
 mod confirmation;
 pub mod steamapi;
 mod userlogin;
@@ -45,6 +47,7 @@ pub struct SteamGuardAccount {
 	pub uri: String,
 	pub fully_enrolled: bool,
 	pub device_id: String,
+	pub secret_1: String,
 	#[serde(rename = "Session")]
 	pub session: Option<steamapi::Session>,
 }
@@ -82,6 +85,7 @@ impl SteamGuardAccount {
 			uri: String::from(""),
 			fully_enrolled: false,
 			device_id: String::from(""),
+			secret_1: "".into(),
 			session: Option::None,
 		};
 	}

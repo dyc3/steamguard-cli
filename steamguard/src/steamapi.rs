@@ -7,12 +7,16 @@ use reqwest::{
 	Url,
 };
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 use std::iter::FromIterator;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::SteamGuardAccount;
+
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
+	static ref STEAM_API_BASE: String = "https://api.steampowered.com".into();
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -82,6 +86,7 @@ pub struct OAuthData {
 	steamid: String,
 	wgtoken: String,
 	wgtoken_secure: String,
+	#[serde(default)]
 	webcookie: String,
 }
 
@@ -93,7 +98,7 @@ pub struct Session {
 	pub steam_login: String,
 	#[serde(rename = "SteamLoginSecure")]
 	pub steam_login_secure: String,
-	#[serde(rename = "WebCookie")]
+	#[serde(default, rename = "WebCookie")]
 	pub web_cookie: String,
 	#[serde(rename = "OAuthToken")]
 	pub token: String,
@@ -114,7 +119,7 @@ pub fn get_server_time() -> i64 {
 		.unwrap();
 }
 
-/// Provides raw access to the Steam API. Handles cookies, some deserialization, etc. to make it easier.
+/// Provides raw access to the Steam API. Handles cookies, some deserialization, etc. to make it easier. It covers `ITwoFactorService` from the Steam web API, and some mobile app specific api endpoints.
 #[derive(Debug)]
 pub struct SteamApiClient {
 	cookies: reqwest::cookie::Jar,
@@ -123,7 +128,7 @@ pub struct SteamApiClient {
 }
 
 impl SteamApiClient {
-	pub fn new() -> SteamApiClient {
+	pub fn new(session: Option<Session>) -> SteamApiClient {
 		SteamApiClient {
 			cookies: reqwest::cookie::Jar::default(),
 			client: reqwest::blocking::ClientBuilder::new()
@@ -134,17 +139,20 @@ impl SteamApiClient {
 				}.into_iter()))
 				.build()
 				.unwrap(),
-			session: None,
+			session: session,
 		}
 	}
 
 	fn build_session(&self, data: &OAuthData) -> Session {
+		trace!("SteamApiClient::build_session");
 		return Session {
 			token: data.oauth_token.clone(),
 			steam_id: data.steamid.parse().unwrap(),
 			steam_login: format!("{}%7C%7C{}", data.steamid, data.wgtoken),
 			steam_login_secure: format!("{}%7C%7C{}", data.steamid, data.wgtoken_secure),
-			session_id: self.extract_session_id().unwrap(),
+			session_id: self
+				.extract_session_id()
+				.expect("failed to extract session id from cookies"),
 			web_cookie: data.webcookie.clone(),
 		};
 	}
@@ -173,24 +181,35 @@ impl SteamApiClient {
 		}
 	}
 
-	pub fn request<U: reqwest::IntoUrl>(&self, method: reqwest::Method, url: U) -> RequestBuilder {
+	pub fn request<U: reqwest::IntoUrl + std::fmt::Display>(
+		&self,
+		method: reqwest::Method,
+		url: U,
+	) -> RequestBuilder {
+		trace!("making request: {} {}", method, url);
 		self.cookies
 			.add_cookie_str("mobileClientVersion=0 (2.1.3)", &STEAM_COOKIE_URL);
 		self.cookies
 			.add_cookie_str("mobileClient=android", &STEAM_COOKIE_URL);
 		self.cookies
 			.add_cookie_str("Steam_Language=english", &STEAM_COOKIE_URL);
+		if let Some(session) = &self.session {
+			self.cookies.add_cookie_str(
+				format!("sessionid={}", session.session_id).as_str(),
+				&STEAM_COOKIE_URL,
+			);
+		}
 
 		self.client
 			.request(method, url)
 			.header(COOKIE, self.cookies.cookies(&STEAM_COOKIE_URL).unwrap())
 	}
 
-	pub fn get<U: reqwest::IntoUrl>(&self, url: U) -> RequestBuilder {
+	pub fn get<U: reqwest::IntoUrl + std::fmt::Display>(&self, url: U) -> RequestBuilder {
 		self.request(reqwest::Method::GET, url)
 	}
 
-	pub fn post<U: reqwest::IntoUrl>(&self, url: U) -> RequestBuilder {
+	pub fn post<U: reqwest::IntoUrl + std::fmt::Display>(&self, url: U) -> RequestBuilder {
 		self.request(reqwest::Method::POST, url)
 	}
 
@@ -244,6 +263,7 @@ impl SteamApiClient {
 			.post("https://steamcommunity.com/login/dologin")
 			.form(&params)
 			.send()?;
+		self.save_cookies_from_response(&resp);
 		let text = resp.text()?;
 		trace!("raw login response: {}", text);
 
@@ -289,6 +309,205 @@ impl SteamApiClient {
 			}
 		}
 	}
+
+	/// One of the endpoints that handles phone number things. Can check to see if phone is present on account, and maybe do some other stuff. It's not really super clear.
+	///
+	/// Host: steamcommunity.com
+	/// Endpoint: POST /steamguard/phoneajax
+	/// Requires `sessionid` cookie to be set.
+	fn phoneajax(&self, op: &str, arg: &str) -> anyhow::Result<bool> {
+		let mut params = hashmap! {
+			"op" => op,
+			"arg" => arg,
+			"sessionid" => self.session.as_ref().unwrap().session_id.as_str(),
+		};
+		if op == "check_sms_code" {
+			params.insert("checkfortos", "0");
+			params.insert("skipvoip", "1");
+		}
+
+		let resp = self
+			.post("https://steamcommunity.com/steamguard/phoneajax")
+			.form(&params)
+			.send()?;
+
+		trace!("phoneajax: status={}", resp.status());
+		let result: Value = resp.json()?;
+		trace!("phoneajax: {:?}", result);
+		if result["has_phone"] != Value::Null {
+			trace!("op: {} - found has_phone field", op);
+			return result["has_phone"]
+				.as_bool()
+				.ok_or(anyhow!("failed to parse has_phone field into boolean"));
+		} else if result["success"] != Value::Null {
+			trace!("op: {} - found success field", op);
+			return result["success"]
+				.as_bool()
+				.ok_or(anyhow!("failed to parse success field into boolean"));
+		} else {
+			trace!("op: {} - did not find any expected field", op);
+			return Ok(false);
+		}
+	}
+
+	/// Works similar to phoneajax. Used in the process to add a phone number to a steam account.
+	/// Valid ops:
+	/// - get_phone_number => `input` is treated as a phone number to add to the account. Yes, this is somewhat counter intuitive.
+	/// - resend_sms
+	/// - get_sms_code => `input` is treated as a the SMS code that was texted to the phone number. Again, this is somewhat counter intuitive. After this succeeds, the phone number is added to the account.
+	/// - email_verification => If the account is protected with steam guard email, a verification link is sent. After the link in the email is clicked, send this op. After, an SMS code is sent to the phone number.
+	/// - retry_email_verification
+	///
+	/// Host: store.steampowered.com
+	/// Endpoint: /phone/add_ajaxop
+	fn phone_add_ajaxop(&self, op: &str, input: &str) -> anyhow::Result<()> {
+		trace!("phone_add_ajaxop: op={} input={}", op, input);
+		let params = hashmap! {
+			"op" => op,
+			"input" => input,
+			"sessionid" => self.session.as_ref().unwrap().session_id.as_str(),
+		};
+
+		let resp = self
+			.post("https://store.steampowered.com/phone/add_ajaxop")
+			.form(&params)
+			.send()?;
+		trace!("phone_add_ajaxop: http status={}", resp.status());
+		let text = resp.text()?;
+		trace!("phone_add_ajaxop response: {}", text);
+
+		todo!();
+	}
+
+	pub fn has_phone(&self) -> anyhow::Result<bool> {
+		return self.phoneajax("has_phone", "null");
+	}
+
+	pub fn check_sms_code(&self, sms_code: String) -> anyhow::Result<bool> {
+		return self.phoneajax("check_sms_code", sms_code.as_str());
+	}
+
+	pub fn check_email_confirmation(&self) -> anyhow::Result<bool> {
+		return self.phoneajax("email_confirmation", "");
+	}
+
+	pub fn add_phone_number(&self, phone_number: String) -> anyhow::Result<bool> {
+		// return self.phoneajax("add_phone_number", phone_number.as_str());
+		todo!();
+	}
+
+	/// Provides lots of juicy information, like if the number is a VOIP number.
+	/// Host: store.steampowered.com
+	/// Endpoint: POST /phone/validate
+	/// Found on page: https://store.steampowered.com/phone/add
+	pub fn phone_validate(&self, phone_number: String) -> anyhow::Result<bool> {
+		let params = hashmap! {
+			"sessionID" => "",
+			"phoneNumber" => "",
+		};
+
+		todo!();
+	}
+
+	/// Starts the authenticator linking process.
+	/// This doesn't check any prereqisites to ensure the request will pass validation on Steam's side (eg. sms/email confirmations).
+	/// A valid `Session` is required for this request. Cookies are not needed for this request, but they are set anyway.
+	///
+	/// Host: api.steampowered.com
+	/// Endpoint: POST /ITwoFactorService/AddAuthenticator/v0001
+	pub fn add_authenticator(
+		&mut self,
+		device_id: String,
+	) -> anyhow::Result<AddAuthenticatorResponse> {
+		ensure!(matches!(self.session, Some(_)));
+		let params = hashmap! {
+			"access_token" => self.session.as_ref().unwrap().token.clone(),
+			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
+			"authenticator_type" => "1".into(),
+			"device_identifier" => device_id,
+			"sms_phone_id" => "1".into(),
+		};
+
+		let resp = self
+			.post(format!(
+				"{}/ITwoFactorService/AddAuthenticator/v0001",
+				STEAM_API_BASE.to_string()
+			))
+			.form(&params)
+			.send()?;
+		self.save_cookies_from_response(&resp);
+		let text = resp.text()?;
+		trace!("raw add authenticator response: {}", text);
+
+		let resp: SteamApiResponse<AddAuthenticatorResponse> = serde_json::from_str(text.as_str())?;
+
+		Ok(resp.response)
+	}
+
+	///
+	/// Host: api.steampowered.com
+	/// Endpoint: POST /ITwoFactorService/FinalizeAddAuthenticator/v0001
+	pub fn finalize_authenticator(
+		&self,
+		sms_code: String,
+		code_2fa: String,
+		time_2fa: i64,
+	) -> anyhow::Result<FinalizeAddAuthenticatorResponse> {
+		ensure!(matches!(self.session, Some(_)));
+		let params = hashmap! {
+			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
+			"access_token" => self.session.as_ref().unwrap().token.clone(),
+			"activation_code" => sms_code,
+			"authenticator_code" => code_2fa,
+			"authenticator_time" => time_2fa.to_string(),
+		};
+
+		let resp = self
+			.post(format!(
+				"{}/ITwoFactorService/FinalizeAddAuthenticator/v0001",
+				STEAM_API_BASE.to_string()
+			))
+			.form(&params)
+			.send()?;
+
+		let text = resp.text()?;
+		trace!("raw finalize authenticator response: {}", text);
+
+		let resp: SteamApiResponse<FinalizeAddAuthenticatorResponse> =
+			serde_json::from_str(text.as_str())?;
+
+		return Ok(resp.response);
+	}
+
+	/// Host: api.steampowered.com
+	/// Endpoint: POST /ITwoFactorService/RemoveAuthenticator/v0001
+	pub fn remove_authenticator(
+		&self,
+		revocation_code: String,
+	) -> anyhow::Result<RemoveAuthenticatorResponse> {
+		let params = hashmap! {
+			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
+			"steamguard_scheme" => "2".into(),
+			"revocation_code" => revocation_code,
+			"access_token" => self.session.as_ref().unwrap().token.to_string(),
+		};
+
+		let resp = self
+			.post(format!(
+				"{}/ITwoFactorService/RemoveAuthenticator/v0001",
+				STEAM_API_BASE.to_string()
+			))
+			.form(&params)
+			.send()?;
+
+		let text = resp.text()?;
+		trace!("raw remove authenticator response: {}", text);
+
+		let resp: SteamApiResponse<RemoveAuthenticatorResponse> =
+			serde_json::from_str(text.as_str())?;
+
+		return Ok(resp.response);
+	}
 }
 
 #[test]
@@ -328,4 +547,139 @@ fn test_login_response_parse() {
 		"21061EA13C36D7C29812CAED900A215171AD13A2"
 	);
 	assert_eq!(oauth.webcookie, "6298070A226E5DAD49938D78BCF36F7A7118FDD5");
+}
+
+#[test]
+fn test_login_response_parse_missing_webcookie() {
+	let result = serde_json::from_str::<LoginResponse>(include_str!(
+		"fixtures/api-responses/login-response-missing-webcookie.json"
+	));
+
+	assert!(
+		matches!(result, Ok(_)),
+		"got error: {}",
+		result.unwrap_err()
+	);
+	let resp = result.unwrap();
+
+	let oauth = resp.oauth.unwrap();
+	assert_eq!(oauth.steamid, "92591609556178617");
+	assert_eq!(oauth.oauth_token, "1cc83205dab2979e558534dab29f6f3aa");
+	assert_eq!(oauth.wgtoken, "3EDA9DEF07D7B39361D95203525D8AFE82A");
+	assert_eq!(oauth.wgtoken_secure, "F31641B9AFC2F8B0EE7B6F44D7E73EA3FA48");
+	assert_eq!(oauth.webcookie, "");
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SteamApiResponse<T> {
+	pub response: T,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AddAuthenticatorResponse {
+	/// Shared secret between server and authenticator
+	#[serde(default)]
+	pub shared_secret: String,
+	/// Authenticator serial number (unique per token)
+	#[serde(default)]
+	pub serial_number: String,
+	/// code used to revoke authenticator
+	#[serde(default)]
+	pub revocation_code: String,
+	/// URI for QR code generation
+	#[serde(default)]
+	pub uri: String,
+	/// Current server time
+	#[serde(default, deserialize_with = "parse_json_string_as_number")]
+	pub server_time: u64,
+	/// Account name to display on token client
+	#[serde(default)]
+	pub account_name: String,
+	/// Token GID assigned by server
+	#[serde(default)]
+	pub token_gid: String,
+	/// Secret used for identity attestation (e.g., for eventing)
+	#[serde(default)]
+	pub identity_secret: String,
+	/// Spare shared secret
+	#[serde(default)]
+	pub secret_1: String,
+	/// Result code
+	pub status: i32,
+}
+
+impl AddAuthenticatorResponse {
+	pub fn to_steam_guard_account(&self) -> SteamGuardAccount {
+		SteamGuardAccount {
+			shared_secret: self.shared_secret.clone(),
+			serial_number: self.serial_number.clone(),
+			revocation_code: self.revocation_code.clone(),
+			uri: self.uri.clone(),
+			server_time: self.server_time,
+			account_name: self.account_name.clone(),
+			token_gid: self.token_gid.clone(),
+			identity_secret: self.identity_secret.clone(),
+			secret_1: self.secret_1.clone(),
+			fully_enrolled: false,
+			device_id: "".into(),
+			session: None,
+		}
+	}
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct FinalizeAddAuthenticatorResponse {
+	pub status: i32,
+	#[serde(deserialize_with = "parse_json_string_as_number")]
+	pub server_time: u64,
+	pub want_more: bool,
+	pub success: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RemoveAuthenticatorResponse {
+	pub success: bool,
+}
+
+fn parse_json_string_as_number<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	// for some reason, deserializing to &str doesn't work but this does.
+	let s: String = Deserialize::deserialize(deserializer)?;
+	Ok(s.parse().unwrap())
+}
+
+#[test]
+fn test_parse_add_auth_response() {
+	let result = serde_json::from_str::<SteamApiResponse<AddAuthenticatorResponse>>(include_str!(
+		"fixtures/api-responses/add-authenticator-1.json"
+	));
+
+	assert!(
+		matches!(result, Ok(_)),
+		"got error: {}",
+		result.unwrap_err()
+	);
+	let resp = result.unwrap().response;
+
+	assert_eq!(resp.server_time, 1628559846);
+	assert_eq!(resp.shared_secret, "wGwZx=sX5MmTxi6QgA3Gi");
+	assert_eq!(resp.revocation_code, "R123456");
+}
+
+#[test]
+fn test_parse_add_auth_response2() {
+	let result = serde_json::from_str::<SteamApiResponse<AddAuthenticatorResponse>>(include_str!(
+		"fixtures/api-responses/add-authenticator-2.json"
+	));
+
+	assert!(
+		matches!(result, Ok(_)),
+		"got error: {}",
+		result.unwrap_err()
+	);
+	let resp = result.unwrap().response;
+
+	assert_eq!(resp.status, 29);
 }
