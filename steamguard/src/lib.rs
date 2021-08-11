@@ -11,6 +11,7 @@ use reqwest::{
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, convert::TryInto};
+use steamapi::SteamApiClient;
 pub use userlogin::{LoginError, UserLogin};
 #[macro_use]
 extern crate lazy_static;
@@ -244,6 +245,19 @@ impl SteamGuardAccount {
 
 		ensure!(resp.success);
 		Ok(resp.html)
+	}
+
+	/// Removes the mobile authenticator from the steam account. If this operation succeeds, this object can no longer be considered valid.
+	/// Returns whether or not the operation was successful.
+	pub fn remove_authenticator(&self, revocation_code: Option<String>) -> anyhow::Result<bool> {
+		ensure!(
+			matches!(revocation_code, Some(_)) || !self.revocation_code.is_empty(),
+			"Revocation code not provided."
+		);
+		let client: SteamApiClient = SteamApiClient::new(self.session.clone());
+		let resp =
+			client.remove_authenticator(revocation_code.unwrap_or(self.revocation_code.clone()))?;
+		Ok(resp.success)
 	}
 }
 

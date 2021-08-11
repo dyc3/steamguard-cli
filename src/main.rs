@@ -86,6 +86,10 @@ fn main() {
 			.about("Set up a new account with steamguard-cli")
 		)
 		.subcommand(
+			App::new("remove")
+			.about("Remove the authenticator from an account.")
+		)
+		.subcommand(
 			App::new("debug")
 			.arg(
 				Arg::with_name("demo-conf-menu")
@@ -298,6 +302,55 @@ fn main() {
 		}
 
 		manifest.save();
+	} else if let Some(_) = matches.subcommand_matches("remove") {
+		println!(
+			"This will remove the mobile authenticator from {} accounts: {}",
+			selected_accounts.len(),
+			selected_accounts
+				.iter()
+				.map(|a| a.lock().unwrap().account_name.clone())
+				.collect::<Vec<String>>()
+				.join(", ")
+		);
+
+		print!("Do you want to continue? [yN] ");
+		match prompt().as_str() {
+			"y" => {}
+			_ => {
+				println!("Aborting!");
+				return;
+			}
+		}
+
+		let mut successful = vec![];
+		for a in selected_accounts {
+			let account = a.lock().unwrap();
+			match account.remove_authenticator(None) {
+				Ok(success) => {
+					if success {
+						println!("Removed authenticator from {}", account.account_name);
+						successful.push(account.account_name.clone());
+					} else {
+						println!(
+							"Failed to remove authenticator from {}",
+							account.account_name
+						);
+					}
+				}
+				Err(err) => {
+					println!(
+						"Unexpected error when removing authenticator from {}: {}",
+						account.account_name, err
+					);
+				}
+			}
+		}
+
+		for account_name in successful {
+			manifest.remove_account(account_name);
+		}
+
+		manifest.save().expect("Failed to save manifest.");
 	} else {
 		let server_time = steamapi::get_server_time();
 		for account in selected_accounts {

@@ -66,6 +66,16 @@ impl Manifest {
 		self.accounts.push(Arc::new(Mutex::new(account)));
 	}
 
+	pub fn remove_account(&mut self, account_name: String) {
+		let index = self
+			.accounts
+			.iter()
+			.position(|a| a.lock().unwrap().account_name == account_name)
+			.unwrap();
+		self.accounts.remove(index);
+		self.entries.remove(index);
+	}
+
 	pub fn save(&self) -> anyhow::Result<()> {
 		ensure!(
 			self.entries.len() == self.accounts.len(),
