@@ -571,7 +571,6 @@ fn test_login_response_parse_missing_webcookie() {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(transparent)]
 pub struct SteamApiResponse<T> {
 	pub response: T,
 }
