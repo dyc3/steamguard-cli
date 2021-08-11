@@ -28,7 +28,7 @@ pub struct LoginResponse {
 	pub captcha_needed: bool,
 	#[serde(default)]
 	pub captcha_gid: String,
-	#[serde(default)]
+	#[serde(default, deserialize_with = "parse_json_string_as_number")]
 	pub emailsteamid: u64,
 	#[serde(default)]
 	pub emailauth_needed: bool,
