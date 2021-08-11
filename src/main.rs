@@ -209,6 +209,15 @@ fn main() {
 			}
 		}
 
+		println!("Authenticator finalized.");
+		match manifest.save() {
+			Ok(_) => {}
+			Err(err) => {
+				println!("Failed to save manifest, but we were able to save it before. {}", err);
+				return;
+			}
+		}
+
 		return;
 	}
 
