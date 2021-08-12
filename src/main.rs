@@ -117,7 +117,11 @@ fn main() {
 		return;
 	}
 
-	let mafiles_dir = get_mafiles_dir(matches.value_of("mafiles-path"));
+	let mafiles_dir = if matches.occurrences_of("mafiles-path") > 0 {
+		matches.value_of("mafiles-path").unwrap().into()
+	} else {
+		get_mafiles_dir()
+	};
 	info!("reading manifest from {}", mafiles_dir);
 	let path = Path::new(&mafiles_dir).join("manifest.json");
 	let mut manifest: accountmanager::Manifest;
@@ -677,11 +681,7 @@ fn demo_confirmation_menu() {
 	println!("accept: {}, deny: {}", accept.len(), deny.len());
 }
 
-fn get_mafiles_dir(arg: Option<&str>) -> String {
-	if let Some(arg_path) = arg {
-		return arg_path.into();
-	}
-
+fn get_mafiles_dir() -> String {
 	let paths = vec![
 		Path::new(&dirs::config_dir().unwrap()).join("steamguard-cli/maFiles"),
 		Path::new(&dirs::home_dir().unwrap()).join("maFiles"),
