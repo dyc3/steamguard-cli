@@ -127,7 +127,10 @@ fn main() {
 	let mut manifest: accountmanager::Manifest;
 	if !path.exists() {
 		error!("Did not find manifest in {}", mafiles_dir);
-		print!("Would you like to create a manifest in {} ? [Yn] ", mafiles_dir);
+		print!(
+			"Would you like to create a manifest in {} ? [Yn] ",
+			mafiles_dir
+		);
 		match prompt().to_lowercase().as_str() {
 			"n" => {
 				info!("Aborting!");
@@ -138,8 +141,7 @@ fn main() {
 		std::fs::create_dir_all(mafiles_dir).expect("failed to create directory");
 
 		manifest = accountmanager::Manifest::new(path.as_path());
-	}
-	else {
+	} else {
 		match accountmanager::Manifest::load(path.as_path()) {
 			Ok(m) => {
 				manifest = m;
