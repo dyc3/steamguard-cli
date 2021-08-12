@@ -10,11 +10,17 @@ use steamguard::SteamGuardAccount;
 pub struct Manifest {
 	pub encrypted: bool,
 	pub entries: Vec<ManifestEntry>,
+	/// Not implemented, kept for compatibility with SDA.
 	pub first_run: bool,
+	/// Not implemented, kept for compatibility with SDA.
 	pub periodic_checking: bool,
+	/// Not implemented, kept for compatibility with SDA.
 	pub periodic_checking_interval: i32,
+	/// Not implemented, kept for compatibility with SDA.
 	pub periodic_checking_checkall: bool,
+	/// Not implemented, kept for compatibility with SDA.
 	pub auto_confirm_market_transactions: bool,
+	/// Not implemented, kept for compatibility with SDA.
 	pub auto_confirm_trades: bool,
 
 	#[serde(skip)]
@@ -32,8 +38,34 @@ pub struct ManifestEntry {
 	pub steam_id: u64,
 }
 
+impl Default for Manifest {
+	fn default() -> Self {
+		Manifest {
+			encrypted: false,
+			entries: vec![],
+			first_run: false,
+			periodic_checking: false,
+			periodic_checking_interval: 0,
+			periodic_checking_checkall: false,
+			auto_confirm_market_transactions: false,
+			auto_confirm_trades: false,
+
+			accounts: vec![],
+			folder: "".into(),
+		}
+	}
+}
+
 impl Manifest {
-	pub fn load(path: &Path) -> anyhow::Result<Manifest> {
+	/// `path` should be the path to manifest.json
+	pub fn new(path: &Path) -> Self {
+		Manifest {
+			folder: String::from(path.parent().unwrap().to_str().unwrap()),
+			..Default::default()
+		}
+	}
+
+	pub fn load(path: &Path) -> anyhow::Result<Self> {
 		debug!("loading manifest: {:?}", &path);
 		let file = File::open(path)?;
 		let reader = BufReader::new(file);

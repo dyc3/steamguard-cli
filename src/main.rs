@@ -23,6 +23,7 @@ use termion::{
 extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
+extern crate dirs;
 mod accountmanager;
 
 lazy_static! {
@@ -57,7 +58,7 @@ fn main() {
 				.long("mafiles-path")
 				.short("m")
 				.default_value("~/maFiles")
-				.help("Specify which folder your maFiles are in.")
+				.help("Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json.")
 		)
 		.arg(
 			Arg::with_name("passkey")
@@ -116,15 +117,39 @@ fn main() {
 		return;
 	}
 
-	let path = Path::new(matches.value_of("mafiles-path").unwrap()).join("manifest.json");
+	let mafiles_dir = if matches.occurrences_of("mafiles-path") > 0 {
+		matches.value_of("mafiles-path").unwrap().into()
+	} else {
+		get_mafiles_dir()
+	};
+	info!("reading manifest from {}", mafiles_dir);
+	let path = Path::new(&mafiles_dir).join("manifest.json");
 	let mut manifest: accountmanager::Manifest;
-	match accountmanager::Manifest::load(path.as_path()) {
-		Ok(m) => {
-			manifest = m;
+	if !path.exists() {
+		error!("Did not find manifest in {}", mafiles_dir);
+		print!(
+			"Would you like to create a manifest in {} ? [Yn] ",
+			mafiles_dir
+		);
+		match prompt().to_lowercase().as_str() {
+			"n" => {
+				info!("Aborting!");
+				return;
+			}
+			_ => {}
 		}
-		Err(e) => {
-			error!("Could not load manifest: {}", e);
-			return;
+		std::fs::create_dir_all(mafiles_dir).expect("failed to create directory");
+
+		manifest = accountmanager::Manifest::new(path.as_path());
+	} else {
+		match accountmanager::Manifest::load(path.as_path()) {
+			Ok(m) => {
+				manifest = m;
+			}
+			Err(e) => {
+				error!("Could not load manifest: {}", e);
+				return;
+			}
 		}
 	}
 
@@ -656,4 +681,19 @@ fn demo_confirmation_menu() {
 		},
 	]);
 	println!("accept: {}, deny: {}", accept.len(), deny.len());
+}
+
+fn get_mafiles_dir() -> String {
+	let paths = vec![
+		Path::new(&dirs::config_dir().unwrap()).join("steamguard-cli/maFiles"),
+		Path::new(&dirs::home_dir().unwrap()).join("maFiles"),
+	];
+
+	for path in &paths {
+		if path.join("manifest.json").is_file() {
+			return path.to_str().unwrap().into();
+		}
+	}
+
+	return paths[0].to_str().unwrap().into();
 }
