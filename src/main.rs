@@ -42,6 +42,7 @@ fn main() {
 				.short("u")
 				.takes_value(true)
 				.help("Select the account you want by steam username. By default, the first account in the manifest is selected.")
+				.conflicts_with("all")
 		)
 		.arg(
 			Arg::with_name("all")
@@ -49,6 +50,7 @@ fn main() {
 				.short("a")
 				.takes_value(false)
 				.help("Select all accounts in the manifest.")
+				.conflicts_with("username")
 		)
 		.arg(
 			Arg::with_name("mafiles-path")
