@@ -89,6 +89,15 @@ fn main() {
 			.about("Set up a new account with steamguard-cli")
 		)
 		.subcommand(
+			App::new("import")
+				.about("Import an account with steamguard already set up")
+				.arg(
+					Arg::with_name("files")
+						.required(true)
+						.multiple(true)
+				)
+		)
+		.subcommand(
 			App::new("remove")
 			.about("Remove the authenticator from an account.")
 		)
@@ -252,6 +261,20 @@ fn main() {
 			}
 		}
 
+		return;
+	} else if let Some(import_matches) = matches.subcommand_matches("import") {
+		for file_path in import_matches.values_of("files").unwrap() {
+			match manifest.import_account(file_path.into()) {
+				Ok(_) => {
+					info!("Imported account: {}", file_path);
+				}
+				Err(err) => {
+					error!("Failed to import account: {} {}", file_path, err);
+				}
+			}
+		}
+
+		manifest.save().expect("Failed to save manifest.");
 		return;
 	}
 
