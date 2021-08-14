@@ -394,4 +394,21 @@ mod tests {
 			}
 		);
 	}
+
+	#[test]
+	fn test_parse_phone_number_change() {
+		let text = include_str!("fixtures/confirmations/phone-number-change.html");
+		let confirmations = parse_confirmations(text.into()).unwrap();
+		assert_eq!(confirmations.len(), 1);
+		assert_eq!(
+			confirmations[0],
+			Confirmation {
+				id: 9931444017,
+				key: 9746021299562127894,
+				conf_type: ConfirmationType::AccountRecovery,
+				creator: 2861625242839108895,
+				description: "Account recovery Just now".into(),
+			}
+		);
+	}
 }
