@@ -398,7 +398,7 @@ fn main() {
 	}
 }
 
-fn do_login(account: &mut SteamGuardAccount) {
+fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	if account.account_name.len() > 0 {
 		println!("Username: {}", account.account_name);
 	} else {
@@ -412,40 +412,12 @@ fn do_login(account: &mut SteamGuardAccount) {
 	} else {
 		debug!("password is empty");
 	}
-	// TODO: reprompt if password is empty
-	let mut login = UserLogin::new(account.account_name.clone(), password);
-	let mut loops = 0;
-	loop {
-		match login.login() {
-			Ok(s) => {
-				account.session = Option::Some(s);
-				break;
-			}
-			Err(LoginError::Need2FA) => {
-				debug!("generating 2fa code and retrying");
-				let server_time = steamapi::get_server_time();
-				login.twofactor_code = account.generate_code(server_time);
-			}
-			Err(LoginError::NeedCaptcha { captcha_gid }) => {
-				debug!("need captcha to log in");
-				login.captcha_text = tui::prompt_captcha_text(&captcha_gid);
-			}
-			Err(LoginError::NeedEmail) => {
-				println!("You should have received an email with a code.");
-				print!("Enter code");
-				login.email_code = tui::prompt();
-			}
-			r => {
-				error!("Fatal login result: {:?}", r);
-				return;
-			}
-		}
-		loops += 1;
-		if loops > 2 {
-			error!("Too many loops. Aborting login process, to avoid getting rate limited.");
-			return;
-		}
-	}
+	account.session = Some(do_login_impl(
+		account.account_name.clone(),
+		password,
+		Some(account),
+	)?);
+	return Ok(());
 }
 
 fn do_login_raw() -> anyhow::Result<steamapi::Session> {
@@ -458,6 +430,14 @@ fn do_login_raw() -> anyhow::Result<steamapi::Session> {
 	} else {
 		debug!("password is empty");
 	}
+	return do_login_impl(username, password, None);
+}
+
+fn do_login_impl(
+	username: String,
+	password: String,
+	account: Option<&SteamGuardAccount>,
+) -> anyhow::Result<steamapi::Session> {
 	// TODO: reprompt if password is empty
 	let mut login = UserLogin::new(username, password);
 	let mut loops = 0;
@@ -466,10 +446,16 @@ fn do_login_raw() -> anyhow::Result<steamapi::Session> {
 			Ok(s) => {
 				return Ok(s);
 			}
-			Err(LoginError::Need2FA) => {
-				print!("Enter 2fa code: ");
-				login.twofactor_code = tui::prompt();
-			}
+			Err(LoginError::Need2FA) => match account {
+				Some(a) => {
+					let server_time = steamapi::get_server_time();
+					login.twofactor_code = a.generate_code(server_time);
+				}
+				None => {
+					print!("Enter 2fa code: ");
+					login.twofactor_code = tui::prompt();
+				}
+			},
 			Err(LoginError::NeedCaptcha { captcha_gid }) => {
 				debug!("need captcha to log in");
 				login.captcha_text = tui::prompt_captcha_text(&captcha_gid);
