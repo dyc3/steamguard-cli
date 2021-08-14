@@ -1,22 +1,14 @@
 extern crate rpassword;
 use clap::{crate_version, App, Arg};
 use log::*;
-use regex::Regex;
-use std::collections::HashSet;
 use std::{
-	io::{stdin, stdout, Write},
+	io::{stdout, Write},
 	path::Path,
 	sync::{Arc, Mutex},
 };
 use steamguard::{
-	steamapi, AccountLinkError, AccountLinker, Confirmation, ConfirmationType, FinalizeLinkError,
-	LoginError, SteamGuardAccount, UserLogin,
-};
-use termion::{
-	event::{Event, Key},
-	input::TermRead,
-	raw::IntoRawMode,
-	screen::AlternateScreen,
+	steamapi, AccountLinkError, AccountLinker, Confirmation, FinalizeLinkError, LoginError,
+	SteamGuardAccount, UserLogin,
 };
 
 #[macro_use]
@@ -25,11 +17,8 @@ extern crate lazy_static;
 extern crate anyhow;
 extern crate dirs;
 mod accountmanager;
-
-lazy_static! {
-	static ref CAPTCHA_VALID_CHARS: Regex =
-		Regex::new("^([A-H]|[J-N]|[P-R]|[T-Z]|[2-4]|[7-9]|[@%&])+$").unwrap();
-}
+mod demos;
+mod tui;
 
 fn main() {
 	let matches = App::new("steamguard-cli")
@@ -121,7 +110,7 @@ fn main() {
 
 	if let Some(demo_matches) = matches.subcommand_matches("debug") {
 		if demo_matches.is_present("demo-conf-menu") {
-			demo_confirmation_menu();
+			demos::demo_confirmation_menu();
 		}
 		return;
 	}
@@ -136,12 +125,11 @@ fn main() {
 	let mut manifest: accountmanager::Manifest;
 	if !path.exists() {
 		error!("Did not find manifest in {}", mafiles_dir);
-		print!(
-			"Would you like to create a manifest in {} ? [Yn] ",
-			mafiles_dir
-		);
-		match prompt().to_lowercase().as_str() {
-			"n" => {
+		match tui::prompt_char(
+			format!("Would you like to create a manifest in {} ?", mafiles_dir).as_str(),
+			"Yn",
+		) {
+			'n' => {
 				info!("Aborting!");
 				return;
 			}
@@ -185,7 +173,7 @@ fn main() {
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
 					println!("Enter your phone number in the following format: +1 123-456-7890");
 					print!("Phone number: ");
-					linker.phone_number = prompt().replace(&['(', ')', '-'][..], "");
+					linker.phone_number = tui::prompt().replace(&['(', ')', '-'][..], "");
 				}
 				Err(AccountLinkError::AuthenticatorPresent) => {
 					println!("An authenticator is already present on this account.");
@@ -193,7 +181,7 @@ fn main() {
 				}
 				Err(AccountLinkError::MustConfirmEmail) => {
 					println!("Check your email and click the link.");
-					pause();
+					tui::pause();
 				}
 				Err(err) => {
 					error!(
@@ -228,7 +216,7 @@ fn main() {
 
 		debug!("attempting link finalization");
 		print!("Enter SMS code: ");
-		let sms_code = prompt();
+		let sms_code = tui::prompt();
 		let mut tries = 0;
 		loop {
 			match linker.finalize(&mut account, sms_code.clone()) {
@@ -320,7 +308,7 @@ fn main() {
 					}
 					Err(_) => {
 						info!("failed to get trade confirmations, asking user to log in");
-						do_login(&mut account);
+						do_login(&mut account).expect("Failed to log in");
 					}
 				}
 			}
@@ -333,7 +321,7 @@ fn main() {
 				}
 			} else {
 				if termion::is_tty(&stdout()) {
-					let (accept, deny) = prompt_confirmation_menu(confirmations);
+					let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
 					for conf in &accept {
 						let result = account.accept_confirmation(conf);
 						debug!("accept confirmation result: {:?}", result);
@@ -351,7 +339,7 @@ fn main() {
 			}
 		}
 
-		manifest.save();
+		manifest.save().expect("Failed to save manifest");
 	} else if let Some(_) = matches.subcommand_matches("remove") {
 		println!(
 			"This will remove the mobile authenticator from {} accounts: {}",
@@ -363,11 +351,10 @@ fn main() {
 				.join(", ")
 		);
 
-		print!("Do you want to continue? [yN] ");
-		match prompt().as_str() {
-			"y" => {}
+		match tui::prompt_char("Do you want to continue?", "yN") {
+			'y' => {}
 			_ => {
-				println!("Aborting!");
+				info!("Aborting!");
 				return;
 			}
 		}
@@ -411,175 +398,12 @@ fn main() {
 	}
 }
 
-fn validate_captcha_text(text: &String) -> bool {
-	return CAPTCHA_VALID_CHARS.is_match(text);
-}
-
-#[test]
-fn test_validate_captcha_text() {
-	assert!(validate_captcha_text(&String::from("2WWUA@")));
-	assert!(validate_captcha_text(&String::from("3G8HT2")));
-	assert!(validate_captcha_text(&String::from("3J%@X3")));
-	assert!(validate_captcha_text(&String::from("2GCZ4A")));
-	assert!(validate_captcha_text(&String::from("3G8HT2")));
-	assert!(!validate_captcha_text(&String::from("asd823")));
-	assert!(!validate_captcha_text(&String::from("!PQ4RD")));
-	assert!(!validate_captcha_text(&String::from("1GQ4XZ")));
-	assert!(!validate_captcha_text(&String::from("8GO4XZ")));
-	assert!(!validate_captcha_text(&String::from("IPQ4RD")));
-	assert!(!validate_captcha_text(&String::from("0PT4RD")));
-	assert!(!validate_captcha_text(&String::from("APTSRD")));
-	assert!(!validate_captcha_text(&String::from("AP5TRD")));
-	assert!(!validate_captcha_text(&String::from("AP6TRD")));
-}
-
-/// Prompt the user for text input.
-fn prompt() -> String {
-	let mut text = String::new();
-	let _ = std::io::stdout().flush();
-	stdin()
-		.read_line(&mut text)
-		.expect("Did not enter a correct string");
-	return String::from(text.strip_suffix('\n').unwrap());
-}
-
-fn prompt_captcha_text(captcha_gid: &String) -> String {
-	println!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
-	let mut captcha_text;
-	loop {
-		print!("Enter captcha text: ");
-		captcha_text = prompt();
-		if captcha_text.len() > 0 && validate_captcha_text(&captcha_text) {
-			break;
-		}
-		warn!("Invalid chars for captcha text found in user's input. Prompting again...");
-	}
-	return captcha_text;
-}
-
-/// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
-fn prompt_confirmation_menu(
-	confirmations: Vec<Confirmation>,
-) -> (Vec<Confirmation>, Vec<Confirmation>) {
-	println!("press a key other than enter to show the menu.");
-	let mut to_accept_idx: HashSet<usize> = HashSet::new();
-	let mut to_deny_idx: HashSet<usize> = HashSet::new();
-
-	let mut screen = AlternateScreen::from(stdout().into_raw_mode().unwrap());
-	let stdin = stdin();
-
-	let mut selected_idx = 0;
-
-	for c in stdin.events() {
-		match c.expect("could not get events") {
-			Event::Key(Key::Char('a')) => {
-				to_accept_idx.insert(selected_idx);
-				to_deny_idx.remove(&selected_idx);
-			}
-			Event::Key(Key::Char('d')) => {
-				to_accept_idx.remove(&selected_idx);
-				to_deny_idx.insert(selected_idx);
-			}
-			Event::Key(Key::Char('i')) => {
-				to_accept_idx.remove(&selected_idx);
-				to_deny_idx.remove(&selected_idx);
-			}
-			Event::Key(Key::Char('A')) => {
-				(0..confirmations.len()).for_each(|i| {
-					to_accept_idx.insert(i);
-					to_deny_idx.remove(&i);
-				});
-			}
-			Event::Key(Key::Char('D')) => {
-				(0..confirmations.len()).for_each(|i| {
-					to_accept_idx.remove(&i);
-					to_deny_idx.insert(i);
-				});
-			}
-			Event::Key(Key::Char('I')) => {
-				(0..confirmations.len()).for_each(|i| {
-					to_accept_idx.remove(&i);
-					to_deny_idx.remove(&i);
-				});
-			}
-			Event::Key(Key::Up) if selected_idx > 0 => {
-				selected_idx -= 1;
-			}
-			Event::Key(Key::Down) if selected_idx < confirmations.len() - 1 => {
-				selected_idx += 1;
-			}
-			Event::Key(Key::Char('\n')) => {
-				break;
-			}
-			Event::Key(Key::Esc) | Event::Key(Key::Ctrl('c')) => {
-				return (vec![], vec![]);
-			}
-			_ => {}
-		}
-
-		write!(
-			screen,
-			"{}{}{}arrow keys to select, [a]ccept, [d]eny, [i]gnore, [enter] confirm choices\n\n",
-			termion::clear::All,
-			termion::cursor::Goto(1, 1),
-			termion::color::Fg(termion::color::White)
-		)
-		.unwrap();
-		for i in 0..confirmations.len() {
-			if selected_idx == i {
-				write!(
-					screen,
-					"\r{} >",
-					termion::color::Fg(termion::color::LightYellow)
-				)
-				.unwrap();
-			} else {
-				write!(screen, "\r{}  ", termion::color::Fg(termion::color::White)).unwrap();
-			}
-
-			if to_accept_idx.contains(&i) {
-				write!(
-					screen,
-					"{}[a]",
-					termion::color::Fg(termion::color::LightGreen)
-				)
-				.unwrap();
-			} else if to_deny_idx.contains(&i) {
-				write!(
-					screen,
-					"{}[d]",
-					termion::color::Fg(termion::color::LightRed)
-				)
-				.unwrap();
-			} else {
-				write!(screen, "[ ]").unwrap();
-			}
-
-			if selected_idx == i {
-				write!(
-					screen,
-					"{}",
-					termion::color::Fg(termion::color::LightYellow)
-				)
-				.unwrap();
-			}
-
-			write!(screen, " {}\n", confirmations[i].description()).unwrap();
-		}
-	}
-
-	return (
-		to_accept_idx.iter().map(|i| confirmations[*i]).collect(),
-		to_deny_idx.iter().map(|i| confirmations[*i]).collect(),
-	);
-}
-
-fn do_login(account: &mut SteamGuardAccount) {
+fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	if account.account_name.len() > 0 {
 		println!("Username: {}", account.account_name);
 	} else {
 		print!("Username: ");
-		account.account_name = prompt();
+		account.account_name = tui::prompt();
 	}
 	let _ = std::io::stdout().flush();
 	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
@@ -588,45 +412,17 @@ fn do_login(account: &mut SteamGuardAccount) {
 	} else {
 		debug!("password is empty");
 	}
-	// TODO: reprompt if password is empty
-	let mut login = UserLogin::new(account.account_name.clone(), password);
-	let mut loops = 0;
-	loop {
-		match login.login() {
-			Ok(s) => {
-				account.session = Option::Some(s);
-				break;
-			}
-			Err(LoginError::Need2FA) => {
-				debug!("generating 2fa code and retrying");
-				let server_time = steamapi::get_server_time();
-				login.twofactor_code = account.generate_code(server_time);
-			}
-			Err(LoginError::NeedCaptcha { captcha_gid }) => {
-				debug!("need captcha to log in");
-				login.captcha_text = prompt_captcha_text(&captcha_gid);
-			}
-			Err(LoginError::NeedEmail) => {
-				println!("You should have received an email with a code.");
-				print!("Enter code");
-				login.email_code = prompt();
-			}
-			r => {
-				error!("Fatal login result: {:?}", r);
-				return;
-			}
-		}
-		loops += 1;
-		if loops > 2 {
-			error!("Too many loops. Aborting login process, to avoid getting rate limited.");
-			return;
-		}
-	}
+	account.session = Some(do_login_impl(
+		account.account_name.clone(),
+		password,
+		Some(account),
+	)?);
+	return Ok(());
 }
 
 fn do_login_raw() -> anyhow::Result<steamapi::Session> {
 	print!("Username: ");
-	let username = prompt();
+	let username = tui::prompt();
 	let _ = std::io::stdout().flush();
 	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
 	if password.len() > 0 {
@@ -634,6 +430,14 @@ fn do_login_raw() -> anyhow::Result<steamapi::Session> {
 	} else {
 		debug!("password is empty");
 	}
+	return do_login_impl(username, password, None);
+}
+
+fn do_login_impl(
+	username: String,
+	password: String,
+	account: Option<&SteamGuardAccount>,
+) -> anyhow::Result<steamapi::Session> {
 	// TODO: reprompt if password is empty
 	let mut login = UserLogin::new(username, password);
 	let mut loops = 0;
@@ -642,18 +446,24 @@ fn do_login_raw() -> anyhow::Result<steamapi::Session> {
 			Ok(s) => {
 				return Ok(s);
 			}
-			Err(LoginError::Need2FA) => {
-				print!("Enter 2fa code: ");
-				login.twofactor_code = prompt();
-			}
+			Err(LoginError::Need2FA) => match account {
+				Some(a) => {
+					let server_time = steamapi::get_server_time();
+					login.twofactor_code = a.generate_code(server_time);
+				}
+				None => {
+					print!("Enter 2fa code: ");
+					login.twofactor_code = tui::prompt();
+				}
+			},
 			Err(LoginError::NeedCaptcha { captcha_gid }) => {
 				debug!("need captcha to log in");
-				login.captcha_text = prompt_captcha_text(&captcha_gid);
+				login.captcha_text = tui::prompt_captcha_text(&captcha_gid);
 			}
 			Err(LoginError::NeedEmail) => {
 				println!("You should have received an email with a code.");
 				print!("Enter code: ");
-				login.email_code = prompt();
+				login.email_code = tui::prompt();
 			}
 			Err(r) => {
 				error!("Fatal login result: {:?}", r);
@@ -666,44 +476,6 @@ fn do_login_raw() -> anyhow::Result<steamapi::Session> {
 			bail!("Too many loops. Login process aborted to avoid getting rate limited.");
 		}
 	}
-}
-
-fn pause() {
-	println!("Press any key to continue...");
-	let mut stdout = stdout().into_raw_mode().unwrap();
-	stdout.flush().unwrap();
-	stdin().events().next();
-}
-
-fn demo_confirmation_menu() {
-	info!("showing demo menu");
-	let (accept, deny) = prompt_confirmation_menu(vec![
-		Confirmation {
-			id: 1234,
-			key: 12345,
-			conf_type: ConfirmationType::Trade,
-			creator: 09870987,
-		},
-		Confirmation {
-			id: 1234,
-			key: 12345,
-			conf_type: ConfirmationType::MarketSell,
-			creator: 09870987,
-		},
-		Confirmation {
-			id: 1234,
-			key: 12345,
-			conf_type: ConfirmationType::AccountRecovery,
-			creator: 09870987,
-		},
-		Confirmation {
-			id: 1234,
-			key: 12345,
-			conf_type: ConfirmationType::Trade,
-			creator: 09870987,
-		},
-	]);
-	println!("accept: {}, deny: {}", accept.len(), deny.len());
 }
 
 fn get_mafiles_dir() -> String {
