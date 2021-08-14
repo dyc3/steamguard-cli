@@ -308,7 +308,7 @@ fn main() {
 					}
 					Err(_) => {
 						info!("failed to get trade confirmations, asking user to log in");
-						do_login(&mut account);
+						do_login(&mut account).expect("Failed to log in");
 					}
 				}
 			}
@@ -339,7 +339,7 @@ fn main() {
 			}
 		}
 
-		manifest.save();
+		manifest.save().expect("Failed to save manifest");
 	} else if let Some(_) = matches.subcommand_matches("remove") {
 		println!(
 			"This will remove the mobile authenticator from {} accounts: {}",
