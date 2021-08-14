@@ -1,7 +1,7 @@
 use log::*;
 use regex::Regex;
 use std::collections::HashSet;
-use std::io::Write;
+use std::io::{Read, Write};
 use steamguard::Confirmation;
 use termion::{
 	event::{Event, Key},
@@ -59,6 +59,46 @@ pub fn prompt_captcha_text(captcha_gid: &String) -> String {
 		warn!("Invalid chars for captcha text found in user's input. Prompting again...");
 	}
 	return captcha_text;
+}
+
+/// Prompt the user for a single character response. Useful for asking yes or no questions.
+///
+/// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.
+pub fn prompt_char(text: &str, chars: &str) -> char {
+	return prompt_char_impl(&mut std::io::stdin(), text, chars);
+}
+
+fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
+	let uppers = chars.replace(char::is_lowercase, "");
+	if uppers.len() > 1 {
+		panic!("Invalid chars for prompt_char. Maximum 1 uppercase letter is allowed.");
+	}
+	let default_answer: Option<char> = if uppers.len() == 1 {
+		Some(uppers.chars().collect::<Vec<char>>()[0].to_ascii_lowercase())
+	} else {
+		None
+	};
+
+	loop {
+		print!("{} [{}] ", text, chars);
+		let answer = input
+			.read_line()
+			.expect("Unable to read input")
+			.unwrap()
+			.to_ascii_lowercase();
+		if answer.len() == 0 {
+			if let Some(a) = default_answer {
+				return a;
+			}
+		} else if answer.len() > 1 {
+			continue;
+		}
+
+		let answer_char = answer.chars().collect::<Vec<char>>()[0];
+		if chars.contains(answer_char) {
+			return answer_char;
+		}
+	}
 }
 
 /// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
@@ -183,4 +223,44 @@ pub fn pause() {
 	let mut stdout = std::io::stdout().into_raw_mode().unwrap();
 	stdout.flush().unwrap();
 	std::io::stdin().events().next();
+}
+
+#[cfg(test)]
+mod prompt_char_tests {
+	use super::*;
+
+	#[test]
+	fn test_gives_answer() {
+		let inputs = ['y', '\n'].iter().collect::<String>();
+		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
+		assert_eq!(answer, 'y');
+	}
+
+	#[test]
+	fn test_gives_default() {
+		let inputs = ['\n'].iter().collect::<String>();
+		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "Yn");
+		assert_eq!(answer, 'y');
+	}
+
+	#[test]
+	fn test_should_not_give_default() {
+		let inputs = ['n', '\n'].iter().collect::<String>();
+		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "Yn");
+		assert_eq!(answer, 'n');
+	}
+
+	#[test]
+	fn test_should_not_give_invalid() {
+		let inputs = ['g', '\n', 'n', '\n'].iter().collect::<String>();
+		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
+		assert_eq!(answer, 'n');
+	}
+
+	#[test]
+	fn test_should_not_give_multichar() {
+		let inputs = ['y', 'y', '\n', 'n', '\n'].iter().collect::<String>();
+		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
+		assert_eq!(answer, 'n');
+	}
 }

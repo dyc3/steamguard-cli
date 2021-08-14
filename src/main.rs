@@ -125,12 +125,11 @@ fn main() {
 	let mut manifest: accountmanager::Manifest;
 	if !path.exists() {
 		error!("Did not find manifest in {}", mafiles_dir);
-		print!(
-			"Would you like to create a manifest in {} ? [Yn] ",
-			mafiles_dir
-		);
-		match tui::prompt().to_lowercase().as_str() {
-			"n" => {
+		match tui::prompt_char(
+			format!("Would you like to create a manifest in {} ?", mafiles_dir).as_str(),
+			"Yn",
+		) {
+			'n' => {
 				info!("Aborting!");
 				return;
 			}
@@ -352,11 +351,10 @@ fn main() {
 				.join(", ")
 		);
 
-		print!("Do you want to continue? [yN] ");
-		match tui::prompt().as_str() {
-			"y" => {}
+		match tui::prompt_char("Do you want to continue?", "yN") {
+			'y' => {}
 			_ => {
-				println!("Aborting!");
+				info!("Aborting!");
 				return;
 			}
 		}
