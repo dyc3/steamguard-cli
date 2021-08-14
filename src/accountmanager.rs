@@ -98,6 +98,19 @@ impl Manifest {
 		self.accounts.push(Arc::new(Mutex::new(account)));
 	}
 
+	pub fn import_account(&mut self, import_path: String) -> anyhow::Result<()> {
+		let path = Path::new(&import_path);
+		ensure!(path.exists(), "{} does not exist.", import_path);
+		ensure!(path.is_file(), "{} is not a file.", import_path);
+
+		let file = File::open(path)?;
+		let reader = BufReader::new(file);
+		let account: SteamGuardAccount = serde_json::from_reader(reader)?;
+		self.add_account(account);
+
+		return Ok(());
+	}
+
 	pub fn remove_account(&mut self, account_name: String) {
 		let index = self
 			.accounts
