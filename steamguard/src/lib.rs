@@ -50,7 +50,7 @@ pub struct SteamGuardAccount {
 	pub fully_enrolled: bool,
 	pub device_id: String,
 	pub secret_1: String,
-	#[serde(rename = "Session")]
+	#[serde(default, rename = "Session")]
 	pub session: Option<steamapi::Session>,
 }
 
