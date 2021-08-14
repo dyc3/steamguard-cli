@@ -36,6 +36,7 @@ pub struct ManifestEntry {
 	pub filename: String,
 	#[serde(rename = "steamid")]
 	pub steam_id: u64,
+	pub account_name: String,
 }
 
 impl Default for Manifest {
@@ -81,6 +82,10 @@ impl Manifest {
 			let file = File::open(path)?;
 			let reader = BufReader::new(file);
 			let account: SteamGuardAccount = serde_json::from_reader(reader)?;
+			ensure!(
+				account.account_name == entry.account_name,
+				"Account name in file does not match manifest entry."
+			);
 			self.accounts.push(Arc::new(Mutex::new(account)));
 		}
 		Ok(())
@@ -88,10 +93,11 @@ impl Manifest {
 
 	pub fn add_account(&mut self, account: SteamGuardAccount) {
 		debug!("adding account to manifest: {}", account.account_name);
-		let steamid = account.session.clone().unwrap().steam_id;
+		let steamid = account.session.as_ref().map_or(0, |s| s.steam_id);
 		self.entries.push(ManifestEntry {
 			filename: format!("{}.maFile", &account.account_name),
 			steam_id: steamid,
+			account_name: account.account_name.clone(),
 			encryption_iv: None,
 			encryption_salt: None,
 		});
@@ -145,5 +151,96 @@ impl Manifest {
 		file.write_all(manifest_serialized.as_bytes())?;
 		file.sync_data()?;
 		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use tempdir::TempDir;
+
+	#[test]
+	fn test_should_save_new_manifest() {
+		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
+		let manifest_path = tmp_dir.path().join("manifest.json");
+		let manifest = Manifest::new(manifest_path.as_path());
+		assert!(matches!(manifest.save(), Ok(_)));
+	}
+
+	#[test]
+	fn test_should_save_and_load_manifest() {
+		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
+		let manifest_path = tmp_dir.path().join("manifest.json");
+		let mut manifest = Manifest::new(manifest_path.as_path());
+		let mut account = SteamGuardAccount::new();
+		account.account_name = "asdf1234".into();
+		account.revocation_code = "R12345".into();
+		account.shared_secret = "secret".into();
+		manifest.add_account(account);
+		assert!(matches!(manifest.save(), Ok(_)));
+
+		let mut loaded_manifest = Manifest::load(manifest_path.as_path()).unwrap();
+		assert_eq!(loaded_manifest.entries.len(), 1);
+		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
+		assert!(matches!(loaded_manifest.load_accounts(), Ok(_)));
+		assert_eq!(
+			loaded_manifest.entries.len(),
+			loaded_manifest.accounts.len()
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().account_name,
+			"asdf1234"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().revocation_code,
+			"R12345"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
+			"secret"
+		);
+	}
+
+	#[test]
+	fn test_should_import() {
+		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
+		let manifest_path = tmp_dir.path().join("manifest.json");
+		let mut manifest = Manifest::new(manifest_path.as_path());
+		let mut account = SteamGuardAccount::new();
+		account.account_name = "asdf1234".into();
+		account.revocation_code = "R12345".into();
+		account.shared_secret = "secret".into();
+		manifest.add_account(account);
+		assert!(matches!(manifest.save(), Ok(_)));
+		std::fs::remove_file(&manifest_path).unwrap();
+
+		let mut loaded_manifest = Manifest::new(manifest_path.as_path());
+		assert!(matches!(
+			loaded_manifest.import_account(
+				tmp_dir
+					.path()
+					.join("asdf1234.maFile")
+					.into_os_string()
+					.into_string()
+					.unwrap()
+			),
+			Ok(_)
+		));
+		assert_eq!(
+			loaded_manifest.entries.len(),
+			loaded_manifest.accounts.len()
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().account_name,
+			"asdf1234"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().revocation_code,
+			"R12345"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
+			"secret"
+		);
 	}
 }
