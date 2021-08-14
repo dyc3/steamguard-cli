@@ -3,6 +3,7 @@ use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
 use log::*;
+use regex::Regex;
 use reqwest::{
 	cookie::CookieStore,
 	header::{COOKIE, USER_AGENT},
@@ -272,8 +273,18 @@ fn parse_confirmations(text: String) -> anyhow::Result<Vec<Confirmation>> {
 
 	let fragment = Html::parse_fragment(&text);
 	let selector = Selector::parse(".mobileconf_list_entry").unwrap();
+	let desc_selector = Selector::parse(".mobileconf_list_entry_description").unwrap();
 	let mut confirmations = vec![];
 	for elem in fragment.select(&selector) {
+		let desc: String = elem
+			.select(&desc_selector)
+			.next()
+			.unwrap()
+			.text()
+			.map(|t| t.trim())
+			.filter(|t| t.len() > 0)
+			.collect::<Vec<_>>()
+			.join(" ");
 		let conf = Confirmation {
 			id: elem.value().attr("data-confid").unwrap().parse()?,
 			key: elem.value().attr("data-key").unwrap().parse()?,
@@ -284,6 +295,7 @@ fn parse_confirmations(text: String) -> anyhow::Result<Vec<Confirmation>> {
 				.try_into()
 				.unwrap_or(ConfirmationType::Unknown),
 			creator: elem.value().attr("data-creator").unwrap().parse()?,
+			description: desc,
 		};
 		confirmations.push(conf);
 	}
@@ -338,6 +350,7 @@ mod tests {
 				key: 15509106087034649470,
 				conf_type: ConfirmationType::MarketSell,
 				creator: 3392884950693131245,
+				description: "Sell - Summer 2021 - Horror $0.05 ($0.03) 2 minutes ago".into(),
 			}
 		);
 		assert_eq!(
@@ -347,6 +360,7 @@ mod tests {
 				key: 2661901169510258722,
 				conf_type: ConfirmationType::MarketSell,
 				creator: 3392884950693130525,
+				description: "Sell - Summer 2021 - Horror $0.05 ($0.03) 2 minutes ago".into(),
 			}
 		);
 		assert_eq!(
@@ -356,6 +370,7 @@ mod tests {
 				key: 15784514761287735229,
 				conf_type: ConfirmationType::MarketSell,
 				creator: 3392884950693129565,
+				description: "Sell - Summer 2021 - Horror $0.05 ($0.03) 2 minutes ago".into(),
 			}
 		);
 		assert_eq!(
@@ -365,6 +380,7 @@ mod tests {
 				key: 5049250785011653560,
 				conf_type: ConfirmationType::MarketSell,
 				creator: 3392884950693128685,
+				description: "Sell - Summer 2021 - Rogue $0.05 ($0.03) 2 minutes ago".into(),
 			}
 		);
 		assert_eq!(
@@ -374,6 +390,7 @@ mod tests {
 				key: 6133112455066694993,
 				conf_type: ConfirmationType::MarketSell,
 				creator: 3392884950693127345,
+				description: "Sell - Summer 2021 - Horror $0.05 ($0.03) 2 minutes ago".into(),
 			}
 		);
 	}

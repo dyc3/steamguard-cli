@@ -213,8 +213,14 @@ pub fn prompt_confirmation_menu(
 	}
 
 	return (
-		to_accept_idx.iter().map(|i| confirmations[*i]).collect(),
-		to_deny_idx.iter().map(|i| confirmations[*i]).collect(),
+		to_accept_idx
+			.iter()
+			.map(|i| confirmations[*i].clone())
+			.collect(),
+		to_deny_idx
+			.iter()
+			.map(|i| confirmations[*i].clone())
+			.collect(),
 	);
 }
 
