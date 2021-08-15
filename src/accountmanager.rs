@@ -1,10 +1,16 @@
+use aes::Aes256;
+use block_modes::block_padding::Pkcs7;
+use block_modes::{BlockMode, Cbc};
 use log::*;
+use ring::pbkdf2;
 use serde::{Deserialize, Serialize};
-use std::io::{BufReader, Write};
+use std::fs::File;
+use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::{cell::Cell, fs::File};
 use steamguard::SteamGuardAccount;
+
+type Aes256Cbc = Cbc<Aes256, Pkcs7>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
@@ -89,8 +95,25 @@ impl Manifest {
 			let path = Path::new(&self.folder).join(&entry.filename);
 			debug!("loading account: {:?}", path);
 			let file = File::open(path)?;
-			let reader = BufReader::new(file);
-			let account: SteamGuardAccount = serde_json::from_reader(reader)?;
+			let mut reader = BufReader::new(file);
+			let account: SteamGuardAccount;
+			match (passkey, entry.encryption.as_ref()) {
+				(Some(passkey), Some(params)) => {
+					let key = get_encryption_key(&passkey.into(), &params.salt)?;
+					let iv = base64::decode(&params.iv)?;
+					let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
+					let mut ciphertext: Vec<u8> = vec![];
+					reader.read_to_end(&mut ciphertext)?;
+					let decrypted = cipher.decrypt(&mut ciphertext)?;
+					account = serde_json::from_slice(decrypted)?;
+				}
+				(None, Some(_)) => {
+					bail!("maFiles are encrypted, but no passkey was provided.");
+				}
+				(_, None) => {
+					account = serde_json::from_reader(reader)?;
+				}
+			};
 			entry.account_name = account.account_name.clone();
 			self.accounts.push(Arc::new(Mutex::new(account)));
 		}
@@ -157,6 +180,25 @@ impl Manifest {
 		file.sync_data()?;
 		Ok(())
 	}
+}
+
+const PBKDF2_ITERATIONS: u32 = 50000;
+const SALT_LENGTH: usize = 8;
+const KEY_SIZE_BYTES: usize = 32;
+const IV_LENGTH: usize = 16;
+
+fn get_encryption_key(passkey: &String, salt: &String) -> anyhow::Result<[u8; KEY_SIZE_BYTES]> {
+	let password_bytes = passkey.as_bytes();
+	let salt_bytes = base64::decode(salt)?;
+	let mut full_key: [u8; KEY_SIZE_BYTES] = [0u8; KEY_SIZE_BYTES];
+	pbkdf2::derive(
+		pbkdf2::PBKDF2_HMAC_SHA256,
+		std::num::NonZeroU32::new(PBKDF2_ITERATIONS).unwrap(),
+		&salt_bytes,
+		password_bytes,
+		&mut full_key,
+	);
+	return Ok(full_key);
 }
 
 #[cfg(test)]
@@ -258,6 +300,35 @@ mod tests {
 		let mut manifest = result.unwrap();
 		assert!(matches!(manifest.entries.last().unwrap().encryption, None));
 		assert!(matches!(manifest.load_accounts(None), Ok(_)));
+		assert_eq!(
+			manifest.entries.last().unwrap().account_name,
+			manifest
+				.accounts
+				.last()
+				.unwrap()
+				.lock()
+				.unwrap()
+				.account_name
+		);
+	}
+
+	#[test]
+	fn test_sda_compatibility_1_encrypted() {
+		let path = Path::new("src/fixtures/maFiles/1-account-encrypted/manifest.json");
+		assert!(path.is_file());
+		let result = Manifest::load(path);
+		assert!(matches!(result, Ok(_)));
+		let mut manifest = result.unwrap();
+		assert!(matches!(
+			manifest.entries.last().unwrap().encryption,
+			Some(_)
+		));
+		let result = manifest.load_accounts(Some("password"));
+		assert!(
+			matches!(result, Ok(_)),
+			"error when loading accounts: {:?}",
+			result.unwrap_err()
+		);
 		assert_eq!(
 			manifest.entries.last().unwrap().account_name,
 			manifest

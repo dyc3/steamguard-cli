@@ -16,7 +16,9 @@ use steamguard::{
 extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
+extern crate base64;
 extern crate dirs;
+extern crate ring;
 mod accountmanager;
 mod demos;
 mod tui;
