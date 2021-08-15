@@ -31,12 +31,21 @@ pub struct Manifest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestEntry {
-	pub encryption_iv: Option<String>,
-	pub encryption_salt: Option<String>,
 	pub filename: String,
-	#[serde(rename = "steamid")]
+	#[serde(default, rename = "steamid")]
 	pub steam_id: u64,
+	#[serde(default)]
 	pub account_name: String,
+	#[serde(default, flatten)]
+	pub encryption: Option<EntryEncryptionParams>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntryEncryptionParams {
+	#[serde(rename = "encryption_iv")]
+	pub iv: String,
+	#[serde(rename = "encryption_salt")]
+	pub salt: String,
 }
 
 impl Default for Manifest {
@@ -76,16 +85,13 @@ impl Manifest {
 	}
 
 	pub fn load_accounts(&mut self) -> anyhow::Result<()> {
-		for entry in &self.entries {
+		for entry in &mut self.entries {
 			let path = Path::new(&self.folder).join(&entry.filename);
 			debug!("loading account: {:?}", path);
 			let file = File::open(path)?;
 			let reader = BufReader::new(file);
 			let account: SteamGuardAccount = serde_json::from_reader(reader)?;
-			ensure!(
-				account.account_name == entry.account_name,
-				"Account name in file does not match manifest entry."
-			);
+			entry.account_name = account.account_name.clone();
 			self.accounts.push(Arc::new(Mutex::new(account)));
 		}
 		Ok(())
@@ -98,8 +104,7 @@ impl Manifest {
 			filename: format!("{}.maFile", &account.account_name),
 			steam_id: steamid,
 			account_name: account.account_name.clone(),
-			encryption_iv: None,
-			encryption_salt: None,
+			encryption: None,
 		});
 		self.accounts.push(Arc::new(Mutex::new(account)));
 	}
@@ -241,6 +246,27 @@ mod tests {
 		assert_eq!(
 			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
 			"secret"
+		);
+	}
+
+	#[test]
+	fn test_sda_compatibility_1() {
+		let path = Path::new("steamguard/src/fixtures/maFiles/1-account/manifest.json");
+		assert!(path.is_file());
+		let result = Manifest::load(path);
+		assert!(matches!(result, Ok(_)));
+		let mut manifest = result.unwrap();
+		assert!(matches!(manifest.entries.last().unwrap().encryption, None));
+		assert!(matches!(manifest.load_accounts(), Ok(_)));
+		assert_eq!(
+			manifest.entries.last().unwrap().account_name,
+			manifest
+				.accounts
+				.last()
+				.unwrap()
+				.lock()
+				.unwrap()
+				.account_name
 		);
 	}
 }
