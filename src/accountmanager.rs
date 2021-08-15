@@ -251,7 +251,7 @@ mod tests {
 
 	#[test]
 	fn test_sda_compatibility_1() {
-		let path = Path::new("steamguard/src/fixtures/maFiles/1-account/manifest.json");
+		let path = Path::new("src/fixtures/maFiles/1-account/manifest.json");
 		assert!(path.is_file());
 		let result = Manifest::load(path);
 		assert!(matches!(result, Ok(_)));
