@@ -192,7 +192,7 @@ fn get_encryption_key(passkey: &String, salt: &String) -> anyhow::Result<[u8; KE
 	let salt_bytes = base64::decode(salt)?;
 	let mut full_key: [u8; KEY_SIZE_BYTES] = [0u8; KEY_SIZE_BYTES];
 	pbkdf2::derive(
-		pbkdf2::PBKDF2_HMAC_SHA256,
+		pbkdf2::PBKDF2_HMAC_SHA1,
 		std::num::NonZeroU32::new(PBKDF2_ITERATIONS).unwrap(),
 		&salt_bytes,
 		password_bytes,
@@ -338,6 +338,29 @@ mod tests {
 				.lock()
 				.unwrap()
 				.account_name
+		);
+	}
+}
+
+#[cfg(test)]
+mod encryption_tests {
+	use super::*;
+
+	/// This test ensures compatibility with SteamDesktopAuthenticator and with previous versions of steamguard-cli
+	#[test]
+	fn test_encryption_key() {
+		assert_eq!(
+			get_encryption_key(&"password".into(), &"GMhL0N2hqXg=".into()).unwrap(),
+			base64::decode("KtiRa4/OxW83MlB6URf+Z8rAGj7CBY+pDlwD/NuVo6Y=")
+				.unwrap()
+				.as_slice()
+		);
+
+		assert_eq!(
+			get_encryption_key(&"password".into(), &"wTzTE9A6aN8=".into()).unwrap(),
+			base64::decode("Dqpej/3DqEat0roJaHmu3luYgDzRCUmzX94n4fqvWj8=")
+				.unwrap()
+				.as_slice()
 		);
 	}
 }
