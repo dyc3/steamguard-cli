@@ -173,7 +173,7 @@ fn main() {
 	}
 
 	manifest
-		.load_accounts()
+		.load_accounts(matches.value_of("passkey"))
 		.expect("Failed to load accounts in manifest");
 
 	if matches.is_present("setup") {

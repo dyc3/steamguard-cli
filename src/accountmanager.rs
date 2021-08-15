@@ -84,7 +84,7 @@ impl Manifest {
 		return Ok(manifest);
 	}
 
-	pub fn load_accounts(&mut self) -> anyhow::Result<()> {
+	pub fn load_accounts(&mut self, passkey: Option<&str>) -> anyhow::Result<()> {
 		for entry in &mut self.entries {
 			let path = Path::new(&self.folder).join(&entry.filename);
 			debug!("loading account: {:?}", path);
@@ -187,7 +187,7 @@ mod tests {
 		let mut loaded_manifest = Manifest::load(manifest_path.as_path()).unwrap();
 		assert_eq!(loaded_manifest.entries.len(), 1);
 		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
-		assert!(matches!(loaded_manifest.load_accounts(), Ok(_)));
+		assert!(matches!(loaded_manifest.load_accounts(None), Ok(_)));
 		assert_eq!(
 			loaded_manifest.entries.len(),
 			loaded_manifest.accounts.len()
@@ -257,7 +257,7 @@ mod tests {
 		assert!(matches!(result, Ok(_)));
 		let mut manifest = result.unwrap();
 		assert!(matches!(manifest.entries.last().unwrap().encryption, None));
-		assert!(matches!(manifest.load_accounts(), Ok(_)));
+		assert!(matches!(manifest.load_accounts(None), Ok(_)));
 		assert_eq!(
 			manifest.entries.last().unwrap().account_name,
 			manifest
