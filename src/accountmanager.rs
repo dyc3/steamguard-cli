@@ -1,5 +1,5 @@
 use aes::Aes256;
-use block_modes::block_padding::Pkcs7;
+use block_modes::block_padding::NoPadding;
 use block_modes::{BlockMode, Cbc};
 use log::*;
 use ring::pbkdf2;
@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use steamguard::SteamGuardAccount;
 
-type Aes256Cbc = Cbc<Aes256, Pkcs7>;
+type Aes256Cbc = Cbc<Aes256, NoPadding>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
@@ -102,9 +102,15 @@ impl Manifest {
 					let key = get_encryption_key(&passkey.into(), &params.salt)?;
 					let iv = base64::decode(&params.iv)?;
 					let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
+
 					let mut ciphertext: Vec<u8> = vec![];
 					reader.read_to_end(&mut ciphertext)?;
-					let decrypted = cipher.decrypt(&mut ciphertext)?;
+					ciphertext = base64::decode(ciphertext)?;
+					let size: usize = ciphertext.len() / 16 + 1;
+					let mut buffer = vec![0xffu8; 16 * size];
+					buffer[..ciphertext.len()].copy_from_slice(&ciphertext);
+					let decrypted = cipher.clone().decrypt(&mut buffer[..ciphertext.len()])?;
+
 					account = serde_json::from_slice(decrypted)?;
 				}
 				(None, Some(_)) => {
