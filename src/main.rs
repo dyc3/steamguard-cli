@@ -104,6 +104,14 @@ fn cli() -> App<'static, 'static> {
 			.about("Remove the authenticator from an account.")
 		)
 		.subcommand(
+			App::new("encrypt")
+				.about("Encrypt maFiles.")
+		)
+		.subcommand(
+			App::new("decrypt")
+				.about("Decrypt maFiles.")
+		)
+		.subcommand(
 			App::new("debug")
 			.arg(
 				Arg::with_name("demo-conf-menu")
@@ -174,8 +182,10 @@ fn main() {
 		}
 	}
 
+	let passkey = matches.value_of("passkey");
+
 	manifest
-		.load_accounts(matches.value_of("passkey"))
+		.load_accounts(passkey)
 		.expect("Failed to load accounts in manifest");
 
 	if matches.is_present("setup") {
@@ -217,7 +227,7 @@ fn main() {
 			}
 		}
 		manifest.add_account(account);
-		match manifest.save() {
+		match manifest.save(passkey) {
 			Ok(_) => {}
 			Err(err) => {
 				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
@@ -262,7 +272,7 @@ fn main() {
 		}
 
 		println!("Authenticator finalized.");
-		match manifest.save() {
+		match manifest.save(None) {
 			Ok(_) => {}
 			Err(err) => {
 				println!(
@@ -286,7 +296,13 @@ fn main() {
 			}
 		}
 
-		manifest.save().expect("Failed to save manifest.");
+		manifest.save(passkey).expect("Failed to save manifest.");
+		return;
+	} else if matches.is_present("encrypt") {
+		for entry in &mut manifest.entries {
+			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
+		}
+		manifest.save(passkey).expect("Failed to save manifest.");
 		return;
 	}
 
@@ -363,7 +379,9 @@ fn main() {
 			}
 		}
 
-		manifest.save().expect("Failed to save manifest");
+		manifest
+			.save(passkey)
+			.expect("Failed to save manifest");
 	} else if let Some(_) = matches.subcommand_matches("remove") {
 		println!(
 			"This will remove the mobile authenticator from {} accounts: {}",
@@ -411,7 +429,9 @@ fn main() {
 			manifest.remove_account(account_name);
 		}
 
-		manifest.save().expect("Failed to save manifest.");
+		manifest
+			.save(passkey)
+			.expect("Failed to save manifest.");
 	} else {
 		let server_time = steamapi::get_server_time();
 		for account in selected_accounts {
