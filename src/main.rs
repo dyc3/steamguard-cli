@@ -317,6 +317,12 @@ fn main() {
 		}
 		manifest.save(&passkey).expect("Failed to save manifest.");
 		return;
+	} else if matches.is_present("decrypt") {
+		for entry in &mut manifest.entries {
+			entry.encryption = None;
+		}
+		manifest.save(&passkey).expect("Failed to save manifest.");
+		return;
 	}
 
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
