@@ -192,7 +192,9 @@ fn main() {
 				accountmanager::ManifestAccountLoadError::MissingPasskey
 				| accountmanager::ManifestAccountLoadError::DecryptionFailed,
 			) => {
-				error!("Incorrect passkey");
+				if passkey.is_some() {
+					error!("Incorrect passkey");
+				}
 				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
 			}
 			Err(e) => {
@@ -313,6 +315,16 @@ fn main() {
 		manifest.save(&passkey).expect("Failed to save manifest.");
 		return;
 	} else if matches.is_present("encrypt") {
+		if passkey.is_none() {
+			loop {
+				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				let passkey_confirm = rpassword::prompt_password_stdout("Confirm encryption passkey: ").ok();
+				if passkey == passkey_confirm {
+					break;
+				}
+				error!("Passkeys do not match, try again.");
+			}
+		}
 		for entry in &mut manifest.entries {
 			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
 		}
