@@ -1,6 +1,7 @@
 extern crate rpassword;
-use clap::{crate_version, App, Arg};
+use clap::{crate_version, App, Arg, Shell};
 use log::*;
+use std::str::FromStr;
 use std::{
 	io::{stdout, Write},
 	path::Path,
@@ -20,8 +21,8 @@ mod accountmanager;
 mod demos;
 mod tui;
 
-fn main() {
-	let matches = App::new("steamguard-cli")
+fn cli() -> App<'static, 'static> {
+	App::new("steamguard-cli")
 		.version(crate_version!())
 		.bin_name("steamguard")
 		.author("dyc3 (Carson McManus)")
@@ -63,6 +64,16 @@ fn main() {
 				.multiple(true)
 		)
 		.subcommand(
+			App::new("completion")
+				.about("Generate shell completions")
+				.arg(
+					Arg::with_name("shell")
+						.long("shell")
+						.takes_value(true)
+						.possible_values(&Shell::variants())
+				)
+		)
+		.subcommand(
 			App::new("trade")
 				.about("Interactive interface for trade confirmations")
 				.arg(
@@ -98,7 +109,10 @@ fn main() {
 				.takes_value(false)
 			)
 		)
-		.get_matches();
+}
+
+fn main() {
+	let matches = cli().get_matches();
 
 	let verbosity = matches.occurrences_of("verbosity") as usize + 2;
 	stderrlog::new()
@@ -112,6 +126,14 @@ fn main() {
 		if demo_matches.is_present("demo-conf-menu") {
 			demos::demo_confirmation_menu();
 		}
+		return;
+	}
+	if let Some(completion_matches) = matches.subcommand_matches("completion") {
+		cli().gen_completions_to(
+			"steamguard",
+			Shell::from_str(completion_matches.value_of("shell").unwrap()).unwrap(),
+			&mut std::io::stdout(),
+		);
 		return;
 	}
 
