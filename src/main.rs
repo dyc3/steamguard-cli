@@ -57,6 +57,7 @@ fn cli() -> App<'static, 'static> {
 				.long("passkey")
 				.short("p")
 				.help("Specify your encryption passkey.")
+				.takes_value(true)
 		)
 		.arg(
 			Arg::with_name("verbosity")
