@@ -10,6 +10,7 @@ use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use steamguard::SteamGuardAccount;
+use thiserror::Error;
 
 type Aes256Cbc = Cbc<Aes256, NoPadding>;
 
@@ -91,7 +92,10 @@ impl Manifest {
 		return Ok(manifest);
 	}
 
-	pub fn load_accounts(&mut self, passkey: Option<&str>) -> anyhow::Result<()> {
+	pub fn load_accounts(
+		&mut self,
+		passkey: &Option<String>,
+	) -> anyhow::Result<(), ManifestAccountLoadError> {
 		for entry in &mut self.entries {
 			let path = Path::new(&self.folder).join(&entry.filename);
 			debug!("loading account: {:?}", path);
@@ -112,14 +116,17 @@ impl Manifest {
 					let mut buffer = vec![0xffu8; 16 * size];
 					buffer[..ciphertext.len()].copy_from_slice(&ciphertext);
 					let decrypted = cipher.decrypt(&mut buffer)?;
-					let mut padded = &decrypted[..ciphertext.len()]; // This padding doesn't make any sense.
-					let unpadded = Pkcs7::unpad(&mut padded).unwrap();
+					// This padding doesn't make any sense.
+					let mut padded = &decrypted[..ciphertext.len()];
+					// Also, UnpadError does not implement Error for some fucking reason, so we have to do this.
+					let unpadded = Pkcs7::unpad(&mut padded)
+						.map_err(|_| ManifestAccountLoadError::DecryptionFailed)?;
 
 					let s = std::str::from_utf8(&unpadded).unwrap();
 					account = serde_json::from_str(&s)?;
 				}
 				(None, Some(_)) => {
-					bail!("maFiles are encrypted, but no passkey was provided.");
+					return Err(ManifestAccountLoadError::MissingPasskey);
 				}
 				(_, None) => {
 					account = serde_json::from_reader(reader)?;
@@ -166,7 +173,7 @@ impl Manifest {
 		self.entries.remove(index);
 	}
 
-	pub fn save(&self, passkey: Option<&str>) -> anyhow::Result<()> {
+	pub fn save(&self, passkey: &Option<String>) -> anyhow::Result<()> {
 		ensure!(
 			self.entries.len() == self.accounts.len(),
 			"Manifest entries don't match accounts."
@@ -252,6 +259,41 @@ impl EntryEncryptionParams {
 	}
 }
 
+#[derive(Debug, Error)]
+pub enum ManifestAccountLoadError {
+	#[error("Manifest accounts are encrypted, but no passkey was provided.")]
+	MissingPasskey,
+	#[error("Failed to decrypt account.")]
+	#[from(block_modes::block_padding::UnpadError)]
+	DecryptionFailed,
+	#[error("Failed to deserialize the account.")]
+	DeserializationFailed(#[from] serde_json::Error),
+	#[error(transparent)]
+	Unknown(#[from] anyhow::Error),
+}
+
+/// For some reason, these errors do not get converted to `ManifestAccountLoadError`s, even though they get converted into `anyhow::Error` just fine. I am too lazy to figure out why right now.
+impl From<block_modes::BlockModeError> for ManifestAccountLoadError {
+	fn from(error: block_modes::BlockModeError) -> Self {
+		return Self::Unknown(anyhow::Error::from(error));
+	}
+}
+impl From<base64::DecodeError> for ManifestAccountLoadError {
+	fn from(error: base64::DecodeError) -> Self {
+		return Self::Unknown(anyhow::Error::from(error));
+	}
+}
+impl From<block_modes::InvalidKeyIvLength> for ManifestAccountLoadError {
+	fn from(error: block_modes::InvalidKeyIvLength) -> Self {
+		return Self::Unknown(anyhow::Error::from(error));
+	}
+}
+impl From<std::io::Error> for ManifestAccountLoadError {
+	fn from(error: std::io::Error) -> Self {
+		return Self::Unknown(anyhow::Error::from(error));
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -262,7 +304,7 @@ mod tests {
 		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let manifest = Manifest::new(manifest_path.as_path());
-		assert!(matches!(manifest.save(None), Ok(_)));
+		assert!(matches!(manifest.save(&None), Ok(_)));
 	}
 
 	#[test]
@@ -275,12 +317,12 @@ mod tests {
 		account.revocation_code = "R12345".into();
 		account.shared_secret = "secret".into();
 		manifest.add_account(account);
-		assert!(matches!(manifest.save(None), Ok(_)));
+		assert!(matches!(manifest.save(&None), Ok(_)));
 
 		let mut loaded_manifest = Manifest::load(manifest_path.as_path()).unwrap();
 		assert_eq!(loaded_manifest.entries.len(), 1);
 		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
-		assert!(matches!(loaded_manifest.load_accounts(None), Ok(_)));
+		assert!(matches!(loaded_manifest.load_accounts(&None), Ok(_)));
 		assert_eq!(
 			loaded_manifest.entries.len(),
 			loaded_manifest.accounts.len()
@@ -301,7 +343,7 @@ mod tests {
 
 	#[test]
 	fn test_should_save_and_load_manifest_encrypted() {
-		let passkey: Option<&str> = Some("password");
+		let passkey: Option<String> = Some("password".into());
 		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let mut manifest = Manifest::new(manifest_path.as_path());
@@ -311,12 +353,12 @@ mod tests {
 		account.shared_secret = "secret".into();
 		manifest.add_account(account);
 		manifest.entries[0].encryption = Some(EntryEncryptionParams::generate());
-		assert!(matches!(manifest.save(passkey), Ok(_)));
+		assert!(matches!(manifest.save(&passkey), Ok(_)));
 
 		let mut loaded_manifest = Manifest::load(manifest_path.as_path()).unwrap();
 		assert_eq!(loaded_manifest.entries.len(), 1);
 		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
-		assert!(matches!(loaded_manifest.load_accounts(passkey), Ok(_)));
+		assert!(matches!(loaded_manifest.load_accounts(&passkey), Ok(_)));
 		assert_eq!(
 			loaded_manifest.entries.len(),
 			loaded_manifest.accounts.len()
@@ -345,7 +387,7 @@ mod tests {
 		account.revocation_code = "R12345".into();
 		account.shared_secret = "secret".into();
 		manifest.add_account(account);
-		assert!(matches!(manifest.save(None), Ok(_)));
+		assert!(matches!(manifest.save(&None), Ok(_)));
 		std::fs::remove_file(&manifest_path).unwrap();
 
 		let mut loaded_manifest = Manifest::new(manifest_path.as_path());
@@ -386,7 +428,7 @@ mod tests {
 		assert!(matches!(result, Ok(_)));
 		let mut manifest = result.unwrap();
 		assert!(matches!(manifest.entries.last().unwrap().encryption, None));
-		assert!(matches!(manifest.load_accounts(None), Ok(_)));
+		assert!(matches!(manifest.load_accounts(&None), Ok(_)));
 		assert_eq!(
 			manifest.entries.last().unwrap().account_name,
 			manifest
@@ -410,7 +452,7 @@ mod tests {
 			manifest.entries.last().unwrap().encryption,
 			Some(_)
 		));
-		let result = manifest.load_accounts(Some("password"));
+		let result = manifest.load_accounts(&Some("password".into()));
 		assert!(
 			matches!(result, Ok(_)),
 			"error when loading accounts: {:?}",

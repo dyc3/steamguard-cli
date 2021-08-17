@@ -1797,6 +1797,7 @@ dependencies = [
  "tempdir",
  "termion",
  "text_io",
+ "thiserror",
  "uuid",
 ]
 
