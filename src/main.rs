@@ -318,7 +318,8 @@ fn main() {
 		if passkey.is_none() {
 			loop {
 				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
-				let passkey_confirm = rpassword::prompt_password_stdout("Confirm encryption passkey: ").ok();
+				let passkey_confirm =
+					rpassword::prompt_password_stdout("Confirm encryption passkey: ").ok();
 				if passkey == passkey_confirm {
 					break;
 				}

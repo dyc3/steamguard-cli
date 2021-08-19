@@ -112,7 +112,8 @@ impl Manifest {
 					let mut ciphertext: Vec<u8> = vec![];
 					reader.read_to_end(&mut ciphertext)?;
 					ciphertext = base64::decode(ciphertext)?;
-					let size: usize = ciphertext.len() / 16 + (if ciphertext.len() % 16 == 0 { 0 } else { 1 });
+					let size: usize =
+						ciphertext.len() / 16 + (if ciphertext.len() % 16 == 0 { 0 } else { 1 });
 					let mut buffer = vec![0xffu8; 16 * size];
 					buffer[..ciphertext.len()].copy_from_slice(&ciphertext);
 					let mut decrypted = cipher.decrypt(&mut buffer)?;
@@ -194,15 +195,26 @@ impl Manifest {
 					let iv = base64::decode(&params.iv)?;
 					let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
 
+					// This also sucks. Extremely confusing.
 					let plaintext = serialized;
 					let origsize = plaintext.len();
-					let buffersize: usize = (plaintext.len() / 16 + 1) * 16;
-					let mut buffer = vec![0xffu8; buffersize];
-					assert!(origsize < buffersize);
-					buffer[..origsize].copy_from_slice(&plaintext.as_slice());
-					// The block that is being padded must not be larger than 255 bytes, otherwise padding will fail.
-					let mut padded = Pkcs7::pad(&mut buffer, origsize, buffersize).unwrap();
-					let ciphertext = cipher.encrypt(&mut padded, buffersize)?;
+					let buffersize: usize =
+						(origsize / 16 + (if origsize % 16 == 0 { 0 } else { 1 })) * 16;
+					let mut buffer = vec![];
+					for chunk in plaintext.as_slice().chunks(256) {
+						let chunksize = chunk.len();
+						let buffersize =
+							(chunksize / 16 + (if chunksize % 16 == 0 { 0 } else { 1 })) * 16;
+						let mut chunkbuffer = vec![0xffu8; buffersize];
+						chunkbuffer[..chunksize].copy_from_slice(&chunk);
+						if buffersize != chunksize {
+							chunkbuffer = Pkcs7::pad(&mut chunkbuffer, chunksize, buffersize)
+								.unwrap()
+								.to_vec();
+						}
+						buffer.append(&mut chunkbuffer);
+					}
+					let ciphertext = cipher.encrypt(&mut buffer, buffersize)?;
 
 					final_buffer = base64::encode(&ciphertext).as_bytes().to_vec();
 				}
