@@ -112,14 +112,15 @@ impl Manifest {
 					let mut ciphertext: Vec<u8> = vec![];
 					reader.read_to_end(&mut ciphertext)?;
 					ciphertext = base64::decode(ciphertext)?;
-					let size: usize = ciphertext.len() / 16 + 1;
+					let size: usize = ciphertext.len() / 16 + (if ciphertext.len() % 16 == 0 { 0 } else { 1 });
 					let mut buffer = vec![0xffu8; 16 * size];
 					buffer[..ciphertext.len()].copy_from_slice(&ciphertext);
-					let decrypted = cipher.decrypt(&mut buffer)?;
-					// This padding doesn't make any sense.
-					let mut padded = &decrypted[..ciphertext.len()];
-					// Also, UnpadError does not implement Error for some fucking reason, so we have to do this.
-					let unpadded = Pkcs7::unpad(&mut padded)
+					let mut decrypted = cipher.decrypt(&mut buffer)?;
+					if decrypted[0] != '{' as u8 {
+						return Err(ManifestAccountLoadError::DecryptionFailed);
+					}
+					// UnpadError does not implement Error for some fucking reason, so we have to do this.
+					let unpadded = Pkcs7::unpad(&mut decrypted)
 						.map_err(|_| ManifestAccountLoadError::DecryptionFailed)?;
 
 					let s = std::str::from_utf8(&unpadded).unwrap();
@@ -194,12 +195,14 @@ impl Manifest {
 					let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
 
 					let plaintext = serialized;
-					let size: usize = plaintext.len() / 16 + 1;
-					let mut buffer = vec![0xffu8; 16 * size];
-					assert!(plaintext.len() < 16 * size);
-					buffer[..plaintext.len()].copy_from_slice(&plaintext.as_slice());
-					let mut padded = Pkcs7::pad(&mut buffer, plaintext.len(), 16 * size).unwrap();
-					let ciphertext = cipher.encrypt(&mut padded, 16 * size)?;
+					let origsize = plaintext.len();
+					let buffersize: usize = (plaintext.len() / 16 + 1) * 16;
+					let mut buffer = vec![0xffu8; buffersize];
+					assert!(origsize < buffersize);
+					buffer[..origsize].copy_from_slice(&plaintext.as_slice());
+					// The block that is being padded must not be larger than 255 bytes, otherwise padding will fail.
+					let mut padded = Pkcs7::pad(&mut buffer, origsize, buffersize).unwrap();
+					let ciphertext = cipher.encrypt(&mut padded, buffersize)?;
 
 					final_buffer = base64::encode(&ciphertext).as_bytes().to_vec();
 				}
@@ -375,6 +378,46 @@ mod tests {
 			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
 			"secret"
 		);
+	}
+
+	#[test]
+	fn test_should_save_and_load_manifest_encrypted_longer() -> anyhow::Result<()> {
+		let passkey: Option<String> = Some("password".into());
+		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
+		let manifest_path = tmp_dir.path().join("manifest.json");
+		let mut manifest = Manifest::new(manifest_path.as_path());
+		let mut account = SteamGuardAccount::new();
+		account.account_name = "asdf1234".into();
+		account.revocation_code = "R12345".into();
+		account.shared_secret = "secret".into();
+		account.uri = "otpauth://;laksdjf;lkasdjf;lkasdj;flkasdjlkf;asjdlkfjslk;adjfl;kasdjf;lksdjflk;asjd;lfajs;ldkfjaslk;djf;lsakdjf;lksdj".into();
+		account.token_gid = "asdf1234".into();
+		manifest.add_account(account);
+		manifest.entries[0].encryption = Some(EntryEncryptionParams::generate());
+		manifest.save(&passkey)?;
+
+		let mut loaded_manifest = Manifest::load(manifest_path.as_path())?;
+		assert_eq!(loaded_manifest.entries.len(), 1);
+		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
+		loaded_manifest.load_accounts(&passkey)?;
+		assert_eq!(
+			loaded_manifest.entries.len(),
+			loaded_manifest.accounts.len()
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().account_name,
+			"asdf1234"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().revocation_code,
+			"R12345"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
+			"secret"
+		);
+
+		return Ok(());
 	}
 
 	#[test]
