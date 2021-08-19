@@ -241,7 +241,7 @@ impl Manifest {
 	}
 }
 
-const PBKDF2_ITERATIONS: u32 = 50000; // This is excessive. Is this needed to remain compatible with SDA?
+const PBKDF2_ITERATIONS: u32 = 50000; // This is excessive, but necessary to maintain compatibility with SteamDesktopAuthenticator.
 const SALT_LENGTH: usize = 8;
 const KEY_SIZE_BYTES: usize = 32;
 const IV_LENGTH: usize = 16;
