@@ -21,6 +21,7 @@ extern crate dirs;
 extern crate ring;
 mod accountmanager;
 mod demos;
+mod encryption;
 mod tui;
 
 fn cli() -> App<'static, 'static> {
@@ -190,7 +191,9 @@ fn main() {
 			Ok(_) => break,
 			Err(
 				accountmanager::ManifestAccountLoadError::MissingPasskey
-				| accountmanager::ManifestAccountLoadError::DecryptionFailed,
+				| accountmanager::ManifestAccountLoadError::DecryptionFailed(
+					encryption::EntryEncryptionError::IncorrectPasskey,
+				),
 			) => {
 				if passkey.is_some() {
 					error!("Incorrect passkey");
