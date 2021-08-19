@@ -6,24 +6,8 @@ use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-const PBKDF2_ITERATIONS: u32 = 50000; // This is excessive, but necessary to maintain compatibility with SteamDesktopAuthenticator.
 const SALT_LENGTH: usize = 8;
-const KEY_SIZE_BYTES: usize = 32;
 const IV_LENGTH: usize = 16;
-
-fn get_encryption_key(passkey: &String, salt: &String) -> anyhow::Result<[u8; KEY_SIZE_BYTES]> {
-	let password_bytes = passkey.as_bytes();
-	let salt_bytes = base64::decode(salt)?;
-	let mut full_key: [u8; KEY_SIZE_BYTES] = [0u8; KEY_SIZE_BYTES];
-	pbkdf2::derive(
-		pbkdf2::PBKDF2_HMAC_SHA1,
-		std::num::NonZeroU32::new(PBKDF2_ITERATIONS).unwrap(),
-		&salt_bytes,
-		password_bytes,
-		&mut full_key,
-	);
-	return Ok(full_key);
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntryEncryptionParams {
@@ -53,7 +37,7 @@ impl EntryEncryptionParams {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EncryptionScheme {
 	/// Encryption scheme that is compatible with SteamDesktopAuthenticator.
-	LegacySdaCompatible = 0,
+	LegacySdaCompatible = -1,
 }
 
 impl Default for EncryptionScheme {
@@ -78,6 +62,28 @@ pub trait EntryEncryptor {
 /// Encryption scheme that is compatible with SteamDesktopAuthenticator.
 pub struct LegacySdaCompatible;
 
+impl LegacySdaCompatible {
+	const PBKDF2_ITERATIONS: u32 = 50000; // This is excessive, but necessary to maintain compatibility with SteamDesktopAuthenticator.
+	const KEY_SIZE_BYTES: usize = 32;
+
+	fn get_encryption_key(
+		passkey: &String,
+		salt: &String,
+	) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
+		let password_bytes = passkey.as_bytes();
+		let salt_bytes = base64::decode(salt)?;
+		let mut full_key: [u8; Self::KEY_SIZE_BYTES] = [0u8; Self::KEY_SIZE_BYTES];
+		pbkdf2::derive(
+			pbkdf2::PBKDF2_HMAC_SHA1,
+			std::num::NonZeroU32::new(Self::PBKDF2_ITERATIONS).unwrap(),
+			&salt_bytes,
+			password_bytes,
+			&mut full_key,
+		);
+		return Ok(full_key);
+	}
+}
+
 type Aes256Cbc = Cbc<Aes256, NoPadding>;
 impl EntryEncryptor for LegacySdaCompatible {
 	// ngl, this logic sucks ass. its kinda annoying that the logic is not completely symetric.
@@ -87,7 +93,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 		params: &EntryEncryptionParams,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = get_encryption_key(&passkey.into(), &params.salt)?;
+		let key = Self::get_encryption_key(&passkey.into(), &params.salt)?;
 		let iv = base64::decode(&params.iv)?;
 		let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
 
@@ -116,7 +122,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 		params: &EntryEncryptionParams,
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = get_encryption_key(&passkey.into(), &params.salt)?;
+		let key = Self::get_encryption_key(&passkey.into(), &params.salt)?;
 		let iv = base64::decode(&params.iv)?;
 		let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
 
@@ -181,14 +187,16 @@ mod tests {
 	#[test]
 	fn test_encryption_key() {
 		assert_eq!(
-			get_encryption_key(&"password".into(), &"GMhL0N2hqXg=".into()).unwrap(),
+			LegacySdaCompatible::get_encryption_key(&"password".into(), &"GMhL0N2hqXg=".into())
+				.unwrap(),
 			base64::decode("KtiRa4/OxW83MlB6URf+Z8rAGj7CBY+pDlwD/NuVo6Y=")
 				.unwrap()
 				.as_slice()
 		);
 
 		assert_eq!(
-			get_encryption_key(&"password".into(), &"wTzTE9A6aN8=".into()).unwrap(),
+			LegacySdaCompatible::get_encryption_key(&"password".into(), &"wTzTE9A6aN8=".into())
+				.unwrap(),
 			base64::decode("Dqpej/3DqEat0roJaHmu3luYgDzRCUmzX94n4fqvWj8=")
 				.unwrap()
 				.as_slice()
