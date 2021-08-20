@@ -42,3 +42,7 @@ thiserror = "1.0.26"
 [dev-dependencies]
 tempdir = "0.3"
 proptest = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
