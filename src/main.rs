@@ -18,6 +18,8 @@ extern crate lazy_static;
 extern crate anyhow;
 extern crate base64;
 extern crate dirs;
+#[cfg(test)]
+extern crate proptest;
 extern crate ring;
 mod accountmanager;
 mod demos;

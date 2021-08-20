@@ -182,6 +182,7 @@ impl From<std::io::Error> for EntryEncryptionError {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use proptest::prelude::*;
 
 	/// This test ensures compatibility with SteamDesktopAuthenticator and with previous versions of steamguard-cli
 	#[test]
@@ -202,4 +203,45 @@ mod tests {
 				.as_slice()
 		);
 	}
+
+	#[test]
+	fn test_ensure_encryption_symmetric() -> anyhow::Result<()> {
+		let passkey = "password";
+		let params = EntryEncryptionParams::generate();
+		let orig = "{{tactical glizzy}}".as_bytes().to_vec();
+		let encrypted =
+			LegacySdaCompatible::encrypt(&passkey.clone().into(), &params, orig.clone()).unwrap();
+		let result = LegacySdaCompatible::decrypt(&passkey.into(), &params, encrypted).unwrap();
+		assert_eq!(orig, result.to_vec());
+		return Ok(());
+	}
+
+	prop_compose! {
+		/// An insecure but reproducible strategy for generating encryption params.
+		fn encryption_params()(salt in any::<[u8; SALT_LENGTH]>(), iv in any::<[u8; IV_LENGTH]>()) -> EntryEncryptionParams {
+			EntryEncryptionParams {
+				salt: base64::encode(&salt),
+				iv: base64::encode(&iv),
+				scheme: EncryptionScheme::LegacySdaCompatible,
+			}
+		}
+	}
+
+	// proptest! {
+	// 	#[test]
+	// 	fn ensure_encryption_symmetric(
+	// 		passkey in ".{1,}",
+	// 		params in encryption_params(),
+	// 		data in any::<Vec<u8>>(),
+	// 	) {
+	// 		prop_assume!(data.len() >= 2);
+	// 		let mut orig = data;
+	// 		orig[0] = '{' as u8;
+	// 		let n = orig.len() - 1;
+	// 		orig[n] = '}' as u8;
+	// 		let encrypted = LegacySdaCompatible::encrypt(&passkey.clone().into(), &params, orig.clone()).unwrap();
+	// 		let result = LegacySdaCompatible::decrypt(&passkey.into(), &params, encrypted).unwrap();
+	// 		prop_assert_eq!(orig, result.to_vec());
+	// 	}
+	// }
 }

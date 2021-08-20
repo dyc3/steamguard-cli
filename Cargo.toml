@@ -38,6 +38,8 @@ ring = "0.16.20"
 aes = "0.7.4"
 block-modes = "0.8.1"
 thiserror = "1.0.26"
+memoize = "0.1.9"
 
 [dev-dependencies]
 tempdir = "0.3"
+proptest = "1"
