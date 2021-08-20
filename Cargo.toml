@@ -6,9 +6,13 @@ members = [
 
 [package]
 name = "steamguard-cli"
-version = "0.2.0"
+version = "0.4.0"
 authors = ["Carson McManus <carson.mcmanus1@gmail.com>"]
 edition = "2018"
+description = "A command line utility to generate Steam 2FA codes and respond to confirmations."
+keywords = ["steam", "2fa", "steamguard", "authentication", "cli"]
+categories = ["command-line-utilities"]
+repository = "https://github.com/dyc3/steamguard-cli"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
