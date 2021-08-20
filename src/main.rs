@@ -193,9 +193,7 @@ fn main() {
 			Ok(_) => break,
 			Err(
 				accountmanager::ManifestAccountLoadError::MissingPasskey
-				| accountmanager::ManifestAccountLoadError::DecryptionFailed(
-					encryption::EntryEncryptionError::IncorrectPasskey,
-				),
+				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
 			) => {
 				if passkey.is_some() {
 					error!("Incorrect passkey");

@@ -809,18 +809,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 
 [[package]]
-name = "memoize"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb49e4361c7534fd1fd1d4a1da51b1bb4b254c5ebc519fc4e5dce578fd69f5d9"
-dependencies = [
- "lazy_static 1.4.0",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "mime"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1863,7 +1851,6 @@ dependencies = [
  "hmac-sha1",
  "lazy_static 1.4.0",
  "log",
- "memoize",
  "proptest",
  "rand 0.8.4",
  "regex",

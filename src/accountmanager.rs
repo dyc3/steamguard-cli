@@ -97,6 +97,9 @@ impl Manifest {
 					let plaintext = crate::encryption::LegacySdaCompatible::decrypt(
 						passkey, params, ciphertext,
 					)?;
+					if plaintext[0] != '{' as u8 && plaintext[plaintext.len() - 1] != '}' as u8 {
+						return Err(ManifestAccountLoadError::IncorrectPasskey);
+					}
 					let s = std::str::from_utf8(&plaintext).unwrap();
 					account = serde_json::from_str(&s)?;
 				}
@@ -195,6 +198,8 @@ impl Manifest {
 pub enum ManifestAccountLoadError {
 	#[error("Manifest accounts are encrypted, but no passkey was provided.")]
 	MissingPasskey,
+	#[error("Incorrect passkey provided.")]
+	IncorrectPasskey,
 	#[error("Failed to decrypt account. {self:?}")]
 	DecryptionFailed(#[from] crate::encryption::EntryEncryptionError),
 	#[error("Failed to deserialize the account.")]

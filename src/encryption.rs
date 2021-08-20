@@ -131,9 +131,6 @@ impl EntryEncryptor for LegacySdaCompatible {
 		let mut buffer = vec![0xffu8; 16 * size];
 		buffer[..decoded.len()].copy_from_slice(&decoded);
 		let mut decrypted = cipher.decrypt(&mut buffer)?;
-		if decrypted[0] != '{' as u8 && decrypted[decrypted.len() - 1] != '}' as u8 {
-			return Err(EntryEncryptionError::IncorrectPasskey);
-		}
 		let unpadded = Pkcs7::unpad(&mut decrypted)?;
 		return Ok(unpadded.to_vec());
 	}
@@ -141,8 +138,6 @@ impl EntryEncryptor for LegacySdaCompatible {
 
 #[derive(Debug, Error)]
 pub enum EntryEncryptionError {
-	#[error("Incorrect passkey provided.")]
-	IncorrectPasskey,
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }
@@ -208,7 +203,7 @@ mod tests {
 	fn test_ensure_encryption_symmetric() -> anyhow::Result<()> {
 		let passkey = "password";
 		let params = EntryEncryptionParams::generate();
-		let orig = "{{tactical glizzy}}".as_bytes().to_vec();
+		let orig = "tactical glizzy".as_bytes().to_vec();
 		let encrypted =
 			LegacySdaCompatible::encrypt(&passkey.clone().into(), &params, orig.clone()).unwrap();
 		let result = LegacySdaCompatible::decrypt(&passkey.into(), &params, encrypted).unwrap();
