@@ -1,15 +1,19 @@
+pub use crate::encryption::EntryEncryptionParams;
+use crate::encryption::EntryEncryptor;
 use log::*;
 use serde::{Deserialize, Serialize};
-use std::io::{BufReader, Write};
+use std::fs::File;
+use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::{cell::Cell, fs::File};
 use steamguard::SteamGuardAccount;
+use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
-	pub encrypted: bool,
 	pub entries: Vec<ManifestEntry>,
+	/// Not really used, kept mostly for compatibility with SDA.
+	pub encrypted: bool,
 	/// Not implemented, kept for compatibility with SDA.
 	pub first_run: bool,
 	/// Not implemented, kept for compatibility with SDA.
@@ -38,14 +42,6 @@ pub struct ManifestEntry {
 	pub account_name: String,
 	#[serde(default, flatten)]
 	pub encryption: Option<EntryEncryptionParams>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EntryEncryptionParams {
-	#[serde(rename = "encryption_iv")]
-	pub iv: String,
-	#[serde(rename = "encryption_salt")]
-	pub salt: String,
 }
 
 impl Default for Manifest {
@@ -84,13 +80,36 @@ impl Manifest {
 		return Ok(manifest);
 	}
 
-	pub fn load_accounts(&mut self) -> anyhow::Result<()> {
+	pub fn load_accounts(
+		&mut self,
+		passkey: &Option<String>,
+	) -> anyhow::Result<(), ManifestAccountLoadError> {
 		for entry in &mut self.entries {
 			let path = Path::new(&self.folder).join(&entry.filename);
 			debug!("loading account: {:?}", path);
 			let file = File::open(path)?;
-			let reader = BufReader::new(file);
-			let account: SteamGuardAccount = serde_json::from_reader(reader)?;
+			let mut reader = BufReader::new(file);
+			let account: SteamGuardAccount;
+			match (passkey, entry.encryption.as_ref()) {
+				(Some(passkey), Some(params)) => {
+					let mut ciphertext: Vec<u8> = vec![];
+					reader.read_to_end(&mut ciphertext)?;
+					let plaintext = crate::encryption::LegacySdaCompatible::decrypt(
+						passkey, params, ciphertext,
+					)?;
+					if plaintext[0] != '{' as u8 && plaintext[plaintext.len() - 1] != '}' as u8 {
+						return Err(ManifestAccountLoadError::IncorrectPasskey);
+					}
+					let s = std::str::from_utf8(&plaintext).unwrap();
+					account = serde_json::from_str(&s)?;
+				}
+				(None, Some(_)) => {
+					return Err(ManifestAccountLoadError::MissingPasskey);
+				}
+				(_, None) => {
+					account = serde_json::from_reader(reader)?;
+				}
+			};
 			entry.account_name = account.account_name.clone();
 			self.accounts.push(Arc::new(Mutex::new(account)));
 		}
@@ -132,21 +151,37 @@ impl Manifest {
 		self.entries.remove(index);
 	}
 
-	pub fn save(&self) -> anyhow::Result<()> {
+	pub fn save(&self, passkey: &Option<String>) -> anyhow::Result<()> {
 		ensure!(
 			self.entries.len() == self.accounts.len(),
 			"Manifest entries don't match accounts."
 		);
 		for (entry, account) in self.entries.iter().zip(&self.accounts) {
 			debug!("saving {}", entry.filename);
-			let serialized = serde_json::to_string(account.as_ref())?;
+			let serialized = serde_json::to_vec(account.as_ref())?;
 			ensure!(
 				serialized.len() > 2,
 				"Something extra weird happened and the account was serialized into nothing."
 			);
+
+			let final_buffer: Vec<u8>;
+			match (passkey, entry.encryption.as_ref()) {
+				(Some(passkey), Some(params)) => {
+					final_buffer = crate::encryption::LegacySdaCompatible::encrypt(
+						passkey, params, serialized,
+					)?;
+				}
+				(None, Some(_)) => {
+					bail!("maFiles are encrypted, but no passkey was provided.");
+				}
+				(_, None) => {
+					final_buffer = serialized;
+				}
+			};
+
 			let path = Path::new(&self.folder).join(&entry.filename);
 			let mut file = File::create(path)?;
-			file.write_all(serialized.as_bytes())?;
+			file.write_all(final_buffer.as_slice())?;
 			file.sync_data()?;
 		}
 		debug!("saving manifest");
@@ -156,6 +191,41 @@ impl Manifest {
 		file.write_all(manifest_serialized.as_bytes())?;
 		file.sync_data()?;
 		Ok(())
+	}
+}
+
+#[derive(Debug, Error)]
+pub enum ManifestAccountLoadError {
+	#[error("Manifest accounts are encrypted, but no passkey was provided.")]
+	MissingPasskey,
+	#[error("Incorrect passkey provided.")]
+	IncorrectPasskey,
+	#[error("Failed to decrypt account. {self:?}")]
+	DecryptionFailed(#[from] crate::encryption::EntryEncryptionError),
+	#[error("Failed to deserialize the account.")]
+	DeserializationFailed(#[from] serde_json::Error),
+	#[error(transparent)]
+	Unknown(#[from] anyhow::Error),
+}
+
+impl From<block_modes::BlockModeError> for ManifestAccountLoadError {
+	fn from(error: block_modes::BlockModeError) -> Self {
+		return Self::Unknown(anyhow::Error::from(error));
+	}
+}
+impl From<base64::DecodeError> for ManifestAccountLoadError {
+	fn from(error: base64::DecodeError) -> Self {
+		return Self::Unknown(anyhow::Error::from(error));
+	}
+}
+impl From<block_modes::InvalidKeyIvLength> for ManifestAccountLoadError {
+	fn from(error: block_modes::InvalidKeyIvLength) -> Self {
+		return Self::Unknown(anyhow::Error::from(error));
+	}
+}
+impl From<std::io::Error> for ManifestAccountLoadError {
+	fn from(error: std::io::Error) -> Self {
+		return Self::Unknown(anyhow::Error::from(error));
 	}
 }
 
@@ -169,7 +239,7 @@ mod tests {
 		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let manifest = Manifest::new(manifest_path.as_path());
-		assert!(matches!(manifest.save(), Ok(_)));
+		assert!(matches!(manifest.save(&None), Ok(_)));
 	}
 
 	#[test]
@@ -182,12 +252,12 @@ mod tests {
 		account.revocation_code = "R12345".into();
 		account.shared_secret = "secret".into();
 		manifest.add_account(account);
-		assert!(matches!(manifest.save(), Ok(_)));
+		assert!(matches!(manifest.save(&None), Ok(_)));
 
 		let mut loaded_manifest = Manifest::load(manifest_path.as_path()).unwrap();
 		assert_eq!(loaded_manifest.entries.len(), 1);
 		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
-		assert!(matches!(loaded_manifest.load_accounts(), Ok(_)));
+		assert!(matches!(loaded_manifest.load_accounts(&None), Ok(_)));
 		assert_eq!(
 			loaded_manifest.entries.len(),
 			loaded_manifest.accounts.len()
@@ -207,6 +277,82 @@ mod tests {
 	}
 
 	#[test]
+	fn test_should_save_and_load_manifest_encrypted() {
+		let passkey: Option<String> = Some("password".into());
+		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
+		let manifest_path = tmp_dir.path().join("manifest.json");
+		let mut manifest = Manifest::new(manifest_path.as_path());
+		let mut account = SteamGuardAccount::new();
+		account.account_name = "asdf1234".into();
+		account.revocation_code = "R12345".into();
+		account.shared_secret = "secret".into();
+		manifest.add_account(account);
+		manifest.entries[0].encryption = Some(EntryEncryptionParams::generate());
+		assert!(matches!(manifest.save(&passkey), Ok(_)));
+
+		let mut loaded_manifest = Manifest::load(manifest_path.as_path()).unwrap();
+		assert_eq!(loaded_manifest.entries.len(), 1);
+		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
+		assert!(matches!(loaded_manifest.load_accounts(&passkey), Ok(_)));
+		assert_eq!(
+			loaded_manifest.entries.len(),
+			loaded_manifest.accounts.len()
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().account_name,
+			"asdf1234"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().revocation_code,
+			"R12345"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
+			"secret"
+		);
+	}
+
+	#[test]
+	fn test_should_save_and_load_manifest_encrypted_longer() -> anyhow::Result<()> {
+		let passkey: Option<String> = Some("password".into());
+		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
+		let manifest_path = tmp_dir.path().join("manifest.json");
+		let mut manifest = Manifest::new(manifest_path.as_path());
+		let mut account = SteamGuardAccount::new();
+		account.account_name = "asdf1234".into();
+		account.revocation_code = "R12345".into();
+		account.shared_secret = "secret".into();
+		account.uri = "otpauth://;laksdjf;lkasdjf;lkasdj;flkasdjlkf;asjdlkfjslk;adjfl;kasdjf;lksdjflk;asjd;lfajs;ldkfjaslk;djf;lsakdjf;lksdj".into();
+		account.token_gid = "asdf1234".into();
+		manifest.add_account(account);
+		manifest.entries[0].encryption = Some(EntryEncryptionParams::generate());
+		manifest.save(&passkey)?;
+
+		let mut loaded_manifest = Manifest::load(manifest_path.as_path())?;
+		assert_eq!(loaded_manifest.entries.len(), 1);
+		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
+		loaded_manifest.load_accounts(&passkey)?;
+		assert_eq!(
+			loaded_manifest.entries.len(),
+			loaded_manifest.accounts.len()
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().account_name,
+			"asdf1234"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().revocation_code,
+			"R12345"
+		);
+		assert_eq!(
+			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
+			"secret"
+		);
+
+		return Ok(());
+	}
+
+	#[test]
 	fn test_should_import() {
 		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
 		let manifest_path = tmp_dir.path().join("manifest.json");
@@ -216,7 +362,7 @@ mod tests {
 		account.revocation_code = "R12345".into();
 		account.shared_secret = "secret".into();
 		manifest.add_account(account);
-		assert!(matches!(manifest.save(), Ok(_)));
+		assert!(matches!(manifest.save(&None), Ok(_)));
 		std::fs::remove_file(&manifest_path).unwrap();
 
 		let mut loaded_manifest = Manifest::new(manifest_path.as_path());
@@ -251,13 +397,42 @@ mod tests {
 
 	#[test]
 	fn test_sda_compatibility_1() {
-		let path = Path::new("src/fixtures/maFiles/1-account/manifest.json");
+		let path = Path::new("src/fixtures/maFiles/compat/1-account/manifest.json");
 		assert!(path.is_file());
 		let result = Manifest::load(path);
 		assert!(matches!(result, Ok(_)));
 		let mut manifest = result.unwrap();
 		assert!(matches!(manifest.entries.last().unwrap().encryption, None));
-		assert!(matches!(manifest.load_accounts(), Ok(_)));
+		assert!(matches!(manifest.load_accounts(&None), Ok(_)));
+		assert_eq!(
+			manifest.entries.last().unwrap().account_name,
+			manifest
+				.accounts
+				.last()
+				.unwrap()
+				.lock()
+				.unwrap()
+				.account_name
+		);
+	}
+
+	#[test]
+	fn test_sda_compatibility_1_encrypted() {
+		let path = Path::new("src/fixtures/maFiles/compat/1-account-encrypted/manifest.json");
+		assert!(path.is_file());
+		let result = Manifest::load(path);
+		assert!(matches!(result, Ok(_)));
+		let mut manifest = result.unwrap();
+		assert!(matches!(
+			manifest.entries.last().unwrap().encryption,
+			Some(_)
+		));
+		let result = manifest.load_accounts(&Some("password".into()));
+		assert!(
+			matches!(result, Ok(_)),
+			"error when loading accounts: {:?}",
+			result.unwrap_err()
+		);
 		assert_eq!(
 			manifest.entries.last().unwrap().account_name,
 			manifest

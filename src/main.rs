@@ -16,9 +16,14 @@ use steamguard::{
 extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
+extern crate base64;
 extern crate dirs;
+#[cfg(test)]
+extern crate proptest;
+extern crate ring;
 mod accountmanager;
 mod demos;
+mod encryption;
 mod tui;
 
 fn cli() -> App<'static, 'static> {
@@ -55,6 +60,7 @@ fn cli() -> App<'static, 'static> {
 				.long("passkey")
 				.short("p")
 				.help("Specify your encryption passkey.")
+				.takes_value(true)
 		)
 		.arg(
 			Arg::with_name("verbosity")
@@ -100,6 +106,14 @@ fn cli() -> App<'static, 'static> {
 		.subcommand(
 			App::new("remove")
 			.about("Remove the authenticator from an account.")
+		)
+		.subcommand(
+			App::new("encrypt")
+				.about("Encrypt maFiles.")
+		)
+		.subcommand(
+			App::new("decrypt")
+				.about("Decrypt maFiles.")
 		)
 		.subcommand(
 			App::new("debug")
@@ -172,9 +186,26 @@ fn main() {
 		}
 	}
 
-	manifest
-		.load_accounts()
-		.expect("Failed to load accounts in manifest");
+	let mut passkey: Option<String> = matches.value_of("passkey").map(|s| s.into());
+
+	loop {
+		match manifest.load_accounts(&passkey) {
+			Ok(_) => break,
+			Err(
+				accountmanager::ManifestAccountLoadError::MissingPasskey
+				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
+			) => {
+				if passkey.is_some() {
+					error!("Incorrect passkey");
+				}
+				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+			}
+			Err(e) => {
+				error!("Could not load accounts: {}", e);
+				return;
+			}
+		}
+	}
 
 	if matches.is_present("setup") {
 		println!("Log in to the account that you want to link to steamguard-cli");
@@ -215,7 +246,7 @@ fn main() {
 			}
 		}
 		manifest.add_account(account);
-		match manifest.save() {
+		match manifest.save(&passkey) {
 			Ok(_) => {}
 			Err(err) => {
 				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
@@ -260,7 +291,7 @@ fn main() {
 		}
 
 		println!("Authenticator finalized.");
-		match manifest.save() {
+		match manifest.save(&None) {
 			Ok(_) => {}
 			Err(err) => {
 				println!(
@@ -284,7 +315,30 @@ fn main() {
 			}
 		}
 
-		manifest.save().expect("Failed to save manifest.");
+		manifest.save(&passkey).expect("Failed to save manifest.");
+		return;
+	} else if matches.is_present("encrypt") {
+		if passkey.is_none() {
+			loop {
+				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				let passkey_confirm =
+					rpassword::prompt_password_stdout("Confirm encryption passkey: ").ok();
+				if passkey == passkey_confirm {
+					break;
+				}
+				error!("Passkeys do not match, try again.");
+			}
+		}
+		for entry in &mut manifest.entries {
+			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
+		}
+		manifest.save(&passkey).expect("Failed to save manifest.");
+		return;
+	} else if matches.is_present("decrypt") {
+		for entry in &mut manifest.entries {
+			entry.encryption = None;
+		}
+		manifest.save(&passkey).expect("Failed to save manifest.");
 		return;
 	}
 
@@ -361,7 +415,7 @@ fn main() {
 			}
 		}
 
-		manifest.save().expect("Failed to save manifest");
+		manifest.save(&passkey).expect("Failed to save manifest");
 	} else if let Some(_) = matches.subcommand_matches("remove") {
 		println!(
 			"This will remove the mobile authenticator from {} accounts: {}",
@@ -409,7 +463,7 @@ fn main() {
 			manifest.remove_account(account_name);
 		}
 
-		manifest.save().expect("Failed to save manifest.");
+		manifest.save(&passkey).expect("Failed to save manifest.");
 	} else {
 		let server_time = steamapi::get_server_time();
 		for account in selected_accounts {
