@@ -444,7 +444,6 @@ impl SteamApiClient {
 		Ok(resp.response)
 	}
 
-	///
 	/// Host: api.steampowered.com
 	/// Endpoint: POST /ITwoFactorService/FinalizeAddAuthenticator/v0001
 	pub fn finalize_authenticator(

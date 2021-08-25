@@ -6,9 +6,18 @@ members = [
 
 [package]
 name = "steamguard-cli"
-version = "0.2.0"
+version = "0.4.0"
 authors = ["Carson McManus <carson.mcmanus1@gmail.com>"]
 edition = "2018"
+description = "A command line utility to generate Steam 2FA codes and respond to confirmations."
+keywords = ["steam", "2fa", "steamguard", "authentication", "cli"]
+categories = ["command-line-utilities"]
+repository = "https://github.com/dyc3/steamguard-cli"
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "steamguard-cli"
+# filename = "steamguard" # TODO: uncomment when https://github.com/rust-lang/cargo/issues/9778 is stablized.
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -42,3 +51,7 @@ thiserror = "1.0.26"
 [dev-dependencies]
 tempdir = "0.3"
 proptest = "1"
+
+[profile.release]
+opt-level = 3
+lto = true

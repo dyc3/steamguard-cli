@@ -1,8 +1,12 @@
 [package]
 name = "steamguard"
-version = "0.1.0"
+version = "0.4.0"
+authors = ["Carson McManus <carson.mcmanus1@gmail.com>"]
 edition = "2018"
 description = "Library for generating 2fa codes for Steam and responding to mobile confirmations."
+keywords = ["steam", "2fa", "steamguard", "authentication"]
+repository = "https://github.com/dyc3/steamguard-cli/tree/master/steamguard"
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
