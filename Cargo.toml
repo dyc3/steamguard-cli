@@ -1,5 +1,3 @@
-cargo-features = ["different-binary-name"]
-
 [workspace]
 
 members = [
@@ -19,7 +17,7 @@ license = "GPL-3.0-or-later"
 
 [[bin]]
 name = "steamguard-cli"
-filename = "steamguard"
+# filename = "steamguard" # TODO: uncomment when https://github.com/rust-lang/cargo/issues/9778 is stablized.
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
