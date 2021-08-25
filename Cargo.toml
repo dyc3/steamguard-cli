@@ -15,6 +15,7 @@ description = "A command line utility to generate Steam 2FA codes and respond to
 keywords = ["steam", "2fa", "steamguard", "authentication", "cli"]
 categories = ["command-line-utilities"]
 repository = "https://github.com/dyc3/steamguard-cli"
+license = "GPL-3.0-or-later"
 
 [[bin]]
 name = "steamguard-cli"
