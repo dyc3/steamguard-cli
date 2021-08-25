@@ -304,7 +304,10 @@ fn main() {
 			}
 		}
 
-		println!("Authenticator has been finalized. Please actually write down your revocation code: {}", account.revocation_code);
+		println!(
+			"Authenticator has been finalized. Please actually write down your revocation code: {}",
+			account.revocation_code
+		);
 
 		return;
 	} else if let Some(import_matches) = matches.subcommand_matches("import") {
