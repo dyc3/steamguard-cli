@@ -40,6 +40,13 @@ Full helptext can be displayed with:
 steamguard --help
 ```
 
+## One Liners
+
+Generate and copy a new code to clipboard:
+```bash
+steamguard-cli | xclip -selection clipboard
+```
+
 ## Importing 2FA Secret Into Other Applications
 
 It's possible to import your 2FA secret into other applications, like Google Authenticator or KeeWeb. The `uri` field contains a URI in that starts with `otpauth://...`, which you can create a QR code for.

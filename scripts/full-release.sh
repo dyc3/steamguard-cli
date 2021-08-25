@@ -3,6 +3,7 @@
 set -e
 
 DRY_RUN=true
+SKIP_CRATE_PUBLISH=false
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -17,6 +18,10 @@ while [[ $# -gt 0 ]]; do
       BUMP="$2"
       shift # past argument
       shift # past value
+      ;;
+    --skip-publish)
+      SKIP_CRATE_PUBLISH=true
+      shift # past argument
       ;;
     *)    # unknown option
       POSITIONAL+=("$1") # save it in an array for later
@@ -47,6 +52,9 @@ if [[ $DRY_RUN == false ]]; then
 fi
 if [[ $BUMP != "" ]]; then
 	params+=(--bump "$BUMP")
+fi
+if [[ $SKIP_CRATE_PUBLISH == true ]]; then
+	params+=(--skip-publish)
 fi
 cargo smart-release "${params[@]}"
 
