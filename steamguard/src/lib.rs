@@ -1,3 +1,4 @@
+use crate::token::TwoFactorSecret;
 pub use accountlinker::{AccountLinkError, AccountLinker, FinalizeLinkError};
 use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
@@ -24,6 +25,7 @@ extern crate maplit;
 mod accountlinker;
 mod confirmation;
 pub mod steamapi;
+pub mod token;
 mod userlogin;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";
@@ -42,7 +44,7 @@ pub struct SteamGuardAccount {
 	pub account_name: String,
 	pub serial_number: String,
 	pub revocation_code: String,
-	pub shared_secret: String,
+	pub shared_secret: TwoFactorSecret,
 	pub token_gid: String,
 	pub identity_secret: String,
 	pub server_time: u64,
@@ -56,12 +58,6 @@ pub struct SteamGuardAccount {
 
 fn build_time_bytes(time: i64) -> [u8; 8] {
 	return time.to_be_bytes();
-}
-
-pub fn parse_shared_secret(secret: String) -> anyhow::Result<[u8; 20]> {
-	ensure!(secret.len() != 0, "unable to parse empty shared secret");
-	let result = base64::decode(secret)?.try_into();
-	return Ok(result.unwrap());
 }
 
 fn generate_confirmation_hash_for_time(time: i64, tag: &str, identity_secret: &String) -> String {
@@ -80,7 +76,7 @@ impl SteamGuardAccount {
 			account_name: String::from(""),
 			serial_number: String::from(""),
 			revocation_code: String::from(""),
-			shared_secret: String::from(""),
+			shared_secret: TwoFactorSecret::new(),
 			token_gid: String::from(""),
 			identity_secret: String::from(""),
 			server_time: 0,
@@ -93,29 +89,7 @@ impl SteamGuardAccount {
 	}
 
 	pub fn generate_code(&self, time: i64) -> String {
-		let steam_guard_code_translations: [u8; 26] = [
-			50, 51, 52, 53, 54, 55, 56, 57, 66, 67, 68, 70, 71, 72, 74, 75, 77, 78, 80, 81, 82, 84,
-			86, 87, 88, 89,
-		];
-
-		// this effectively makes it so that it creates a new code every 30 seconds.
-		let time_bytes: [u8; 8] = build_time_bytes(time / 30i64);
-		let shared_secret: [u8; 20] = parse_shared_secret(self.shared_secret.clone()).unwrap();
-		let hashed_data = hmacsha1::hmac_sha1(&shared_secret, &time_bytes);
-		let mut code_array: [u8; 5] = [0; 5];
-		let b = (hashed_data[19] & 0xF) as usize;
-		let mut code_point: i32 = ((hashed_data[b] & 0x7F) as i32) << 24
-			| ((hashed_data[b + 1] & 0xFF) as i32) << 16
-			| ((hashed_data[b + 2] & 0xFF) as i32) << 8
-			| ((hashed_data[b + 3] & 0xFF) as i32);
-
-		for i in 0..5 {
-			code_array[i] = steam_guard_code_translations
-				[code_point as usize % steam_guard_code_translations.len()];
-			code_point /= steam_guard_code_translations.len() as i32;
-		}
-
-		return String::from_utf8(code_array.iter().map(|c| *c).collect()).unwrap();
+		return self.shared_secret.generate_code(time);
 	}
 
 	fn get_confirmation_query_params(&self, tag: &str) -> HashMap<&str, String> {
@@ -305,26 +279,6 @@ fn parse_confirmations(text: String) -> anyhow::Result<Vec<Confirmation>> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	#[test]
-	fn test_build_time_bytes() {
-		let t1 = build_time_bytes(1617591917i64);
-		let t2: [u8; 8] = [0, 0, 0, 0, 96, 106, 126, 109];
-		assert!(
-			t1.iter().zip(t2.iter()).all(|(a, b)| a == b),
-			"Arrays are not equal, got {:?}",
-			t1
-		);
-	}
-
-	#[test]
-	fn test_generate_code() {
-		let mut account = SteamGuardAccount::new();
-		account.shared_secret = String::from("zvIayp3JPvtvX/QGHqsqKBk/44s=");
-
-		let code = account.generate_code(1616374841i64);
-		assert_eq!(code, "2F9J5")
-	}
 
 	#[test]
 	fn test_generate_confirmation_hash_for_time() {

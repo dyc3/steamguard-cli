@@ -1,3 +1,5 @@
+use crate::token::TwoFactorSecret;
+use crate::SteamGuardAccount;
 use log::*;
 use reqwest::{
 	blocking::RequestBuilder,
@@ -11,8 +13,6 @@ use serde_json::Value;
 use std::iter::FromIterator;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-use crate::SteamGuardAccount;
 
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -609,9 +609,9 @@ pub struct AddAuthenticatorResponse {
 }
 
 impl AddAuthenticatorResponse {
-	pub fn to_steam_guard_account(&self) -> SteamGuardAccount {
+	pub fn to_steam_guard_account(self) -> SteamGuardAccount {
 		SteamGuardAccount {
-			shared_secret: self.shared_secret.clone(),
+			shared_secret: TwoFactorSecret::parse_shared_secret(self.shared_secret).unwrap(),
 			serial_number: self.serial_number.clone(),
 			revocation_code: self.revocation_code.clone(),
 			uri: self.uri.clone(),
