@@ -1,19 +1,20 @@
-use secrets::SecretBox;
+use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryInto;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TwoFactorSecret(SecretBox<[u8; 20]>);
+#[derive(Debug, Clone)]
+pub struct TwoFactorSecret(Secret<[u8; 20]>);
+// pub struct TwoFactorSecret(Secret<Vec<u8>>);
 
 impl TwoFactorSecret {
 	pub fn new() -> Self {
-		return Self(SecretBox::from(&mut [0u8; 20]));
+		return Self([0u8; 20].into());
 	}
 
 	pub fn parse_shared_secret(secret: String) -> anyhow::Result<Self> {
 		ensure!(secret.len() != 0, "unable to parse empty shared secret");
-		let mut result: [u8; 20] = base64::decode(secret)?.try_into().unwrap();
-		return Ok(Self(SecretBox::from(&mut result)));
+		let result: [u8; 20] = base64::decode(secret)?.try_into().unwrap();
+		return Ok(Self(result.into()));
 	}
 
 	/// Generate a 5 character 2FA code to that can be used to log in to Steam.
@@ -25,7 +26,7 @@ impl TwoFactorSecret {
 
 		// this effectively makes it so that it creates a new code every 30 seconds.
 		let time_bytes: [u8; 8] = build_time_bytes(time / 30i64);
-		let hashed_data = hmacsha1::hmac_sha1(&self.0.borrow().to_vec(), &time_bytes);
+		let hashed_data = hmacsha1::hmac_sha1(self.0.expose_secret(), &time_bytes);
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
 		let mut code_point: i32 = ((hashed_data[b] & 0x7F) as i32) << 24
@@ -48,7 +49,7 @@ impl Serialize for TwoFactorSecret {
 	where
 		S: Serializer,
 	{
-		serializer.serialize_str(base64::encode(&self.0.borrow().to_vec()).as_str())
+		serializer.serialize_str(base64::encode(&self.0.expose_secret()).as_str())
 	}
 }
 
@@ -60,6 +61,14 @@ impl<'de> Deserialize<'de> for TwoFactorSecret {
 		Ok(TwoFactorSecret::parse_shared_secret(String::deserialize(deserializer)?).unwrap())
 	}
 }
+
+impl PartialEq for TwoFactorSecret {
+	fn eq(&self, other: &Self) -> bool {
+		return self.0.expose_secret() == other.0.expose_secret();
+	}
+}
+
+impl Eq for TwoFactorSecret {}
 
 fn build_time_bytes(time: i64) -> [u8; 8] {
 	return time.to_be_bytes();
