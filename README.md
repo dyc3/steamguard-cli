@@ -34,3 +34,13 @@ Full helptext can be displayed with:
 ```
 steamguard --help
 ```
+
+# Contributing
+
+By contributing code to this project, you give me and any future maintainers a non-exclusive transferable license to use that code for this project, including permission to modify, redistribute, and relicense it.
+
+# License
+
+`steamguard-cli`, the command line program is licensed under GPLv3.
+
+`steamguard`, the library that is used by `steamguard-cli` is dual licensed under MIT or Apache 2.0, at your option.
