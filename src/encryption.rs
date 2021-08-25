@@ -100,12 +100,13 @@ impl EntryEncryptor for LegacySdaCompatible {
 		let origsize = plaintext.len();
 		let buffersize: usize = (origsize / 16 + (if origsize % 16 == 0 { 0 } else { 1 })) * 16;
 		let mut buffer = vec![];
-		for chunk in plaintext.as_slice().chunks(256) {
+		for chunk in plaintext.as_slice().chunks(128) {
 			let chunksize = chunk.len();
 			let buffersize = (chunksize / 16 + (if chunksize % 16 == 0 { 0 } else { 1 })) * 16;
 			let mut chunkbuffer = vec![0xffu8; buffersize];
 			chunkbuffer[..chunksize].copy_from_slice(&chunk);
 			if buffersize != chunksize {
+				// pad the last chunk
 				chunkbuffer = Pkcs7::pad(&mut chunkbuffer, chunksize, buffersize)
 					.unwrap()
 					.to_vec();
