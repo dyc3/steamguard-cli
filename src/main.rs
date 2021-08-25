@@ -267,6 +267,9 @@ fn main() {
 			.lock()
 			.unwrap();
 
+		println!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code);
+		tui::pause();
+
 		debug!("attempting link finalization");
 		print!("Enter SMS code: ");
 		let sms_code = tui::prompt();
@@ -279,13 +282,12 @@ fn main() {
 					tries += 1;
 					if tries >= 30 {
 						error!("Failed to finalize: unable to generate valid 2fa codes");
-						break;
+						return;
 					}
-					continue;
 				}
 				Err(err) => {
 					error!("Failed to finalize: {}", err);
-					break;
+					return;
 				}
 			}
 		}
@@ -301,6 +303,11 @@ fn main() {
 				return;
 			}
 		}
+
+		println!(
+			"Authenticator has been finalized. Please actually write down your revocation code: {}",
+			account.revocation_code
+		);
 
 		return;
 	} else if let Some(import_matches) = matches.subcommand_matches("import") {
