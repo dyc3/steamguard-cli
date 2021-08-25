@@ -1,4 +1,7 @@
 # steamguard-cli
+
+[![Rust](https://github.com/dyc3/steamguard-cli/actions/workflows/rust.yml/badge.svg)](https://github.com/dyc3/steamguard-cli/actions/workflows/rust.yml)
+
 A command line utility for setting up and using Steam Mobile Authenticator (AKA Steam 2FA). It can also be used to respond to trade and market confirmations.
 
 **The only legitamate place to download steamguard-cli binaries is through this repo's releases, or by any package manager that is linked in this document.**
@@ -22,9 +25,11 @@ cargo +nightly build --release
 ```
 
 # Usage
-`steamguard-cli` looks for your `maFiles` folder in the current user's home directory (eg. `~/maFiles/`).
-Your `maFiles` can be created with [Steam Desktop Authenticator][SDA]. You can create `maFiles` with
-steamguard-cli using the `setup` action (`steamguard setup`).
+`steamguard-cli` looks for your `maFiles/manifest.json` in at these paths, in this order:
+- `~/.config/steamguard-cli/maFiles/`
+- `~/maFiles/`
+
+Your `maFiles` can be created with or imported from [Steam Desktop Authenticator][SDA]. You can create `maFiles` with steamguard-cli using the `setup` action (`steamguard setup`).
 
 **REMEMBER TO MAKE BACKUPS OF YOUR `maFiles`, AND TO WRITE DOWN YOUR RECOVERY CODE!**
 
@@ -34,6 +39,10 @@ Full helptext can be displayed with:
 ```
 steamguard --help
 ```
+
+## Importing 2FA Secret Into Other Applications
+
+It's possible to import your 2FA secret into other applications, like Google Authenticator or KeeWeb. The `uri` field contains a URI in that starts with `otpauth://...`, which you can create a QR code for.
 
 # Contributing
 
