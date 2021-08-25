@@ -18,7 +18,7 @@ Otherwise, you can download binaries from the releases.
 ## Building From Source
 
 ```
-cargo build --release
+cargo +nightly build --release
 ```
 
 # Usage

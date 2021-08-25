@@ -1,3 +1,5 @@
+cargo-features = ["different-binary-name"]
+
 [workspace]
 
 members = [
@@ -13,6 +15,10 @@ description = "A command line utility to generate Steam 2FA codes and respond to
 keywords = ["steam", "2fa", "steamguard", "authentication", "cli"]
 categories = ["command-line-utilities"]
 repository = "https://github.com/dyc3/steamguard-cli"
+
+[[bin]]
+name = "steamguard-cli"
+filename = "steamguard"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
