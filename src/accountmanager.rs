@@ -243,21 +243,24 @@ mod tests {
 	}
 
 	#[test]
-	fn test_should_save_and_load_manifest() {
-		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
+	fn test_should_save_and_load_manifest() -> anyhow::Result<()> {
+		let tmp_dir = TempDir::new("steamguard-cli-test")?;
 		let manifest_path = tmp_dir.path().join("manifest.json");
+		println!("tempdir: {}", manifest_path.display());
 		let mut manifest = Manifest::new(manifest_path.as_path());
 		let mut account = SteamGuardAccount::new();
 		account.account_name = "asdf1234".into();
 		account.revocation_code = "R12345".into();
-		account.shared_secret = "secret".into();
+		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
+			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
+		)?;
 		manifest.add_account(account);
-		assert!(matches!(manifest.save(&None), Ok(_)));
+		manifest.save(&None)?;
 
-		let mut loaded_manifest = Manifest::load(manifest_path.as_path()).unwrap();
+		let mut loaded_manifest = Manifest::load(manifest_path.as_path())?;
 		assert_eq!(loaded_manifest.entries.len(), 1);
 		assert_eq!(loaded_manifest.entries[0].filename, "asdf1234.maFile");
-		assert!(matches!(loaded_manifest.load_accounts(&None), Ok(_)));
+		loaded_manifest.load_accounts(&None)?;
 		assert_eq!(
 			loaded_manifest.entries.len(),
 			loaded_manifest.accounts.len()
@@ -272,8 +275,11 @@ mod tests {
 		);
 		assert_eq!(
 			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
-			"secret"
+			steamguard::token::TwoFactorSecret::parse_shared_secret(
+				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
+			)?,
 		);
+		return Ok(());
 	}
 
 	#[test]
@@ -285,7 +291,10 @@ mod tests {
 		let mut account = SteamGuardAccount::new();
 		account.account_name = "asdf1234".into();
 		account.revocation_code = "R12345".into();
-		account.shared_secret = "secret".into();
+		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
+			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
+		)
+		.unwrap();
 		manifest.add_account(account);
 		manifest.entries[0].encryption = Some(EntryEncryptionParams::generate());
 		assert!(matches!(manifest.save(&passkey), Ok(_)));
@@ -308,7 +317,10 @@ mod tests {
 		);
 		assert_eq!(
 			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
-			"secret"
+			steamguard::token::TwoFactorSecret::parse_shared_secret(
+				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
+			)
+			.unwrap(),
 		);
 	}
 
@@ -321,7 +333,10 @@ mod tests {
 		let mut account = SteamGuardAccount::new();
 		account.account_name = "asdf1234".into();
 		account.revocation_code = "R12345".into();
-		account.shared_secret = "secret".into();
+		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
+			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
+		)
+		.unwrap();
 		account.uri = "otpauth://;laksdjf;lkasdjf;lkasdj;flkasdjlkf;asjdlkfjslk;adjfl;kasdjf;lksdjflk;asjd;lfajs;ldkfjaslk;djf;lsakdjf;lksdj".into();
 		account.token_gid = "asdf1234".into();
 		manifest.add_account(account);
@@ -346,7 +361,10 @@ mod tests {
 		);
 		assert_eq!(
 			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
-			"secret"
+			steamguard::token::TwoFactorSecret::parse_shared_secret(
+				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
+			)
+			.unwrap(),
 		);
 
 		return Ok(());
@@ -360,7 +378,10 @@ mod tests {
 		let mut account = SteamGuardAccount::new();
 		account.account_name = "asdf1234".into();
 		account.revocation_code = "R12345".into();
-		account.shared_secret = "secret".into();
+		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
+			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
+		)
+		.unwrap();
 		manifest.add_account(account);
 		assert!(matches!(manifest.save(&None), Ok(_)));
 		std::fs::remove_file(&manifest_path).unwrap();
@@ -391,7 +412,10 @@ mod tests {
 		);
 		assert_eq!(
 			loaded_manifest.accounts[0].lock().unwrap().shared_secret,
-			"secret"
+			steamguard::token::TwoFactorSecret::parse_shared_secret(
+				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
+			)
+			.unwrap(),
 		);
 	}
 
