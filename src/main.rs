@@ -282,13 +282,12 @@ fn main() {
 					tries += 1;
 					if tries >= 30 {
 						error!("Failed to finalize: unable to generate valid 2fa codes");
-						break;
+						return;
 					}
-					continue;
 				}
 				Err(err) => {
 					error!("Failed to finalize: {}", err);
-					break;
+					return;
 				}
 			}
 		}
