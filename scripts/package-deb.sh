@@ -1,11 +1,13 @@
 #!/bin/bash
 
-BIN_PATH="target/steamguard-cli"
-if [[ ! -f "${BIN_PATH}" ]]; then
+set -e
+
+BIN_PATH="target/release/steamguard-cli"
+if [[ ! -f "$BIN_PATH" ]]; then
 	echo "ERROR: Could not find release binaries, building them..."
 	cargo build --release
 fi
-VERSION=$("$BIN_PATH" --version | cut -d " " -f 2)"-0"
+VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)-0"
 TEMP_PKG_PATH="/tmp/steamguard-cli_$VERSION"
 echo "Building Debian package for v$VERSION..."
 
