@@ -76,8 +76,7 @@ if [[ -d "aur" ]]; then
 	rm -rf aur
 fi
 git clone ssh://aur@aur.archlinux.org/steamguard-cli-git.git aur
-cargo pkgbuild
-mv PKGBUILD aur/PKGBUILD
+cp PKGBUILD aur/PKGBUILD
 cd aur
 git commit -m "release $VERSION" PKGBUILD
 if [[ $DRY_RUN == false ]]; then
