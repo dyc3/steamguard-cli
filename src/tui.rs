@@ -81,6 +81,7 @@ fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
 
 	loop {
 		print!("{} [{}] ", text, chars);
+		let _ = std::io::stdout().flush();
 		let answer = input
 			.read_line()
 			.expect("Unable to read input")
