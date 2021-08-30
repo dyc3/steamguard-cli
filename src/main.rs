@@ -174,6 +174,7 @@ fn main() {
 		std::fs::create_dir_all(mafiles_dir).expect("failed to create directory");
 
 		manifest = accountmanager::Manifest::new(path.as_path());
+		manifest.save(&None).expect("Failed to save manifest");
 	} else {
 		match accountmanager::Manifest::load(path.as_path()) {
 			Ok(m) => {
