@@ -56,7 +56,7 @@ fi
 if [[ $SKIP_CRATE_PUBLISH == true ]]; then
 	params+=(--skip-publish)
 fi
-cargo smart-release "${params[@]}"
+cargo smart-release --update-crates-index "${params[@]}"
 
 ./scripts/package-deb.sh
 
