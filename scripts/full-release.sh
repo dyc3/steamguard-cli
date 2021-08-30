@@ -46,6 +46,8 @@ fi
 echo "Press any key to continue..."
 read -n 1 -s -r
 
+cargo build --release
+
 params=()
 if [[ $DRY_RUN == false ]]; then
 	params+=(--execute)
