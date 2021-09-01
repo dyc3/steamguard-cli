@@ -37,7 +37,7 @@ fn cli() -> App<'static, 'static> {
 				.long("username")
 				.short("u")
 				.takes_value(true)
-				.help("Select the account you want by steam username. By default, the first account in the manifest is selected.")
+				.help("Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")
 				.conflicts_with("all")
 		)
 		.arg(
