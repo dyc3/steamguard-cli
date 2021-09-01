@@ -64,6 +64,10 @@ cargo smart-release --update-crates-index "${params[@]}"
 
 BIN_PATH="target/release/steamguard-cli"
 RAW_VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
+TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
+if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
+  echo "Version mismatch: $RAW_VERSION != $TAGGED_VERSION"
+fi
 VERSION="v$RAW_VERSION"
 
 if [[ $DRY_RUN == false ]]; then
