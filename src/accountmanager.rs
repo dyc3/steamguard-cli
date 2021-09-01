@@ -156,6 +156,7 @@ impl Manifest {
 			self.entries.len() == self.accounts.len(),
 			"Manifest entries don't match accounts."
 		);
+		info!("Saving manifest and accounts...");
 		for (entry, account) in self.entries.iter().zip(&self.accounts) {
 			debug!("saving {}", entry.filename);
 			let serialized = serde_json::to_vec(account.as_ref())?;
