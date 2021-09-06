@@ -145,7 +145,10 @@ impl Manifest {
 		let file = File::open(path)?;
 		let reader = BufReader::new(file);
 		let account: SteamGuardAccount = serde_json::from_reader(reader)?;
-		ensure!(!self.account_exists(&account.account_name), "Account already exists in manifest, please remove it first.");
+		ensure!(
+			!self.account_exists(&account.account_name),
+			"Account already exists in manifest, please remove it first."
+		);
 		self.add_account(account);
 
 		return Ok(());

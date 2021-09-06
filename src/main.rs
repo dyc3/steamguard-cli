@@ -213,9 +213,13 @@ fn main() {
 		print!("Username: ");
 		let username = tui::prompt();
 		if manifest.account_exists(&username) {
-			error!("Account {} already exists in manifest, remove it first", username);
+			error!(
+				"Account {} already exists in manifest, remove it first",
+				username
+			);
 		}
-		let session = do_login_raw(username).expect("Failed to log in. Account has not been linked.");
+		let session =
+			do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
 		let mut linker = AccountLinker::new(session);
 		let account: SteamGuardAccount;
@@ -461,7 +465,10 @@ fn main() {
 							"Failed to remove authenticator from {}",
 							account.account_name
 						);
-						match tui::prompt_char("Would you like to remove it from the manifest anyway?", "yN") {
+						match tui::prompt_char(
+							"Would you like to remove it from the manifest anyway?",
+							"yN",
+						) {
 							'y' => {
 								successful.push(account.account_name.clone());
 							}
