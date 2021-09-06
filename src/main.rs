@@ -474,7 +474,9 @@ fn main() {
 		manifest.save(&passkey).expect("Failed to save manifest.");
 	} else {
 		let server_time = steamapi::get_server_time();
+		debug!("Time used to generate codes: {}", server_time);
 		for account in selected_accounts {
+			info!("Generating code for {}", account.lock().unwrap().account_name);
 			trace!("{:?}", account);
 			let code = account.lock().unwrap().generate_code(server_time);
 			println!("{}", code);
