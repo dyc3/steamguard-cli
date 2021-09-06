@@ -456,10 +456,16 @@ fn main() {
 							"Failed to remove authenticator from {}",
 							account.account_name
 						);
+						match tui::prompt_char("Would you like to remove it from the manifest anyway?", "yN") {
+							'y' => {
+								successful.push(account.account_name.clone());
+							}
+							_ => {}
+						}
 					}
 				}
 				Err(err) => {
-					println!(
+					error!(
 						"Unexpected error when removing authenticator from {}: {}",
 						account.account_name, err
 					);
