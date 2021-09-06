@@ -116,6 +116,15 @@ impl Manifest {
 		Ok(())
 	}
 
+	pub fn account_exists(&self, account_name: &String) -> bool {
+		for entry in &self.entries {
+			if &entry.account_name == account_name {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	pub fn add_account(&mut self, account: SteamGuardAccount) {
 		debug!("adding account to manifest: {}", account.account_name);
 		let steamid = account.session.as_ref().map_or(0, |s| s.steam_id);
@@ -136,6 +145,10 @@ impl Manifest {
 		let file = File::open(path)?;
 		let reader = BufReader::new(file);
 		let account: SteamGuardAccount = serde_json::from_reader(reader)?;
+		ensure!(
+			!self.account_exists(&account.account_name),
+			"Account already exists in manifest, please remove it first."
+		);
 		self.add_account(account);
 
 		return Ok(());

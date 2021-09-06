@@ -210,7 +210,16 @@ fn main() {
 
 	if matches.is_present("setup") {
 		println!("Log in to the account that you want to link to steamguard-cli");
-		let session = do_login_raw().expect("Failed to log in. Account has not been linked.");
+		print!("Username: ");
+		let username = tui::prompt();
+		if manifest.account_exists(&username) {
+			error!(
+				"Account {} already exists in manifest, remove it first",
+				username
+			);
+		}
+		let session =
+			do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
 		let mut linker = AccountLinker::new(session);
 		let account: SteamGuardAccount;
@@ -456,10 +465,19 @@ fn main() {
 							"Failed to remove authenticator from {}",
 							account.account_name
 						);
+						match tui::prompt_char(
+							"Would you like to remove it from the manifest anyway?",
+							"yN",
+						) {
+							'y' => {
+								successful.push(account.account_name.clone());
+							}
+							_ => {}
+						}
 					}
 				}
 				Err(err) => {
-					println!(
+					error!(
 						"Unexpected error when removing authenticator from {}: {}",
 						account.account_name, err
 					);
@@ -476,7 +494,10 @@ fn main() {
 		let server_time = steamapi::get_server_time();
 		debug!("Time used to generate codes: {}", server_time);
 		for account in selected_accounts {
-			info!("Generating code for {}", account.lock().unwrap().account_name);
+			info!(
+				"Generating code for {}",
+				account.lock().unwrap().account_name
+			);
 			trace!("{:?}", account);
 			let code = account.lock().unwrap().generate_code(server_time);
 			println!("{}", code);
@@ -506,9 +527,7 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	return Ok(());
 }
 
-fn do_login_raw() -> anyhow::Result<steamapi::Session> {
-	print!("Username: ");
-	let username = tui::prompt();
+fn do_login_raw(username: String) -> anyhow::Result<steamapi::Session> {
 	let _ = std::io::stdout().flush();
 	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
 	if password.len() > 0 {
