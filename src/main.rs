@@ -210,7 +210,12 @@ fn main() {
 
 	if matches.is_present("setup") {
 		println!("Log in to the account that you want to link to steamguard-cli");
-		let session = do_login_raw().expect("Failed to log in. Account has not been linked.");
+		print!("Username: ");
+		let username = tui::prompt();
+		if manifest.account_exists(&username) {
+			error!("Account {} already exists in manifest, remove it first", username);
+		}
+		let session = do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
 		let mut linker = AccountLinker::new(session);
 		let account: SteamGuardAccount;
@@ -515,9 +520,7 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	return Ok(());
 }
 
-fn do_login_raw() -> anyhow::Result<steamapi::Session> {
-	print!("Username: ");
-	let username = tui::prompt();
+fn do_login_raw(username: String) -> anyhow::Result<steamapi::Session> {
 	let _ = std::io::stdout().flush();
 	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
 	if password.len() > 0 {
