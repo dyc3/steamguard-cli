@@ -96,7 +96,7 @@ fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
 		}
 
 		let answer_char = answer.chars().collect::<Vec<char>>()[0];
-		if chars.contains(answer_char) {
+		if chars.to_ascii_lowercase().contains(answer_char) {
 			return answer_char;
 		}
 	}
