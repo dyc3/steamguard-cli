@@ -4,7 +4,7 @@
 
 A command line utility for setting up and using Steam Mobile Authenticator (AKA Steam 2FA). It can also be used to respond to trade and market confirmations.
 
-**The only legitamate place to download steamguard-cli binaries is through this repo's releases, or by any package manager that is linked in this document.**
+**The only legitimate place to download steamguard-cli binaries is through this repo's releases, or by any package manager that is linked in this document.**
 
 # Disclaimer
 **This utility is effectively in beta. Use this software at your own risk. Make sure to back up your maFiles regularly, and make sure to actually write down your revocation code. If you lose both of these, we can't help you, your only recourse is to beg Steam support.**
