@@ -39,14 +39,12 @@ This will do everything needed to release a new version:
 - upload artifacts to a new release on github
 """
 if [ "$DRY_RUN" = true ]; then
-	echo "This is a dry run, nothing will be done. Artifacts will be built, but not published."
+	echo "This is a dry run, nothing will be done. Artifacts will be built, but not published. Use --execute to do it for real."
 else
 	echo "This is not a dry run. This is the real deal!"
 fi
 echo "Press any key to continue..."
 read -n 1 -s -r
-
-cargo build --release
 
 params=()
 if [[ $DRY_RUN == false ]]; then
@@ -59,6 +57,8 @@ if [[ $SKIP_CRATE_PUBLISH == true ]]; then
 	params+=(--skip-publish)
 fi
 cargo smart-release --update-crates-index "${params[@]}"
+
+cargo build --release
 
 ./scripts/package-deb.sh
 
