@@ -16,6 +16,11 @@ If you have the Rust toolchain installed:
 cargo install steamguard-cli
 ```
 
+Arch-based systems can install from the AUR:
+
+- For[steamguard-cli-git](https://aur.archlinux.org/packages/steamguard-cli-git/)
+- *Non-git release is not officially provided. Please open an issue if you would like to help set that up.*
+
 Otherwise, you can download binaries from the releases.
 
 ## Building From Source
