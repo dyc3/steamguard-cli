@@ -47,6 +47,8 @@ fi
 git clone ssh://aur@aur.archlinux.org/steamguard-cli-git.git aur
 cp PKGBUILD aur/PKGBUILD
 cd aur
+makepkg -si --noconfirm
+makepkg --printsrcinfo > .SRCINFO
 git commit -m "release $VERSION" PKGBUILD
 if [[ $DRY_RUN == false ]]; then
 	git push
