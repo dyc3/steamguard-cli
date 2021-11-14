@@ -1,0 +1,28 @@
+name: Publish to AUR
+
+on:
+  push:
+    branches:
+    - master
+    paths-ignore:
+    - '**/.gitignore'
+    - '.vscode/**'
+    - '**/*.md'
+    - 'scripts/full-release.sh'
+    - 'scripts/package-deb.sh'
+    - 'src/fixtures/**'
+jobs:
+  publish-to-aur:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Archlinux
+      run: curl -L https://github.com/zaoqi/github-actions-archlinux/raw/master/install.sh | sh
+    - name: Install dependencies
+      run: sudo pacman -Syu --noconfirm base-devel git
+    - name: Configure git
+      run: |
+        git config --global user.email "{{ github.actor }}@users.noreply.github.com"
+        git config --global user.name "{{ github.actor }}"
+    - name: Publish to AUR
+      run: ./scripts/publish-aur.sh
