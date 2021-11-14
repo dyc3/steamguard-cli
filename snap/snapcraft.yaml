@@ -1,0 +1,24 @@
+name: steamguard-cli
+version: '0.4.1'
+license: GPL-3.0-or-later
+source-code: https://github.com/dyc3/steamguard-cli.git
+summary: A command line utility for setting up and using Steam Mobile Authenticator.
+description: |
+  A command line utility for setting up and using Steam Mobile Authenticator (AKA Steam 2FA).
+  It can also be used to respond to trade and market confirmations.
+base: core20
+
+grade: stable
+confinement: classic
+
+apps:
+  steamguard-cli:
+    command: bin/steamguard-cli
+
+parts:
+  steamguard-cli:
+    plugin: rust
+    source: .
+    build-packages:
+      - pkg-config
+      - libssl-dev
