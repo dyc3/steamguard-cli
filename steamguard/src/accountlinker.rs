@@ -61,6 +61,9 @@ impl AccountLinker {
 			29 => {
 				return Err(AccountLinkError::AuthenticatorPresent);
 			}
+			2 => {
+				return Err(AccountLinkError::GenericFailure);
+			}
 			1 => {
 				let mut account = resp.to_steam_guard_account();
 				account.device_id = self.device_id.clone();
@@ -126,6 +129,8 @@ pub enum AccountLinkError {
 	MustConfirmEmail,
 	#[error("Authenticator is already present.")]
 	AuthenticatorPresent,
+	#[error("Steam was unable to link the authenticator to the account. No additional information about this error is available. This is a Steam error, not a steamguard-cli error. Try adding a phone number to your Steam account, or try again later.")]
+	GenericFailure,
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }
