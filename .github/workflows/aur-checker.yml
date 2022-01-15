@@ -1,0 +1,16 @@
+name: AUR install
+
+on:
+  schedule:
+    - cron: "32 5 */3 * *"
+  push:
+    branches: [ master, main ]
+
+jobs:
+  test-install:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install AUR package
+      run: ./scripts/check-aur.sh
