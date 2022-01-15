@@ -3,7 +3,7 @@
 
 _pkgname=steamguard-cli
 pkgname=${_pkgname}-git
-pkgver=0.4.2.r1.df699f07
+pkgver=0.4.3.r1.145c03e9
 pkgrel=1
 pkgdesc="A command line utility to generate Steam 2FA codes and respond to confirmations."
 arch=('i686' 'x86_64' 'armv6h' 'armv7h')
