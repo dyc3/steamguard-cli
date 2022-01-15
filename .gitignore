@@ -6,6 +6,7 @@ SteamAuth/SteamAuth/packages/
 test_maFiles/
 
 *.deb
+*.tar.gz
 
 target/
 aur/
