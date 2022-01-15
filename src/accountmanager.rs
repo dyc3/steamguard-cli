@@ -482,4 +482,38 @@ mod tests {
 				.account_name
 		);
 	}
+
+	#[test]
+	fn test_sda_compatibility_no_webcookie() {
+		let path = Path::new("src/fixtures/maFiles/compat/no-webcookie/manifest.json");
+		assert!(path.is_file());
+		let result = Manifest::load(path);
+		assert!(matches!(result, Ok(_)));
+		let mut manifest = result.unwrap();
+		assert!(matches!(manifest.entries.last().unwrap().encryption, None));
+		assert!(matches!(manifest.load_accounts(&None), Ok(_)));
+		assert_eq!(
+			manifest.entries.last().unwrap().account_name,
+			manifest
+				.accounts
+				.last()
+				.unwrap()
+				.lock()
+				.unwrap()
+				.account_name
+		);
+		assert_eq!(
+			manifest
+				.accounts
+				.last()
+				.unwrap()
+				.lock()
+				.unwrap()
+				.session
+				.as_ref()
+				.unwrap()
+				.web_cookie,
+			None
+		);
+	}
 }
