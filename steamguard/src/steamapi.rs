@@ -99,7 +99,7 @@ pub struct Session {
 	#[serde(rename = "SteamLoginSecure")]
 	pub steam_login_secure: String,
 	#[serde(default, rename = "WebCookie")]
-	pub web_cookie: String,
+	pub web_cookie: Option<String>,
 	#[serde(rename = "OAuthToken")]
 	pub token: String,
 	#[serde(rename = "SteamID")]
@@ -153,7 +153,7 @@ impl SteamApiClient {
 			session_id: self
 				.extract_session_id()
 				.expect("failed to extract session id from cookies"),
-			web_cookie: data.webcookie.clone(),
+			web_cookie: Some(data.webcookie.clone()),
 		};
 	}
 
