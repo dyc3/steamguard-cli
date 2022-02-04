@@ -65,3 +65,7 @@ By contributing code to this project, you give me and any future maintainers a n
 `steamguard-cli`, the command line program is licensed under GPLv3.
 
 `steamguard`, the library that is used by `steamguard-cli` is dual licensed under MIT or Apache 2.0, at your option.
+
+# Used By
+
+* [Unreal Engine to Steam publishing CI/CD pipeline](https://github.com/kasp1/dozer-pipelines), a sample pipeline built for [Dozer](https://github.com/kasp1/Dozer), a simple CI/CD runner
