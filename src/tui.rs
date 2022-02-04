@@ -38,7 +38,7 @@ fn test_validate_captcha_text() {
 }
 
 /// Prompt the user for text input.
-pub fn prompt() -> String {
+pub(crate) fn prompt() -> String {
 	let mut text = String::new();
 	let _ = std::io::stdout().flush();
 	std::io::stdin()
@@ -47,7 +47,7 @@ pub fn prompt() -> String {
 	return String::from(text.strip_suffix('\n').unwrap());
 }
 
-pub fn prompt_captcha_text(captcha_gid: &String) -> String {
+pub(crate) fn prompt_captcha_text(captcha_gid: &String) -> String {
 	println!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
 	let mut captcha_text;
 	loop {
@@ -64,7 +64,7 @@ pub fn prompt_captcha_text(captcha_gid: &String) -> String {
 /// Prompt the user for a single character response. Useful for asking yes or no questions.
 ///
 /// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.
-pub fn prompt_char(text: &str, chars: &str) -> char {
+pub(crate) fn prompt_char(text: &str, chars: &str) -> char {
 	return prompt_char_impl(&mut std::io::stdin(), text, chars);
 }
 
@@ -103,7 +103,7 @@ fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
 }
 
 /// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
-pub fn prompt_confirmation_menu(
+pub(crate) fn prompt_confirmation_menu(
 	confirmations: Vec<Confirmation>,
 ) -> (Vec<Confirmation>, Vec<Confirmation>) {
 	println!("press a key other than enter to show the menu.");
@@ -225,7 +225,7 @@ pub fn prompt_confirmation_menu(
 	);
 }
 
-pub fn pause() {
+pub(crate) fn pause() {
 	println!("Press any key to continue...");
 	let mut stdout = std::io::stdout().into_raw_mode().unwrap();
 	stdout.flush().unwrap();

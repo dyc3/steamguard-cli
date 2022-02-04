@@ -28,7 +28,7 @@ mod cli;
 mod demos;
 mod encryption;
 mod errors;
-mod tui;
+pub(crate) mod tui;
 
 fn main() {
 	std::process::exit(match run() {
