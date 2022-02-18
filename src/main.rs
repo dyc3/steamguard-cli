@@ -190,24 +190,26 @@ fn run() -> anyhow::Result<()> {
 		std::fs::create_dir_all(mafiles_dir)?;
 
 		manifest = accountmanager::Manifest::new(path.as_path());
-		manifest.save(&None)?;
+		manifest.save()?;
 	} else {
 		manifest = accountmanager::Manifest::load(path.as_path())?;
 	}
 
 	let mut passkey: Option<String> = matches.value_of("passkey").map(|s| s.into());
+	manifest.submit_passkey(passkey);
 
 	loop {
-		match manifest.load_accounts(&passkey) {
+		match manifest.load_accounts() {
 			Ok(_) => break,
 			Err(
 				accountmanager::ManifestAccountLoadError::MissingPasskey
 				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
 			) => {
-				if passkey.is_some() {
+				if manifest.has_passkey() {
 					error!("Incorrect passkey");
 				}
 				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				manifest.submit_passkey(passkey);
 			}
 			Err(e) => {
 				error!("Could not load accounts: {}", e);
@@ -220,6 +222,7 @@ fn run() -> anyhow::Result<()> {
 		println!("Log in to the account that you want to link to steamguard-cli");
 		print!("Username: ");
 		let username = tui::prompt();
+		let account_name = username.clone();
 		if manifest.account_exists(&username) {
 			bail!(
 				"Account {} already exists in manifest, remove it first",
@@ -264,26 +267,20 @@ fn run() -> anyhow::Result<()> {
 			}
 		}
 		manifest.add_account(account);
-		match manifest.save(&passkey) {
+		match manifest.save() {
 			Ok(_) => {}
 			Err(err) => {
 				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
 				println!(
 					"Just in case, here is the account info. Save it somewhere just in case!\n{:?}",
-					manifest.accounts.last().unwrap().lock().unwrap()
+					manifest.get_account(&account_name).unwrap().lock().unwrap()
 				);
 				return Err(err.into());
 			}
 		}
 
-		let mut account = manifest
-			.accounts
-			.last()
-			.as_ref()
-			.unwrap()
-			.clone()
-			.lock()
-			.unwrap();
+		let account_arc = manifest.get_account(&account_name).unwrap();
+		let mut account = account_arc.lock().unwrap();
 
 		println!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code);
 		tui::pause();
@@ -311,7 +308,7 @@ fn run() -> anyhow::Result<()> {
 		}
 
 		println!("Authenticator finalized.");
-		match manifest.save(&None) {
+		match manifest.save() {
 			Ok(_) => {}
 			Err(err) => {
 				println!(
@@ -340,10 +337,10 @@ fn run() -> anyhow::Result<()> {
 			}
 		}
 
-		manifest.save(&passkey)?;
+		manifest.save()?;
 		return Ok(());
 	} else if matches.is_present("encrypt") {
-		if passkey.is_none() {
+		if !manifest.has_passkey() {
 			loop {
 				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
 				let passkey_confirm =
@@ -353,34 +350,39 @@ fn run() -> anyhow::Result<()> {
 				}
 				error!("Passkeys do not match, try again.");
 			}
+			manifest.submit_passkey(passkey);
 		}
 		for entry in &mut manifest.entries {
 			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
 		}
-		manifest.save(&passkey)?;
+		manifest.save()?;
 		return Ok(());
 	} else if matches.is_present("decrypt") {
 		for entry in &mut manifest.entries {
 			entry.encryption = None;
 		}
-		manifest.save(&passkey)?;
+		manifest.submit_passkey(None);
+		manifest.save()?;
 		return Ok(());
 	}
 
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
 	if matches.is_present("all") {
+		manifest
+			.load_accounts()
+			.expect("Failed to load all requested accounts, aborting");
 		// manifest.accounts.iter().map(|a| selected_accounts.push(a.b));
-		for account in &manifest.accounts {
-			selected_accounts.push(account.clone());
+		for entry in &manifest.entries {
+			selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
 		}
 	} else {
-		for account in &manifest.accounts {
+		for entry in &manifest.entries {
 			if !matches.is_present("username") {
-				selected_accounts.push(account.clone());
+				selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
 				break;
 			}
-			if matches.value_of("username").unwrap() == account.lock().unwrap().account_name {
-				selected_accounts.push(account.clone());
+			if matches.value_of("username").unwrap() == entry.account_name {
+				selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
 				break;
 			}
 		}
@@ -471,7 +473,7 @@ fn run() -> anyhow::Result<()> {
 			}
 		}
 
-		manifest.save(&passkey)?;
+		manifest.save()?;
 	} else if let Some(_) = matches.subcommand_matches("remove") {
 		println!(
 			"This will remove the mobile authenticator from {} accounts: {}",
@@ -528,7 +530,7 @@ fn run() -> anyhow::Result<()> {
 			manifest.remove_account(account_name);
 		}
 
-		manifest.save(&passkey)?;
+		manifest.save()?;
 	} else {
 		let server_time = steamapi::get_server_time();
 		debug!("Time used to generate codes: {}", server_time);
