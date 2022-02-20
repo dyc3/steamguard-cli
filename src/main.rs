@@ -1,5 +1,6 @@
 extern crate rpassword;
-use clap::{crate_version, App, Arg, Shell};
+use accountmanager::{Manifest, ManifestAccountLoadError};
+use clap::{crate_version, App, Arg, Shell, ArgMatches};
 use log::*;
 use std::str::FromStr;
 use std::{
@@ -190,23 +191,16 @@ fn main() {
 	let mut passkey: Option<String> = matches.value_of("passkey").map(|s| s.into());
 	manifest.submit_passkey(passkey);
 
-	loop {
-		match manifest.load_accounts() {
-			Ok(_) => break,
-			Err(
-				accountmanager::ManifestAccountLoadError::MissingPasskey
-				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
-			) => {
-				if manifest.has_passkey() {
-					error!("Incorrect passkey");
-				}
-				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
-				manifest.submit_passkey(passkey);
+	if manifest.is_encrypted() {
+		loop {
+			if manifest.validate_passkey() {
+				break;
 			}
-			Err(e) => {
-				error!("Could not load accounts: {}", e);
-				return;
+			if manifest.has_passkey() {
+				error!("Incorrect passkey");
 			}
+			passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+			manifest.submit_passkey(passkey);
 		}
 	}
 
@@ -351,6 +345,7 @@ fn main() {
 		for entry in &mut manifest.entries {
 			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
 		}
+		manifest.encrypted = true;
 		manifest.save().expect("Failed to save manifest.");
 		return;
 	} else if matches.is_present("decrypt") {
@@ -358,26 +353,31 @@ fn main() {
 			entry.encryption = None;
 		}
 		manifest.submit_passkey(None);
+		manifest.encrypted = false;
 		manifest.save().expect("Failed to save manifest.");
 		return;
 	}
 
-	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
-	if matches.is_present("all") {
-		manifest.load_accounts().expect("Failed to load all requested accounts, aborting");
-		// manifest.accounts.iter().map(|a| selected_accounts.push(a.b));
-		for entry in &manifest.entries {
-			selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
-		}
-	} else {
-		for entry in &manifest.entries {
-			if !matches.is_present("username") {
-				selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
+	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
+	loop {
+		match get_selected_accounts(&matches, &mut manifest) {
+			Ok(accounts) => {
+				selected_accounts = accounts;
 				break;
+			},
+			Err(
+				accountmanager::ManifestAccountLoadError::MissingPasskey
+				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
+			) => {
+				if manifest.has_passkey() {
+					error!("Incorrect passkey");
+				}
+				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				manifest.submit_passkey(passkey);
 			}
-			if matches.value_of("username").unwrap() == entry.account_name {
-				selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
-				break;
+			Err(e) => {
+				error!("Could not load accounts: {}", e);
+				return;
 			}
 		}
 	}
@@ -600,4 +600,27 @@ fn get_mafiles_dir() -> String {
 	}
 
 	return paths[0].to_str().unwrap().into();
+}
+
+fn get_selected_accounts(matches: &ArgMatches, manifest: &mut Manifest) -> anyhow::Result<Vec<Arc<Mutex<SteamGuardAccount>>>, ManifestAccountLoadError> {
+	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
+
+	if matches.is_present("all") {
+		manifest.load_accounts()?;
+		for entry in &manifest.entries {
+			selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
+		}
+	} else {
+
+		let entry = if matches.is_present("username") {
+			manifest.get_entry(&matches.value_of("username").unwrap().into())
+		} else {
+			manifest.entries.first().ok_or(ManifestAccountLoadError::MissingManifestEntry)
+		}?;
+
+		let account_name = entry.account_name.clone();
+		let account = manifest.get_or_load_account(&account_name)?;
+		selected_accounts.push(account);
+	}
+	return Ok(selected_accounts);
 }

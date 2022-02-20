@@ -14,18 +14,25 @@ use std::collections::HashMap;
 pub struct Manifest {
 	pub entries: Vec<ManifestEntry>,
 	/// Not really used, kept mostly for compatibility with SDA.
+	#[warn(deprecated)]
 	pub encrypted: bool,
 	/// Not implemented, kept for compatibility with SDA.
+	#[warn(deprecated)]
 	pub first_run: bool,
 	/// Not implemented, kept for compatibility with SDA.
+	#[warn(deprecated)]
 	pub periodic_checking: bool,
 	/// Not implemented, kept for compatibility with SDA.
+	#[warn(deprecated)]
 	pub periodic_checking_interval: i32,
 	/// Not implemented, kept for compatibility with SDA.
+	#[warn(deprecated)]
 	pub periodic_checking_checkall: bool,
 	/// Not implemented, kept for compatibility with SDA.
+	#[warn(deprecated)]
 	pub auto_confirm_market_transactions: bool,
 	/// Not implemented, kept for compatibility with SDA.
+	#[warn(deprecated)]
 	pub auto_confirm_trades: bool,
 
 	#[serde(skip)]
@@ -75,6 +82,7 @@ impl Manifest {
 		}
 	}
 
+	/// Loads a manifest from disk, where `path` should be the path to manifest.json.
 	pub fn load(path: &Path) -> anyhow::Result<Self> {
 		debug!("loading manifest: {:?}", &path);
 		let file = File::open(path)?;
@@ -95,6 +103,7 @@ impl Manifest {
 		self.passkey = passkey;
 	}
 
+	/// Load all accounts in the manifest.
 	pub fn load_accounts(
 		&mut self,
 	) -> anyhow::Result<(), ManifestAccountLoadError> {
@@ -109,9 +118,19 @@ impl Manifest {
 		&mut self,
 		account_name: &String
 	) -> anyhow::Result<(), ManifestAccountLoadError> {
-		let mut entry = self.get_entry_mut(account_name)?.clone();
+		debug!("loading account: {:?}", account_name);
+		let entry_result = self.get_entry_mut(account_name);
+		if matches!(entry_result, Err(ManifestAccountLoadError::MissingManifestEntry)) {
+			debug!("Could not find manifest entry that matched account name \"{}\", loading all accounts to fix it.", account_name);
+			self.load_accounts()?;
+			return Ok(());
+		}
+		let mut entry = entry_result?.clone();
 		let path = Path::new(&self.folder).join(&entry.filename);
-		debug!("loading account: {:?}", path);
+		debug!("loading account file: {:?}", path);
+		if !path.exists() {
+			return Err(ManifestAccountLoadError::MissingFile);
+		}
 		let file = File::open(path)?;
 		let mut reader = BufReader::new(file);
 		let account: SteamGuardAccount;
@@ -191,10 +210,6 @@ impl Manifest {
 
 	/// Saves the manifest and all loaded accounts.
 	pub fn save(&self) -> anyhow::Result<()> {
-		ensure!(
-			self.entries.len() == self.accounts.len(),
-			"Manifest entries don't match accounts."
-		);
 		info!("Saving manifest and accounts...");
 		for account in self.accounts.values().into_iter().map(|a| a.clone().lock().unwrap().clone()) {
 			let entry = self.get_entry(&account.account_name)?.clone();
@@ -268,12 +283,24 @@ impl Manifest {
 		self.load_account(&account_name)?;
 		return Ok(self.get_account(account_name)?);
 	}
+
+	pub fn is_encrypted(&self) -> bool {
+		return self.entries.iter().any(|e| e.encryption.is_some());
+	}
+
+	/// Validate whether or not the encryption passkey is correct.
+	pub fn validate_passkey(&mut self) -> bool {
+		let account_name = self.entries.iter().find(|e| e.encryption.is_some()).unwrap().account_name.clone();
+		self.load_account(&account_name).is_ok()
+	}
 }
 
 #[derive(Debug, Error)]
 pub enum ManifestAccountLoadError {
 	#[error("Could not find an entry in the manifest for this account. Check your spelling.")]
 	MissingManifestEntry,
+	#[error("The maFile for this entry is missing.")]
+	MissingFile,
 	#[error("Manifest accounts are encrypted, but no passkey was provided.")]
 	MissingPasskey,
 	#[error("Incorrect passkey provided.")]
@@ -577,6 +604,58 @@ mod tests {
 				.web_cookie,
 			None
 		);
+		Ok(())
+	}
+
+	#[test]
+	fn test_lazy_loading_accounts() -> anyhow::Result<()> {
+		let tmp_dir = TempDir::new("steamguard-cli-test")?;
+		let manifest_path = tmp_dir.path().join("manifest.json");
+		println!("tempdir: {}", manifest_path.display());
+		let mut manifest = Manifest::new(manifest_path.as_path());
+		let mut account = SteamGuardAccount::new();
+		account.account_name = "asdf1234".into();
+		account.revocation_code = "R12345".into();
+		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
+			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
+		)?;
+		manifest.add_account(account);
+		let mut account = SteamGuardAccount::new();
+		account.account_name = "ligma".into();
+		account.revocation_code = "R12345".into();
+		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
+			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
+		)?;
+		manifest.add_account(account);
+		manifest.save()?;
+
+		println!("manifest saved, attempting to load");
+
+		let mut manifest = Manifest::load(manifest_path.as_path())?;
+		let account = manifest.get_or_load_account(&"ligma".into())?;
+		assert_eq!(account.lock().unwrap().account_name, "ligma");
+		assert_eq!(manifest.accounts.len(), 1);
+		let account = manifest.get_or_load_account(&"asdf1234".into())?;
+		assert_eq!(account.lock().unwrap().account_name, "asdf1234");
+		assert_eq!(manifest.accounts.len(), 2);
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_sda_compatibility_lazy_loading() -> anyhow::Result<()> {
+		let path = Path::new("src/fixtures/maFiles/compat/2-account/manifest.json");
+		assert!(path.is_file());
+		let mut manifest = Manifest::load(path)?;
+		assert!(!manifest.is_encrypted());
+
+		let account = manifest.get_or_load_account(&"ligma".into())?;
+		assert_eq!(account.lock().unwrap().account_name, "example2");
+		assert_eq!(manifest.accounts.len(), 1);
+		let account = manifest.get_or_load_account(&"asdf1234".into())?;
+		assert_eq!(account.lock().unwrap().account_name, "asdf1234");
+		assert_eq!(manifest.accounts.len(), 2);
+
 		Ok(())
 	}
 }
