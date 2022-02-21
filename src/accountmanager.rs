@@ -641,4 +641,31 @@ mod tests {
 		);
 		Ok(())
 	}
+
+	#[test]
+	fn test_sda_compatibility_2() -> anyhow::Result<()> {
+		let path = Path::new("src/fixtures/maFiles/compat/2-account/manifest.json");
+		assert!(path.is_file());
+		let mut manifest = Manifest::load(path)?;
+		assert!(matches!(manifest.entries.last().unwrap().encryption, None));
+		manifest.load_accounts()?;
+		let account_name = manifest.entries[0].account_name.clone();
+		let account = manifest.get_account(&account_name)?;
+		assert_eq!(account_name, account.lock().unwrap().account_name);
+		assert_eq!(account.lock().unwrap().revocation_code, "R12345");
+		assert_eq!(
+			account.lock().unwrap().session.as_ref().unwrap().steam_id,
+			1234
+		);
+
+		let account_name = manifest.entries[1].account_name.clone();
+		let account = manifest.get_account(&account_name)?;
+		assert_eq!(account_name, account.lock().unwrap().account_name);
+		assert_eq!(account.lock().unwrap().revocation_code, "R56789");
+		assert_eq!(
+			account.lock().unwrap().session.as_ref().unwrap().steam_id,
+			5678
+		);
+		Ok(())
+	}
 }
