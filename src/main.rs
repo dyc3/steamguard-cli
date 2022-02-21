@@ -85,10 +85,15 @@ fn cli() -> App<'static, 'static> {
 				.about("Interactive interface for trade confirmations")
 				.arg(
 					Arg::with_name("accept-all")
-					.short("a")
-					.long("accept-all")
-					.takes_value(false)
-					.help("Accept all open trade confirmations. Does not open interactive interface.")
+						.short("a")
+						.long("accept-all")
+						.takes_value(false)
+						.help("Accept all open trade confirmations. Does not open interactive interface.")
+				)
+				.arg(
+					Arg::with_name("fail-fast")
+						.takes_value(false)
+						.help("If submitting a confirmation response fails, exit immediately.")
 				)
 		)
 		.subcommand(
@@ -409,22 +414,49 @@ fn run() -> anyhow::Result<()> {
 				}
 			}
 
+			let mut any_failed = false;
+			let fail_fast = trade_matches.is_present("fail-fast");
 			if trade_matches.is_present("accept-all") {
 				info!("accepting all confirmations");
 				for conf in &confirmations {
 					let result = account.accept_confirmation(conf);
-					debug!("accept confirmation result: {:?}", result);
+					if result.is_err() {
+						warn!("accept confirmation result: {:?}", result);
+						any_failed = true;
+						if fail_fast {
+							return result;
+						}
+					} else {
+						debug!("accept confirmation result: {:?}", result);
+					}
 				}
 			} else {
 				if termion::is_tty(&stdout()) {
 					let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
 					for conf in &accept {
 						let result = account.accept_confirmation(conf);
-						debug!("accept confirmation result: {:?}", result);
+						if result.is_err() {
+							warn!("accept confirmation result: {:?}", result);
+							any_failed = true;
+							if fail_fast {
+								return result;
+							}
+						} else {
+							debug!("accept confirmation result: {:?}", result);
+						}
 					}
 					for conf in &deny {
 						let result = account.deny_confirmation(conf);
 						debug!("deny confirmation result: {:?}", result);
+						if result.is_err() {
+							warn!("deny confirmation result: {:?}", result);
+							any_failed = true;
+							if fail_fast {
+								return result;
+							}
+						} else {
+							debug!("deny confirmation result: {:?}", result);
+						}
 					}
 				} else {
 					warn!("not a tty, not showing menu");
@@ -432,6 +464,10 @@ fn run() -> anyhow::Result<()> {
 						println!("{}", conf.description());
 					}
 				}
+			}
+
+			if any_failed {
+				error!("Failed to respond to some confirmations.");
 			}
 		}
 
