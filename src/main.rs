@@ -24,6 +24,7 @@ extern crate ring;
 mod accountmanager;
 mod demos;
 mod encryption;
+mod errors;
 mod tui;
 
 fn cli() -> App<'static, 'static> {
@@ -84,10 +85,15 @@ fn cli() -> App<'static, 'static> {
 				.about("Interactive interface for trade confirmations")
 				.arg(
 					Arg::with_name("accept-all")
-					.short("a")
-					.long("accept-all")
-					.takes_value(false)
-					.help("Accept all open trade confirmations. Does not open interactive interface.")
+						.short("a")
+						.long("accept-all")
+						.takes_value(false)
+						.help("Accept all open trade confirmations. Does not open interactive interface.")
+				)
+				.arg(
+					Arg::with_name("fail-fast")
+						.takes_value(false)
+						.help("If submitting a confirmation response fails, exit immediately.")
 				)
 		)
 		.subcommand(
@@ -126,6 +132,16 @@ fn cli() -> App<'static, 'static> {
 }
 
 fn main() {
+	std::process::exit(match run() {
+		Ok(_) => 0,
+		Err(e) => {
+			error!("{:?}", e);
+			255
+		}
+	});
+}
+
+fn run() -> anyhow::Result<()> {
 	let matches = cli().get_matches();
 
 	let verbosity = matches.occurrences_of("verbosity") as usize + 2;
@@ -140,7 +156,7 @@ fn main() {
 		if demo_matches.is_present("demo-conf-menu") {
 			demos::demo_confirmation_menu();
 		}
-		return;
+		return Ok(());
 	}
 	if let Some(completion_matches) = matches.subcommand_matches("completion") {
 		cli().gen_completions_to(
@@ -148,7 +164,7 @@ fn main() {
 			Shell::from_str(completion_matches.value_of("shell").unwrap()).unwrap(),
 			&mut std::io::stdout(),
 		);
-		return;
+		return Ok(());
 	}
 
 	let mafiles_dir = if matches.occurrences_of("mafiles-path") > 0 {
@@ -167,24 +183,16 @@ fn main() {
 		) {
 			'n' => {
 				info!("Aborting!");
-				return;
+				return Err(errors::UserError::Aborted.into());
 			}
 			_ => {}
 		}
-		std::fs::create_dir_all(mafiles_dir).expect("failed to create directory");
+		std::fs::create_dir_all(mafiles_dir)?;
 
 		manifest = accountmanager::Manifest::new(path.as_path());
-		manifest.save(&None).expect("Failed to save manifest");
+		manifest.save(&None)?;
 	} else {
-		match accountmanager::Manifest::load(path.as_path()) {
-			Ok(m) => {
-				manifest = m;
-			}
-			Err(e) => {
-				error!("Could not load manifest: {}", e);
-				return;
-			}
-		}
+		manifest = accountmanager::Manifest::load(path.as_path())?;
 	}
 
 	let mut passkey: Option<String> = matches.value_of("passkey").map(|s| s.into());
@@ -203,7 +211,7 @@ fn main() {
 			}
 			Err(e) => {
 				error!("Could not load accounts: {}", e);
-				return;
+				return Err(e.into());
 			}
 		}
 	}
@@ -213,7 +221,7 @@ fn main() {
 		print!("Username: ");
 		let username = tui::prompt();
 		if manifest.account_exists(&username) {
-			error!(
+			bail!(
 				"Account {} already exists in manifest, remove it first",
 				username
 			);
@@ -231,7 +239,7 @@ fn main() {
 				}
 				Err(AccountLinkError::MustRemovePhoneNumber) => {
 					println!("There is already a phone number on this account, please remove it and try again.");
-					return;
+					bail!("There is already a phone number on this account, please remove it and try again.");
 				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
 					println!("Enter your phone number in the following format: +1 123-456-7890");
@@ -240,7 +248,7 @@ fn main() {
 				}
 				Err(AccountLinkError::AuthenticatorPresent) => {
 					println!("An authenticator is already present on this account.");
-					return;
+					bail!("An authenticator is already present on this account.");
 				}
 				Err(AccountLinkError::MustConfirmEmail) => {
 					println!("Check your email and click the link.");
@@ -251,7 +259,7 @@ fn main() {
 						"Failed to link authenticator. Account has not been linked. {}",
 						err
 					);
-					return;
+					return Err(err.into());
 				}
 			}
 		}
@@ -264,7 +272,7 @@ fn main() {
 					"Just in case, here is the account info. Save it somewhere just in case!\n{:?}",
 					manifest.accounts.last().unwrap().lock().unwrap()
 				);
-				return;
+				return Err(err.into());
 			}
 		}
 
@@ -292,12 +300,12 @@ fn main() {
 					tries += 1;
 					if tries >= 30 {
 						error!("Failed to finalize: unable to generate valid 2fa codes");
-						return;
+						bail!("Failed to finalize: unable to generate valid 2fa codes");
 					}
 				}
 				Err(err) => {
 					error!("Failed to finalize: {}", err);
-					return;
+					return Err(err.into());
 				}
 			}
 		}
@@ -310,7 +318,7 @@ fn main() {
 					"Failed to save manifest, but we were able to save it before. {}",
 					err
 				);
-				return;
+				return Err(err);
 			}
 		}
 
@@ -319,7 +327,7 @@ fn main() {
 			account.revocation_code
 		);
 
-		return;
+		return Ok(());
 	} else if let Some(import_matches) = matches.subcommand_matches("import") {
 		for file_path in import_matches.values_of("files").unwrap() {
 			match manifest.import_account(file_path.into()) {
@@ -327,13 +335,13 @@ fn main() {
 					info!("Imported account: {}", file_path);
 				}
 				Err(err) => {
-					error!("Failed to import account: {} {}", file_path, err);
+					bail!("Failed to import account: {} {}", file_path, err);
 				}
 			}
 		}
 
-		manifest.save(&passkey).expect("Failed to save manifest.");
-		return;
+		manifest.save(&passkey)?;
+		return Ok(());
 	} else if matches.is_present("encrypt") {
 		if passkey.is_none() {
 			loop {
@@ -349,14 +357,14 @@ fn main() {
 		for entry in &mut manifest.entries {
 			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
 		}
-		manifest.save(&passkey).expect("Failed to save manifest.");
-		return;
+		manifest.save(&passkey)?;
+		return Ok(());
 	} else if matches.is_present("decrypt") {
 		for entry in &mut manifest.entries {
 			entry.encryption = None;
 		}
-		manifest.save(&passkey).expect("Failed to save manifest.");
-		return;
+		manifest.save(&passkey)?;
+		return Ok(());
 	}
 
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
@@ -401,27 +409,54 @@ fn main() {
 					}
 					Err(_) => {
 						info!("failed to get trade confirmations, asking user to log in");
-						do_login(&mut account).expect("Failed to log in");
+						do_login(&mut account)?;
 					}
 				}
 			}
 
+			let mut any_failed = false;
+			let fail_fast = trade_matches.is_present("fail-fast");
 			if trade_matches.is_present("accept-all") {
 				info!("accepting all confirmations");
 				for conf in &confirmations {
 					let result = account.accept_confirmation(conf);
-					debug!("accept confirmation result: {:?}", result);
+					if result.is_err() {
+						warn!("accept confirmation result: {:?}", result);
+						any_failed = true;
+						if fail_fast {
+							return result;
+						}
+					} else {
+						debug!("accept confirmation result: {:?}", result);
+					}
 				}
 			} else {
 				if termion::is_tty(&stdout()) {
 					let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
 					for conf in &accept {
 						let result = account.accept_confirmation(conf);
-						debug!("accept confirmation result: {:?}", result);
+						if result.is_err() {
+							warn!("accept confirmation result: {:?}", result);
+							any_failed = true;
+							if fail_fast {
+								return result;
+							}
+						} else {
+							debug!("accept confirmation result: {:?}", result);
+						}
 					}
 					for conf in &deny {
 						let result = account.deny_confirmation(conf);
 						debug!("deny confirmation result: {:?}", result);
+						if result.is_err() {
+							warn!("deny confirmation result: {:?}", result);
+							any_failed = true;
+							if fail_fast {
+								return result;
+							}
+						} else {
+							debug!("deny confirmation result: {:?}", result);
+						}
 					}
 				} else {
 					warn!("not a tty, not showing menu");
@@ -430,9 +465,13 @@ fn main() {
 					}
 				}
 			}
+
+			if any_failed {
+				error!("Failed to respond to some confirmations.");
+			}
 		}
 
-		manifest.save(&passkey).expect("Failed to save manifest");
+		manifest.save(&passkey)?;
 	} else if let Some(_) = matches.subcommand_matches("remove") {
 		println!(
 			"This will remove the mobile authenticator from {} accounts: {}",
@@ -448,7 +487,7 @@ fn main() {
 			'y' => {}
 			_ => {
 				info!("Aborting!");
-				return;
+				return Err(errors::UserError::Aborted.into());
 			}
 		}
 
@@ -489,7 +528,7 @@ fn main() {
 			manifest.remove_account(account_name);
 		}
 
-		manifest.save(&passkey).expect("Failed to save manifest.");
+		manifest.save(&passkey)?;
 	} else {
 		let server_time = steamapi::get_server_time();
 		debug!("Time used to generate codes: {}", server_time);
@@ -503,6 +542,7 @@ fn main() {
 			println!("{}", code);
 		}
 	}
+	Ok(())
 }
 
 fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
