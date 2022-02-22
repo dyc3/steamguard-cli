@@ -1,5 +1,5 @@
 extern crate rpassword;
-use clap::{crate_version, App, Arg, Shell};
+use clap::{crate_version, App, Arg, ArgMatches, Shell};
 use log::*;
 use std::str::FromStr;
 use std::{
@@ -11,6 +11,8 @@ use steamguard::{
 	steamapi, AccountLinkError, AccountLinker, Confirmation, FinalizeLinkError, LoginError,
 	SteamGuardAccount, UserLogin,
 };
+
+use crate::accountmanager::ManifestAccountLoadError;
 
 #[macro_use]
 extern crate lazy_static;
@@ -199,8 +201,14 @@ fn run() -> anyhow::Result<()> {
 	manifest.submit_passkey(passkey);
 
 	loop {
-		match manifest.load_accounts() {
-			Ok(_) => break,
+		match manifest.auto_upgrade() {
+			Ok(upgraded) => {
+				if upgraded {
+					info!("Manifest auto-upgraded");
+					manifest.save()?;
+				}
+				break;
+			}
 			Err(
 				accountmanager::ManifestAccountLoadError::MissingPasskey
 				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
@@ -352,12 +360,14 @@ fn run() -> anyhow::Result<()> {
 			}
 			manifest.submit_passkey(passkey);
 		}
+		manifest.load_accounts()?;
 		for entry in &mut manifest.entries {
 			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
 		}
 		manifest.save()?;
 		return Ok(());
 	} else if matches.is_present("decrypt") {
+		manifest.load_accounts()?;
 		for entry in &mut manifest.entries {
 			entry.encryption = None;
 		}
@@ -366,27 +376,7 @@ fn run() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
-	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
-	if matches.is_present("all") {
-		manifest
-			.load_accounts()
-			.expect("Failed to load all requested accounts, aborting");
-		// manifest.accounts.iter().map(|a| selected_accounts.push(a.b));
-		for entry in &manifest.entries {
-			selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
-		}
-	} else {
-		for entry in &manifest.entries {
-			if !matches.is_present("username") {
-				selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
-				break;
-			}
-			if matches.value_of("username").unwrap() == entry.account_name {
-				selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
-				break;
-			}
-		}
-	}
+	let mut selected_accounts = get_selected_accounts(&matches, &mut manifest)?;
 
 	debug!(
 		"selected accounts: {:?}",
@@ -545,6 +535,34 @@ fn run() -> anyhow::Result<()> {
 		}
 	}
 	Ok(())
+}
+
+fn get_selected_accounts(
+	matches: &ArgMatches,
+	manifest: &mut accountmanager::Manifest,
+) -> anyhow::Result<Vec<Arc<Mutex<SteamGuardAccount>>>, ManifestAccountLoadError> {
+	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
+
+	if matches.is_present("all") {
+		manifest.load_accounts()?;
+		for entry in &manifest.entries {
+			selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
+		}
+	} else {
+		let entry = if matches.is_present("username") {
+			manifest.get_entry(&matches.value_of("username").unwrap().into())
+		} else {
+			manifest
+				.entries
+				.first()
+				.ok_or(ManifestAccountLoadError::MissingManifestEntry)
+		}?;
+
+		let account_name = entry.account_name.clone();
+		let account = manifest.get_or_load_account(&account_name)?;
+		selected_accounts.push(account);
+	}
+	return Ok(selected_accounts);
 }
 
 fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
