@@ -315,17 +315,20 @@ impl Manifest {
 		self.entries.iter().any(|e| e.account_name.is_empty())
 	}
 
-	pub fn auto_upgrade(&mut self) -> anyhow::Result<(), ManifestAccountLoadError> {
+	/// Performs auto-upgrades on the manifest. Returns true if any upgrades were performed.
+	pub fn auto_upgrade(&mut self) -> anyhow::Result<bool, ManifestAccountLoadError> {
 		debug!("Performing auto-upgrade...");
+		let mut upgraded = false;
 		if self.is_missing_account_name() {
 			debug!("Adding missing account names");
 			for i in 0..self.entries.len() {
 				let account = self.load_account_by_entry(&self.entries[i].clone())?;
 				self.entries[i].account_name = account.lock().unwrap().account_name.clone();
 			}
+			upgraded = true;
 		}
 
-		Ok(())
+		Ok(upgraded)
 	}
 }
 

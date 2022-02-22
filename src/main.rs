@@ -201,8 +201,14 @@ fn run() -> anyhow::Result<()> {
 	manifest.submit_passkey(passkey);
 
 	loop {
-		match manifest.load_accounts() {
-			Ok(_) => break,
+		match manifest.auto_upgrade() {
+			Ok(upgraded) => {
+				if upgraded {
+					info!("Manifest auto-upgraded");
+					manifest.save()?;
+				}
+				break;
+			},
 			Err(
 				accountmanager::ManifestAccountLoadError::MissingPasskey
 				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
