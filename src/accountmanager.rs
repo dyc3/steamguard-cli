@@ -94,23 +94,36 @@ impl Manifest {
 		self.passkey = passkey;
 	}
 
+	/// Loads all accounts, registers them, and performs auto upgrades.
 	pub fn load_accounts(&mut self) -> anyhow::Result<(), ManifestAccountLoadError> {
-		let account_names: Vec<String> = self
-			.entries
-			.iter()
-			.map(|entry| entry.account_name.clone())
-			.collect();
-		for account_name in account_names {
-			self.load_account(&account_name)?;
+		self.auto_upgrade()?;
+		let mut accounts = vec![];
+		for entry in &self.entries {
+			let account = self.load_account_by_entry(&entry)?;
+			accounts.push(account);
+		}
+		for account in accounts {
+			self.register_loaded_account(account);
 		}
 		Ok(())
 	}
 
+	/// Loads an account by account name.
+	/// Must call `register_loaded_account` after loading the account.
 	fn load_account(
-		&mut self,
+		&self,
 		account_name: &String,
-	) -> anyhow::Result<(), ManifestAccountLoadError> {
-		let mut entry = self.get_entry_mut(account_name)?.clone();
+	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
+		let entry = self.get_entry(account_name)?;
+		self.load_account_by_entry(&entry)
+	}
+
+	/// Loads an account from a manifest entry.
+	/// Must call `register_loaded_account` after loading the account.
+	fn load_account_by_entry(
+		&self,
+		entry: &ManifestEntry,
+	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
 		let path = Path::new(&self.folder).join(&entry.filename);
 		debug!("loading account: {:?}", path);
 		let file = File::open(path)?;
@@ -135,11 +148,14 @@ impl Manifest {
 				account = serde_json::from_reader(reader)?;
 			}
 		};
-		entry.account_name = account.account_name.clone();
-		self.accounts
-			.insert(entry.account_name.clone(), Arc::new(Mutex::new(account)));
-		*self.get_entry_mut(account_name)? = entry;
-		Ok(())
+		let account = Arc::new(Mutex::new(account));
+		Ok(account)
+	}
+
+	/// Register an account as loaded, so it can be operated on.
+	fn register_loaded_account(&mut self, account: Arc<Mutex<SteamGuardAccount>>) {
+		let account_name = account.lock().unwrap().account_name.clone();
+		self.accounts.insert(account_name, account);
 	}
 
 	pub fn account_exists(&self, account_name: &String) -> bool {
@@ -289,8 +305,27 @@ impl Manifest {
 		if account.is_ok() {
 			return Ok(account.unwrap());
 		}
-		self.load_account(&account_name)?;
-		return Ok(self.get_account(account_name)?);
+		let account = self.load_account(&account_name)?;
+		self.register_loaded_account(account.clone());
+		return Ok(account);
+	}
+
+	/// Determine if any manifest entries are missing `account_name`.
+	fn is_missing_account_name(&self) -> bool {
+		self.entries.iter().any(|e| e.account_name.is_empty())
+	}
+
+	pub fn auto_upgrade(&mut self) -> anyhow::Result<(), ManifestAccountLoadError> {
+		debug!("Performing auto-upgrade...");
+		if self.is_missing_account_name() {
+			debug!("Adding missing account names");
+			for i in 0..self.entries.len() {
+				let account = self.load_account_by_entry(&self.entries[i].clone())?;
+				self.entries[i].account_name = account.lock().unwrap().account_name.clone();
+			}
+		}
+
+		Ok(())
 	}
 }
 
@@ -667,5 +702,23 @@ mod tests {
 			5678
 		);
 		Ok(())
+	}
+
+	#[cfg(test)]
+	mod manifest_upgrades {
+		use super::*;
+
+		#[test]
+		fn test_missing_account_name() {
+			let path = Path::new("src/fixtures/maFiles/compat/missing-account-name/manifest.json");
+			assert!(path.is_file());
+			let mut manifest = Manifest::load(path).unwrap();
+			assert_eq!(manifest.entries.len(), 1);
+			assert_eq!(manifest.entries[0].account_name, "".to_string());
+			assert!(manifest.is_missing_account_name());
+
+			manifest.auto_upgrade().unwrap();
+			assert_eq!(manifest.entries[0].account_name, "example".to_string());
+		}
 	}
 }
