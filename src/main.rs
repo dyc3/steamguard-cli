@@ -1,5 +1,5 @@
 extern crate rpassword;
-use clap::{crate_version, App, Arg, Shell, ArgMatches};
+use clap::{crate_version, App, Arg, ArgMatches, Shell};
 use log::*;
 use std::str::FromStr;
 use std::{
@@ -208,7 +208,7 @@ fn run() -> anyhow::Result<()> {
 					manifest.save()?;
 				}
 				break;
-			},
+			}
 			Err(
 				accountmanager::ManifestAccountLoadError::MissingPasskey
 				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
@@ -537,7 +537,10 @@ fn run() -> anyhow::Result<()> {
 	Ok(())
 }
 
-fn get_selected_accounts(matches: &ArgMatches, manifest: &mut accountmanager::Manifest) -> anyhow::Result<Vec<Arc<Mutex<SteamGuardAccount>>>, ManifestAccountLoadError> {
+fn get_selected_accounts(
+	matches: &ArgMatches,
+	manifest: &mut accountmanager::Manifest,
+) -> anyhow::Result<Vec<Arc<Mutex<SteamGuardAccount>>>, ManifestAccountLoadError> {
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
 
 	if matches.is_present("all") {
@@ -549,7 +552,10 @@ fn get_selected_accounts(matches: &ArgMatches, manifest: &mut accountmanager::Ma
 		let entry = if matches.is_present("username") {
 			manifest.get_entry(&matches.value_of("username").unwrap().into())
 		} else {
-			manifest.entries.first().ok_or(ManifestAccountLoadError::MissingManifestEntry)
+			manifest
+				.entries
+				.first()
+				.ok_or(ManifestAccountLoadError::MissingManifestEntry)
 		}?;
 
 		let account_name = entry.account_name.clone();
