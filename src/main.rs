@@ -360,12 +360,14 @@ fn run() -> anyhow::Result<()> {
 			}
 			manifest.submit_passkey(passkey);
 		}
+		manifest.load_accounts()?;
 		for entry in &mut manifest.entries {
 			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
 		}
 		manifest.save()?;
 		return Ok(());
 	} else if matches.is_present("decrypt") {
+		manifest.load_accounts()?;
 		for entry in &mut manifest.entries {
 			entry.encryption = None;
 		}
