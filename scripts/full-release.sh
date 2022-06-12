@@ -67,7 +67,7 @@ cross build --release --target=x86_64-unknown-linux-musl
 
 ./scripts/package-deb.sh
 
-BIN_PATH="target/x86_64-unknown-linux-musl/release/steamguard-cli-x86_64-unknown-linux-musl"
+BIN_PATH="target/x86_64-unknown-linux-musl/release/steamguard-cli"
 RAW_VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
 TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
 if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
