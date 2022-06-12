@@ -10,6 +10,8 @@ tar -cvf arch-docker.tar.gz .
 docker image build -t steamguard-cli-archlinux-builder - < arch-docker.tar.gz
 rm arch-docker.tar.gz
 
-docker run --rm steamguard-cli-archlinux-builder /bin/bash -c "./install.sh steamguard-cli-git && steamguard-cli --version"
+BIN_NAME="steamguard"
+
+docker run --rm steamguard-cli-archlinux-builder /bin/bash -c "./install.sh steamguard-cli-git && $BIN_NAME --version"
 
 docker image rm steamguard-cli-archlinux-builder:latest
