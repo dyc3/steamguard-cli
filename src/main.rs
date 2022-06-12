@@ -30,7 +30,7 @@ mod errors;
 mod tui;
 
 #[derive(Debug, Clone, Parser)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author, version, about = "Generate Steam 2FA codes and confirm Steam trades from the command line.", long_about = None)]
 struct Args {
 	#[clap(short, long, help = "Steam username, case-sensitive.", long_help = "Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")]
 	username: Option<String>,
@@ -43,6 +43,46 @@ struct Args {
 	passkey: Option<String>,
 	#[clap(short, long, default_value_t=Verbosity::Info, help = "Set the log level.")]
 	verbosity: Verbosity,
+
+	#[clap(subcommand)]
+	sub: Subcommands,
+}
+
+#[derive(Debug, Clone, Parser)]
+enum Subcommands {
+	Debug {
+		#[clap(long)]
+		demo_conf_menu: bool
+	},
+	// Completions {
+		// TODO: Add completions
+	// },
+	#[clap(about = "Interactive interface for trade confirmations")]
+	Trade {
+		#[clap(short, long, help = "Accept all open trade confirmations. Does not open interactive interface.")]
+		accept_all: bool,
+		#[clap(short, long, help = "If submitting a confirmation response fails, exit immediately.")]
+		fail_fast: bool,
+	},
+	#[clap(about = "Set up a new account with steamguard-cli")]
+	Setup {
+		#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
+		username: String,
+	},
+	#[clap(about = "Import an account with steamguard already set up")]
+	Import {
+		#[clap(long, help = "Paths to one or more maFiles, eg. \"./gaben.maFile\"")]
+		files: Vec<String>,
+	},
+	#[clap(about = "Remove the authenticator from an account.")]
+	Remove {
+		#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
+		username: String,
+	},
+	#[clap(about = "Encrypt all maFiles")]
+	Encrypt,
+	#[clap(about = "Decrypt all maFiles")]
+	Decrypt,
 }
 
 #[derive(Debug, Clone, Copy)]
