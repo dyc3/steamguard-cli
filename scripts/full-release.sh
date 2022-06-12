@@ -81,17 +81,3 @@ if [[ $DRY_RUN == false ]]; then
   fi
 	gh release create "$VERSION" --title "$VERSION" --draft "$BIN_PATH" "./steamguard-cli_$RAW_VERSION-0.deb"
 fi
-
-# update PKGBUILD for AUR
-if [[ -d "aur" ]]; then
-	rm -rf aur
-fi
-git clone ssh://aur@aur.archlinux.org/steamguard-cli-git.git aur
-cp PKGBUILD aur/PKGBUILD
-cd aur
-git commit -m "release $VERSION" PKGBUILD
-if [[ $DRY_RUN == false ]]; then
-	git push
-	rm -rf aur
-fi
-cd ..
