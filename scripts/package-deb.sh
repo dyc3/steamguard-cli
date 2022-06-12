@@ -5,10 +5,15 @@ set -e
 DISTRO=$(lsb_release -i -s)
 DISTRO_VERSION=$(lsb_release -r -s)
 
-BIN_PATH="target/release/steamguard-cli"
+if ! which cross; then
+	echo "cross not found, installing..."
+	cargo install cross
+fi
+
+BIN_PATH="target/x86_64-unknown-linux-musl/release/steamguard-cli"
 if [[ ! -f "$BIN_PATH" ]]; then
 	echo "ERROR: Could not find release binaries, building them..."
-	cargo build --release
+	cross build --release --target=x86_64-unknown-linux-musl
 fi
 VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
 TEMP_PKG_PATH="/tmp/steamguard-cli_$VERSION"

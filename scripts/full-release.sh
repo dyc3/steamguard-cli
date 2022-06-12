@@ -58,11 +58,16 @@ if [[ $SKIP_CRATE_PUBLISH == true ]]; then
 fi
 cargo smart-release --update-crates-index --no-changelog "${params[@]}"
 
-cargo build --release
+if ! which cross; then
+	echo "cross not found, installing..."
+	cargo install cross
+fi
+
+cross build --release --target=x86_64-unknown-linux-musl
 
 ./scripts/package-deb.sh
 
-BIN_PATH="target/release/steamguard-cli"
+BIN_PATH="target/x86_64-unknown-linux-musl/release/steamguard-cli-x86_64-unknown-linux-musl"
 RAW_VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
 TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
 if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
