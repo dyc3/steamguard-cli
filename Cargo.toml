@@ -7,7 +7,7 @@ members = [
 [package]
 name = "steamguard-cli"
 version = "0.4.5"
-authors = ["Carson McManus <carson.mcmanus1@gmail.com>"]
+authors = ["dyc3 (Carson McManus) <carson.mcmanus1@gmail.com>"]
 edition = "2018"
 description = "A command line utility to generate Steam 2FA codes and respond to confirmations."
 keywords = ["steam", "2fa", "steamguard", "authentication", "cli"]
@@ -33,7 +33,7 @@ serde_json = "1.0"
 rsa = "0.5.0"
 rand = "0.8.4"
 standback = "0.2.17" # required to fix a compilation error on a transient dependency
-clap = "2.33.3"
+clap = { version = "3.1.18", features = ["derive", "cargo"] }
 log = "0.4.14"
 stderrlog = "0.4"
 cookie = "0.14"

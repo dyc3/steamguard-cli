@@ -1,5 +1,5 @@
 extern crate rpassword;
-use clap::{crate_version, App, Arg, ArgMatches, Shell};
+use clap::{crate_version, App, Arg, ArgMatches, Parser};
 use log::*;
 use std::str::FromStr;
 use std::{
@@ -29,7 +29,59 @@ mod encryption;
 mod errors;
 mod tui;
 
-fn cli() -> App<'static, 'static> {
+#[derive(Debug, Clone, Parser)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+	#[clap(short, long, help = "Steam username, case-sensitive.", long_help = "Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")]
+	username: Option<String>,
+	#[clap(short, long, help = "Select all accounts in the manifest.")]
+	all: bool,
+	/// The path to the maFiles directory.
+	#[clap(short, long, default_value = "~/.config/steamguard-cli/maFiles", help = "Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json.")]
+	mafiles_path: String,
+	#[clap(short, long, help = "Specify your encryption passkey.")]
+	passkey: Option<String>,
+	#[clap(short, long, default_value_t=Verbosity::Info, help = "Set the log level.")]
+	verbosity: Verbosity,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Verbosity {
+	Error = 0,
+	Warn = 1,
+	Info = 2,
+	Debug = 3,
+	Trace = 4,
+}
+
+impl std::fmt::Display for Verbosity {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", match self {
+			Verbosity::Error => "error",
+			Verbosity::Warn => "warn",
+			Verbosity::Info => "info",
+			Verbosity::Debug => "debug",
+			Verbosity::Trace => "trace",
+		}))
+	}
+}
+
+impl FromStr for Verbosity {
+	type Err = anyhow::Error;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"error" => Ok(Verbosity::Error),
+			"warn" => Ok(Verbosity::Warn),
+			"info" => Ok(Verbosity::Info),
+			"debug" => Ok(Verbosity::Debug),
+			"trace" => Ok(Verbosity::Trace),
+			_ => Err(anyhow!("Invalid verbosity level: {}", s)),
+		}
+	}
+}
+
+fn cli() -> App<'static> {
 	App::new("steamguard-cli")
 		.version(crate_version!())
 		.bin_name("steamguard")
@@ -38,7 +90,7 @@ fn cli() -> App<'static, 'static> {
 		.arg(
 			Arg::with_name("username")
 				.long("username")
-				.short("u")
+				.short('u')
 				.takes_value(true)
 				.help("Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")
 				.conflicts_with("all")
@@ -46,7 +98,7 @@ fn cli() -> App<'static, 'static> {
 		.arg(
 			Arg::with_name("all")
 				.long("all")
-				.short("a")
+				.short('a')
 				.takes_value(false)
 				.help("Select all accounts in the manifest.")
 				.conflicts_with("username")
@@ -54,40 +106,40 @@ fn cli() -> App<'static, 'static> {
 		.arg(
 			Arg::with_name("mafiles-path")
 				.long("mafiles-path")
-				.short("m")
+				.short('m')
 				.default_value("~/maFiles")
 				.help("Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json.")
 		)
 		.arg(
 			Arg::with_name("passkey")
 				.long("passkey")
-				.short("p")
+				.short('p')
 				.help("Specify your encryption passkey.")
 				.takes_value(true)
 		)
 		.arg(
 			Arg::with_name("verbosity")
-				.short("v")
+				.short('v')
 				.help("Log what is going on verbosely.")
 				.takes_value(false)
 				.multiple(true)
 		)
-		.subcommand(
-			App::new("completion")
-				.about("Generate shell completions")
-				.arg(
-					Arg::with_name("shell")
-						.long("shell")
-						.takes_value(true)
-						.possible_values(&Shell::variants())
-				)
-		)
+		// .subcommand(
+		// 	App::new("completion")
+		// 		.about("Generate shell completions")
+		// 		.arg(
+		// 			Arg::with_name("shell")
+		// 				.long("shell")
+		// 				.takes_value(true)
+		// 				.possible_values(&Shell::variants())
+		// 		)
+		// )
 		.subcommand(
 			App::new("trade")
 				.about("Interactive interface for trade confirmations")
 				.arg(
 					Arg::with_name("accept-all")
-						.short("a")
+						.short('a')
 						.long("accept-all")
 						.takes_value(false)
 						.help("Accept all open trade confirmations. Does not open interactive interface.")
@@ -144,11 +196,14 @@ fn main() {
 }
 
 fn run() -> anyhow::Result<()> {
+	let new_args = Args::parse();
+	println!("{:?}", new_args);
+	return Ok(());
+
 	let matches = cli().get_matches();
 
-	let verbosity = matches.occurrences_of("verbosity") as usize + 2;
 	stderrlog::new()
-		.verbosity(verbosity)
+		.verbosity(new_args.verbosity as usize)
 		.module(module_path!())
 		.module("steamguard")
 		.init()
@@ -161,11 +216,11 @@ fn run() -> anyhow::Result<()> {
 		return Ok(());
 	}
 	if let Some(completion_matches) = matches.subcommand_matches("completion") {
-		cli().gen_completions_to(
-			"steamguard",
-			Shell::from_str(completion_matches.value_of("shell").unwrap()).unwrap(),
-			&mut std::io::stdout(),
-		);
+		// cli().gen_completions_to(
+		// 	"steamguard",
+		// 	Shell::from_str(completion_matches.value_of("shell").unwrap()).unwrap(),
+		// 	&mut std::io::stdout(),
+		// );
 		return Ok(());
 	}
 
