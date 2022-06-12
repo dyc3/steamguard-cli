@@ -27,7 +27,7 @@ hmac-sha1 = "^0.1"
 base64 = "0.13.0"
 text_io = "0.1.8"
 rpassword = "5.0"
-reqwest = { version = "0.11", features = ["blocking", "json", "cookies", "gzip"] }
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "cookies", "gzip", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rsa = "0.5.0"
