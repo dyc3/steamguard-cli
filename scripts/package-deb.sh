@@ -24,6 +24,9 @@ mkdir -p "$TEMP_PKG_PATH/etc/bash_completion.d"
 mkdir -p "$TEMP_PKG_PATH/DEBIAN"
 
 cp "$BIN_PATH" "$TEMP_PKG_PATH/usr/local/bin/steamguard"
+pushd "$TEMP_PKG_PATH/usr/local/bin/"
+ln -s "./steamguard" "./steamguard-cli"
+popd
 "$BIN_PATH" completion --shell bash > "$TEMP_PKG_PATH/etc/bash_completion.d/steamguard"
 
 cat <<EOT >> $TEMP_PKG_PATH/DEBIAN/control
