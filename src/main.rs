@@ -1,5 +1,5 @@
 extern crate rpassword;
-use clap::{crate_version, App, Arg, ArgMatches, Parser};
+use clap::{crate_version, App, Arg, ArgMatches, Parser, Subcommand};
 use log::*;
 use std::str::FromStr;
 use std::{
@@ -45,7 +45,7 @@ struct Args {
 	verbosity: Verbosity,
 
 	#[clap(subcommand)]
-	sub: Subcommands,
+	sub: Option<Subcommands>,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -67,7 +67,7 @@ enum Subcommands {
 	#[clap(about = "Set up a new account with steamguard-cli")]
 	Setup {
 		#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
-		username: String,
+		username: Option<String>,
 	},
 	#[clap(about = "Import an account with steamguard already set up")]
 	Import {
@@ -238,7 +238,6 @@ fn main() {
 fn run() -> anyhow::Result<()> {
 	let new_args = Args::parse();
 	println!("{:?}", new_args);
-	return Ok(());
 
 	let matches = cli().get_matches();
 
@@ -249,19 +248,24 @@ fn run() -> anyhow::Result<()> {
 		.init()
 		.unwrap();
 
-	if let Some(demo_matches) = matches.subcommand_matches("debug") {
-		if demo_matches.is_present("demo-conf-menu") {
-			demos::demo_confirmation_menu();
-		}
-		return Ok(());
-	}
-	if let Some(completion_matches) = matches.subcommand_matches("completion") {
-		// cli().gen_completions_to(
-		// 	"steamguard",
-		// 	Shell::from_str(completion_matches.value_of("shell").unwrap()).unwrap(),
-		// 	&mut std::io::stdout(),
-		// );
-		return Ok(());
+	if let Some(subcmd) = new_args.sub {
+		match subcmd {
+			Subcommand::Debug{demo_conf_menu} => {
+				if demo_conf_menu {
+					demos::demo_confirmation_menu();
+				}
+				return Ok(());
+			},
+			// Subcommand::Completions{shell} => {
+			// 	// cli().gen_completions_to(
+			// 	// 	"steamguard",
+			// 	// 	Shell::from_str(completion_matches.value_of("shell").unwrap()).unwrap(),
+			// 	// 	&mut std::io::stdout(),
+			// 	// );
+			// 	return Ok(());
+			// },
+			_ => {},
+		};
 	}
 
 	let mafiles_dir = if matches.occurrences_of("mafiles-path") > 0 {
@@ -320,6 +324,15 @@ fn run() -> anyhow::Result<()> {
 				error!("Could not load accounts: {}", e);
 				return Err(e.into());
 			}
+		}
+	}
+
+	if let Some(subcmd) = new_args.sub {
+		match subcmd {
+			Subcommands::Setup{ username } => {},
+			s => {
+				error!("Unknown subcommand: {:?}", s);
+			},
 		}
 	}
 
@@ -505,6 +518,29 @@ fn run() -> anyhow::Result<()> {
 			.collect::<Vec<String>>()
 	);
 
+	if let Some(subcmd) = new_args.sub {
+		match subcmd {
+			Subcommands::Trade{ accept_all, fail_fast } => {
+				todo!()
+			},
+			s => {
+				error!("Unknown subcommand: {:?}", s);
+			},
+		}
+	} else {
+		let server_time = steamapi::get_server_time();
+		debug!("Time used to generate codes: {}", server_time);
+		for account in selected_accounts {
+			info!(
+				"Generating code for {}",
+				account.lock().unwrap().account_name
+			);
+			trace!("{:?}", account);
+			let code = account.lock().unwrap().generate_code(server_time);
+			println!("{}", code);
+		}
+	}
+
 	if let Some(trade_matches) = matches.subcommand_matches("trade") {
 		info!("trade");
 		for a in selected_accounts.iter_mut() {
@@ -640,18 +676,6 @@ fn run() -> anyhow::Result<()> {
 		}
 
 		manifest.save()?;
-	} else {
-		let server_time = steamapi::get_server_time();
-		debug!("Time used to generate codes: {}", server_time);
-		for account in selected_accounts {
-			info!(
-				"Generating code for {}",
-				account.lock().unwrap().account_name
-			);
-			trace!("{:?}", account);
-			let code = account.lock().unwrap().generate_code(server_time);
-			println!("{}", code);
-		}
 	}
 	Ok(())
 }
@@ -775,4 +799,8 @@ fn get_mafiles_dir() -> String {
 	}
 
 	return paths[0].to_str().unwrap().into();
+}
+
+fn do_subcmd_setup(args: Subcommands) -> anyhow::Result<()> {
+
 }
