@@ -206,6 +206,8 @@ fn run() -> anyhow::Result<()> {
 				if upgraded {
 					info!("Manifest auto-upgraded");
 					manifest.save()?;
+				} else {
+					debug!("Manifest is up to date");
 				}
 				break;
 			}
@@ -376,7 +378,29 @@ fn run() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
-	let mut selected_accounts = get_selected_accounts(&matches, &mut manifest)?;
+	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
+	loop {
+		match get_selected_accounts(&matches, &mut manifest) {
+			Ok(accounts) => {
+				selected_accounts = accounts;
+				break;
+			}
+			Err(
+				accountmanager::ManifestAccountLoadError::MissingPasskey
+				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
+			) => {
+				if manifest.has_passkey() {
+					error!("Incorrect passkey");
+				}
+				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				manifest.submit_passkey(passkey);
+			}
+			Err(e) => {
+				error!("Could not load accounts: {}", e);
+				return Err(e.into());
+			}
+		}
+	}
 
 	debug!(
 		"selected accounts: {:?}",
