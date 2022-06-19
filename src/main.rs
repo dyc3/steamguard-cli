@@ -233,9 +233,9 @@ fn run() -> anyhow::Result<()> {
 		}
 	}
 
-	match new_args.sub {
+	match &new_args.sub {
 		Some(cli::Subcommands::Setup{ username }) => {
-			do_subcmd_setup(new_args.sub.unwrap().into(), &mut manifest)?;
+			return do_subcmd_setup(new_args.sub.unwrap().into(), &mut manifest);
 		},
 		Some(cli::Subcommands::Import { files }) => {todo!()},
 		Some(cli::Subcommands::Encrypt {}) => {todo!()},
@@ -320,158 +320,159 @@ fn run() -> anyhow::Result<()> {
 			.collect::<Vec<String>>()
 	);
 
-	if let Some(subcmd) = new_args.sub {
-		match subcmd {
-			cli::Subcommands::Trade{ accept_all, fail_fast } => {
-				for a in selected_accounts.iter_mut() {
-					let mut account = a.lock().unwrap();
+	match new_args.sub.as_ref() {
+		Some(cli::Subcommands::Trade{ accept_all, fail_fast }) => {
+			for a in selected_accounts.iter_mut() {
+				let mut account = a.lock().unwrap();
 
-					info!("Checking for trade confirmations");
-					let confirmations: Vec<Confirmation>;
-					loop {
-						match account.get_trade_confirmations() {
-							Ok(confs) => {
-								confirmations = confs;
-								break;
-							}
-							Err(_) => {
-								info!("failed to get trade confirmations, asking user to log in");
-								do_login(&mut account)?;
-							}
+				info!("Checking for trade confirmations");
+				let confirmations: Vec<Confirmation>;
+				loop {
+					match account.get_trade_confirmations() {
+						Ok(confs) => {
+							confirmations = confs;
+							break;
+						}
+						Err(_) => {
+							info!("failed to get trade confirmations, asking user to log in");
+							do_login(&mut account)?;
 						}
 					}
+				}
 
-					let mut any_failed = false;
-					if accept_all {
-						info!("accepting all confirmations");
-						for conf in &confirmations {
+				let mut any_failed = false;
+				if *accept_all {
+					info!("accepting all confirmations");
+					for conf in &confirmations {
+						let result = account.accept_confirmation(conf);
+						if result.is_err() {
+							warn!("accept confirmation result: {:?}", result);
+							any_failed = true;
+							if *fail_fast {
+								return result;
+							}
+						} else {
+							debug!("accept confirmation result: {:?}", result);
+						}
+					}
+				} else {
+					if termion::is_tty(&stdout()) {
+						let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
+						for conf in &accept {
 							let result = account.accept_confirmation(conf);
 							if result.is_err() {
 								warn!("accept confirmation result: {:?}", result);
 								any_failed = true;
-								if fail_fast {
+								if *fail_fast {
 									return result;
 								}
 							} else {
 								debug!("accept confirmation result: {:?}", result);
 							}
 						}
-					} else {
-						if termion::is_tty(&stdout()) {
-							let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
-							for conf in &accept {
-								let result = account.accept_confirmation(conf);
-								if result.is_err() {
-									warn!("accept confirmation result: {:?}", result);
-									any_failed = true;
-									if fail_fast {
-										return result;
-									}
-								} else {
-									debug!("accept confirmation result: {:?}", result);
+						for conf in &deny {
+							let result = account.deny_confirmation(conf);
+							debug!("deny confirmation result: {:?}", result);
+							if result.is_err() {
+								warn!("deny confirmation result: {:?}", result);
+								any_failed = true;
+								if *fail_fast {
+									return result;
 								}
-							}
-							for conf in &deny {
-								let result = account.deny_confirmation(conf);
-								debug!("deny confirmation result: {:?}", result);
-								if result.is_err() {
-									warn!("deny confirmation result: {:?}", result);
-									any_failed = true;
-									if fail_fast {
-										return result;
-									}
-								} else {
-									debug!("deny confirmation result: {:?}", result);
-								}
-							}
-						} else {
-							warn!("not a tty, not showing menu");
-							for conf in &confirmations {
-								println!("{}", conf.description());
-							}
-						}
-					}
-
-					if any_failed {
-						error!("Failed to respond to some confirmations.");
-					}
-				}
-
-				manifest.save()?;
-			},
-			cli::Subcommands::Remove { username } => {
-				println!(
-					"This will remove the mobile authenticator from {} accounts: {}",
-					selected_accounts.len(),
-					selected_accounts
-						.iter()
-						.map(|a| a.lock().unwrap().account_name.clone())
-						.collect::<Vec<String>>()
-						.join(", ")
-				);
-
-				match tui::prompt_char("Do you want to continue?", "yN") {
-					'y' => {}
-					_ => {
-						info!("Aborting!");
-						return Err(errors::UserError::Aborted.into());
-					}
-				}
-
-				let mut successful = vec![];
-				for a in selected_accounts {
-					let account = a.lock().unwrap();
-					match account.remove_authenticator(None) {
-						Ok(success) => {
-							if success {
-								println!("Removed authenticator from {}", account.account_name);
-								successful.push(account.account_name.clone());
 							} else {
-								println!(
-									"Failed to remove authenticator from {}",
-									account.account_name
-								);
-								match tui::prompt_char(
-									"Would you like to remove it from the manifest anyway?",
-									"yN",
-								) {
-									'y' => {
-										successful.push(account.account_name.clone());
-									}
-									_ => {}
-								}
+								debug!("deny confirmation result: {:?}", result);
 							}
 						}
-						Err(err) => {
-							error!(
-								"Unexpected error when removing authenticator from {}: {}",
-								account.account_name, err
-							);
+					} else {
+						warn!("not a tty, not showing menu");
+						for conf in &confirmations {
+							println!("{}", conf.description());
 						}
 					}
 				}
 
-				for account_name in successful {
-					manifest.remove_account(account_name);
+				if any_failed {
+					error!("Failed to respond to some confirmations.");
 				}
+			}
 
-				manifest.save()?;
-			},
-			s => {
-				error!("Unknown subcommand: {:?}", s);
-			},
-		}
-	} else {
-		let server_time = steamapi::get_server_time();
-		debug!("Time used to generate codes: {}", server_time);
-		for account in selected_accounts {
-			info!(
-				"Generating code for {}",
-				account.lock().unwrap().account_name
+			manifest.save()?;
+		},
+		Some(cli::Subcommands::Remove { username }) => {
+			println!(
+				"This will remove the mobile authenticator from {} accounts: {}",
+				selected_accounts.len(),
+				selected_accounts
+					.iter()
+					.map(|a| a.lock().unwrap().account_name.clone())
+					.collect::<Vec<String>>()
+					.join(", ")
 			);
-			trace!("{:?}", account);
-			let code = account.lock().unwrap().generate_code(server_time);
-			println!("{}", code);
+
+			match tui::prompt_char("Do you want to continue?", "yN") {
+				'y' => {}
+				_ => {
+					info!("Aborting!");
+					return Err(errors::UserError::Aborted.into());
+				}
+			}
+
+			let mut successful = vec![];
+			for a in selected_accounts {
+				let account = a.lock().unwrap();
+				match account.remove_authenticator(None) {
+					Ok(success) => {
+						if success {
+							println!("Removed authenticator from {}", account.account_name);
+							successful.push(account.account_name.clone());
+						} else {
+							println!(
+								"Failed to remove authenticator from {}",
+								account.account_name
+							);
+							match tui::prompt_char(
+								"Would you like to remove it from the manifest anyway?",
+								"yN",
+							) {
+								'y' => {
+									successful.push(account.account_name.clone());
+								}
+								_ => {}
+							}
+						}
+					}
+					Err(err) => {
+						error!(
+							"Unexpected error when removing authenticator from {}: {}",
+							account.account_name, err
+						);
+					}
+				}
+			}
+
+			for account_name in successful {
+				manifest.remove_account(account_name);
+			}
+
+			manifest.save()?;
+		},
+		Some(s) => {
+			error!("Unknown subcommand: {:?}", s);
+		},
+		_ => {
+			debug!("No subcommand given, assuming user wants a 2fa code");
+
+			let server_time = steamapi::get_server_time();
+			debug!("Time used to generate codes: {}", server_time);
+			for account in selected_accounts {
+				info!(
+					"Generating code for {}",
+					account.lock().unwrap().account_name
+				);
+				trace!("{:?}", account);
+				let code = account.lock().unwrap().generate_code(server_time);
+				println!("{}", code);
+			}
 		}
 	}
 
