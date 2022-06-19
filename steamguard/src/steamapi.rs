@@ -8,11 +8,13 @@ use reqwest::{
 	header::{HeaderMap, HeaderName, HeaderValue, SET_COOKIE},
 	Url,
 };
+use secrecy::{CloneableSecret, DebugSecret, ExposeSecret, SerializableSecret};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::iter::FromIterator;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
+use zeroize::Zeroize;
 
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -90,7 +92,8 @@ pub struct OAuthData {
 	webcookie: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
 pub struct Session {
 	#[serde(rename = "SessionID")]
 	pub session_id: String,
@@ -105,6 +108,10 @@ pub struct Session {
 	#[serde(rename = "SteamID")]
 	pub steam_id: u64,
 }
+
+impl SerializableSecret for Session {}
+impl CloneableSecret for Session {}
+impl DebugSecret for Session {}
 
 pub fn get_server_time() -> i64 {
 	let client = reqwest::blocking::Client::new();
@@ -124,11 +131,11 @@ pub fn get_server_time() -> i64 {
 pub struct SteamApiClient {
 	cookies: reqwest::cookie::Jar,
 	client: reqwest::blocking::Client,
-	pub session: Option<Session>,
+	pub session: Option<secrecy::Secret<Session>>,
 }
 
 impl SteamApiClient {
-	pub fn new(session: Option<Session>) -> SteamApiClient {
+	pub fn new(session: Option<secrecy::Secret<Session>>) -> SteamApiClient {
 		SteamApiClient {
 			cookies: reqwest::cookie::Jar::default(),
 			client: reqwest::blocking::ClientBuilder::new()
@@ -195,7 +202,7 @@ impl SteamApiClient {
 			.add_cookie_str("Steam_Language=english", &STEAM_COOKIE_URL);
 		if let Some(session) = &self.session {
 			self.cookies.add_cookie_str(
-				format!("sessionid={}", session.session_id).as_str(),
+				format!("sessionid={}", session.expose_secret().session_id).as_str(),
 				&STEAM_COOKIE_URL,
 			);
 		}
@@ -270,7 +277,7 @@ impl SteamApiClient {
 		let login_resp: LoginResponse = serde_json::from_str(text.as_str())?;
 
 		if let Some(oauth) = &login_resp.oauth {
-			self.session = Some(self.build_session(&oauth));
+			self.session = Some(secrecy::Secret::new(self.build_session(&oauth)));
 		}
 
 		return Ok(login_resp);
@@ -295,7 +302,7 @@ impl SteamApiClient {
 					wgtoken_secure: params.token_secure,
 					webcookie: params.webcookie,
 				};
-				self.session = Some(self.build_session(&oauth));
+				self.session = Some(secrecy::Secret::new(self.build_session(&oauth)));
 				return Ok(oauth);
 			}
 			(None, None) => {
@@ -319,7 +326,7 @@ impl SteamApiClient {
 		let mut params = hashmap! {
 			"op" => op,
 			"arg" => arg,
-			"sessionid" => self.session.as_ref().unwrap().session_id.as_str(),
+			"sessionid" => self.session.as_ref().unwrap().expose_secret().session_id.as_str(),
 		};
 		if op == "check_sms_code" {
 			params.insert("checkfortos", "0");
@@ -365,7 +372,7 @@ impl SteamApiClient {
 		let params = hashmap! {
 			"op" => op,
 			"input" => input,
-			"sessionid" => self.session.as_ref().unwrap().session_id.as_str(),
+			"sessionid" => self.session.as_ref().unwrap().expose_secret().session_id.as_str(),
 		};
 
 		let resp = self
@@ -421,8 +428,8 @@ impl SteamApiClient {
 	) -> anyhow::Result<AddAuthenticatorResponse> {
 		ensure!(matches!(self.session, Some(_)));
 		let params = hashmap! {
-			"access_token" => self.session.as_ref().unwrap().token.clone(),
-			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
+			"access_token" => self.session.as_ref().unwrap().expose_secret().token.clone(),
+			"steamid" => self.session.as_ref().unwrap().expose_secret().steam_id.to_string(),
 			"authenticator_type" => "1".into(),
 			"device_identifier" => device_id,
 			"sms_phone_id" => "1".into(),
@@ -454,8 +461,8 @@ impl SteamApiClient {
 	) -> anyhow::Result<FinalizeAddAuthenticatorResponse> {
 		ensure!(matches!(self.session, Some(_)));
 		let params = hashmap! {
-			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
-			"access_token" => self.session.as_ref().unwrap().token.clone(),
+			"steamid" => self.session.as_ref().unwrap().expose_secret().steam_id.to_string(),
+			"access_token" => self.session.as_ref().unwrap().expose_secret().token.clone(),
 			"activation_code" => sms_code,
 			"authenticator_code" => code_2fa,
 			"authenticator_time" => time_2fa.to_string(),
@@ -485,10 +492,10 @@ impl SteamApiClient {
 		revocation_code: String,
 	) -> anyhow::Result<RemoveAuthenticatorResponse> {
 		let params = hashmap! {
-			"steamid" => self.session.as_ref().unwrap().steam_id.to_string(),
+			"steamid" => self.session.as_ref().unwrap().expose_secret().steam_id.to_string(),
 			"steamguard_scheme" => "2".into(),
 			"revocation_code" => revocation_code,
-			"access_token" => self.session.as_ref().unwrap().token.to_string(),
+			"access_token" => self.session.as_ref().unwrap().expose_secret().token.to_string(),
 		};
 
 		let resp = self
@@ -612,13 +619,13 @@ impl AddAuthenticatorResponse {
 		SteamGuardAccount {
 			shared_secret: TwoFactorSecret::parse_shared_secret(self.shared_secret).unwrap(),
 			serial_number: self.serial_number.clone(),
-			revocation_code: self.revocation_code.clone(),
-			uri: self.uri.clone(),
+			revocation_code: self.revocation_code.into(),
+			uri: self.uri.into(),
 			server_time: self.server_time,
 			account_name: self.account_name.clone(),
 			token_gid: self.token_gid.clone(),
-			identity_secret: self.identity_secret.clone(),
-			secret_1: self.secret_1.clone(),
+			identity_secret: self.identity_secret.into(),
+			secret_1: self.secret_1.into(),
 			fully_enrolled: false,
 			device_id: "".into(),
 			session: None,

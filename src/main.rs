@@ -7,8 +7,8 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use steamguard::{
-	steamapi, AccountLinkError, AccountLinker, Confirmation, FinalizeLinkError, LoginError,
-	SteamGuardAccount, UserLogin,
+	steamapi, AccountLinkError, AccountLinker, Confirmation, ExposeSecret, FinalizeLinkError,
+	LoginError, SteamGuardAccount, UserLogin,
 };
 
 use crate::accountmanager::ManifestAccountLoadError;
@@ -227,7 +227,7 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	} else {
 		debug!("password is empty");
 	}
-	account.session = Some(do_login_impl(
+	account.set_session(do_login_impl(
 		account.account_name.clone(),
 		password,
 		Some(account),
@@ -391,7 +391,7 @@ fn do_subcmd_setup(
 	let account_arc = manifest.get_account(&account_name).unwrap();
 	let mut account = account_arc.lock().unwrap();
 
-	println!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code);
+	println!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code.expose_secret());
 	tui::pause();
 
 	debug!("attempting link finalization");
@@ -430,7 +430,7 @@ fn do_subcmd_setup(
 
 	println!(
 		"Authenticator has been finalized. Please actually write down your revocation code: {}",
-		account.revocation_code
+		account.revocation_code.expose_secret()
 	);
 
 	return Ok(());

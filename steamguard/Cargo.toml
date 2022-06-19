@@ -29,3 +29,4 @@ scraper = "0.12.0"
 maplit = "1.0.2"
 thiserror = "1.0.26"
 secrecy = { version = "0.8", features = ["serde"] }
+zeroize = "^1.4.3"

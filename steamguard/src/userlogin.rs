@@ -1,6 +1,7 @@
 use crate::steamapi::{LoginResponse, RsaResponse, Session, SteamApiClient};
 use log::*;
 use rsa::{PublicKey, RsaPublicKey};
+use secrecy::ExposeSecret;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
@@ -154,7 +155,13 @@ impl UserLogin {
 			self.client.transfer_login(login_resp)?;
 		}
 
-		return Ok(self.client.session.clone().unwrap());
+		return Ok(self
+			.client
+			.session
+			.as_ref()
+			.unwrap()
+			.expose_secret()
+			.to_owned());
 	}
 }
 
