@@ -273,14 +273,13 @@ fn run() -> anyhow::Result<()> {
 		},
 		Some(s) => {
 			error!("Unknown subcommand: {:?}", s);
+			return Err(errors::UserError::UnknownSubcommand.into());
 		},
 		_ => {
 			debug!("No subcommand given, assuming user wants a 2fa code");
 			return do_subcmd_code(selected_accounts);
 		}
 	}
-
-	Ok(())
 }
 
 fn get_selected_accounts(
