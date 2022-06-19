@@ -11,7 +11,7 @@ use steamguard::{
 	SteamGuardAccount, UserLogin,
 };
 
-use crate::accountmanager::ManifestAccountLoadError;
+use crate::{accountmanager::ManifestAccountLoadError, cli::Subcommands};
 
 #[macro_use]
 extern crate lazy_static;
@@ -157,8 +157,8 @@ fn run() -> anyhow::Result<()> {
 		.unwrap();
 
 	match new_args.sub {
-		Some(cli::Subcommands::Debug{demo_conf_menu}) => {
-			if demo_conf_menu {
+		Some(cli::Subcommands::Debug(args)) => {
+			if args.demo_conf_menu {
 				demos::demo_confirmation_menu();
 			}
 			return Ok(());
@@ -233,13 +233,13 @@ fn run() -> anyhow::Result<()> {
 		}
 	}
 
-	match &new_args.sub {
-		Some(cli::Subcommands::Setup{ username }) => {
-			return do_subcmd_setup(new_args.sub.unwrap().into(), &mut manifest);
+	match new_args.sub {
+		Some(cli::Subcommands::Setup(args)) => {
+			return do_subcmd_setup(args, &mut manifest);
 		},
-		Some(cli::Subcommands::Import { files }) => {todo!()},
-		Some(cli::Subcommands::Encrypt {}) => {todo!()},
-		Some(cli::Subcommands::Decrypt {}) => {todo!()},
+		Some(cli::Subcommands::Import(args)) => {todo!()},
+		Some(cli::Subcommands::Encrypt(args)) => {todo!()},
+		Some(cli::Subcommands::Decrypt(args)) => {todo!()},
 		_ => {},
 	}
 
@@ -321,7 +321,7 @@ fn run() -> anyhow::Result<()> {
 	);
 
 	match new_args.sub.as_ref() {
-		Some(cli::Subcommands::Trade{ accept_all, fail_fast }) => {
+		Some(cli::Subcommands::Trade(args)) => {
 			for a in selected_accounts.iter_mut() {
 				let mut account = a.lock().unwrap();
 
@@ -341,14 +341,14 @@ fn run() -> anyhow::Result<()> {
 				}
 
 				let mut any_failed = false;
-				if *accept_all {
+				if args.accept_all {
 					info!("accepting all confirmations");
 					for conf in &confirmations {
 						let result = account.accept_confirmation(conf);
 						if result.is_err() {
 							warn!("accept confirmation result: {:?}", result);
 							any_failed = true;
-							if *fail_fast {
+							if args.fail_fast {
 								return result;
 							}
 						} else {
@@ -363,7 +363,7 @@ fn run() -> anyhow::Result<()> {
 							if result.is_err() {
 								warn!("accept confirmation result: {:?}", result);
 								any_failed = true;
-								if *fail_fast {
+								if args.fail_fast {
 									return result;
 								}
 							} else {
@@ -376,7 +376,7 @@ fn run() -> anyhow::Result<()> {
 							if result.is_err() {
 								warn!("deny confirmation result: {:?}", result);
 								any_failed = true;
-								if *fail_fast {
+								if args.fail_fast {
 									return result;
 								}
 							} else {
@@ -398,7 +398,7 @@ fn run() -> anyhow::Result<()> {
 
 			manifest.save()?;
 		},
-		Some(cli::Subcommands::Remove { username }) => {
+		Some(cli::Subcommands::Remove(args)) => {
 			println!(
 				"This will remove the mobile authenticator from {} accounts: {}",
 				selected_accounts.len(),

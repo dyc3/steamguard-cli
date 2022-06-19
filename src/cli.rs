@@ -22,39 +22,16 @@ pub(crate) struct Args {
 
 #[derive(Debug, Clone, Parser)]
 pub(crate) enum Subcommands {
-	Debug {
-		#[clap(long)]
-		demo_conf_menu: bool
-	},
+	Debug(ArgsDebug),
 	// Completions {
 		// TODO: Add completions
 	// },
-	#[clap(about = "Interactive interface for trade confirmations")]
-	Trade {
-		#[clap(short, long, help = "Accept all open trade confirmations. Does not open interactive interface.")]
-		accept_all: bool,
-		#[clap(short, long, help = "If submitting a confirmation response fails, exit immediately.")]
-		fail_fast: bool,
-	},
-	#[clap(about = "Set up a new account with steamguard-cli")]
-	Setup {
-		#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
-		username: Option<String>,
-	},
-	#[clap(about = "Import an account with steamguard already set up")]
-	Import {
-		#[clap(long, help = "Paths to one or more maFiles, eg. \"./gaben.maFile\"")]
-		files: Vec<String>,
-	},
-	#[clap(about = "Remove the authenticator from an account.")]
-	Remove {
-		#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
-		username: String,
-	},
-	#[clap(about = "Encrypt all maFiles")]
-	Encrypt,
-	#[clap(about = "Decrypt all maFiles")]
-	Decrypt,
+	Setup(ArgsSetup),
+	Import(ArgsImport),
+	Trade(ArgsTrade),
+	Remove(ArgsRemove),
+	Encrypt(ArgsEncrypt),
+	Decrypt(ArgsDecrypt),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -93,42 +70,48 @@ impl FromStr for Verbosity {
 	}
 }
 
+
+#[derive(Debug, Clone, Parser)]
+#[clap(about="Debug stuff, not useful for most users.")]
+pub(crate) struct ArgsDebug {
+	#[clap(long)]
+	pub demo_conf_menu: bool
+}
+
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Set up a new account with steamguard-cli")]
 pub(crate) struct ArgsSetup {
+	#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
 	pub username: Option<String>,
 }
 
-impl From<Subcommands> for ArgsSetup {
-	fn from(sub: Subcommands) -> Self {
-		match sub {
-			Subcommands::Setup { username } => Self { username },
-			_ => panic!("ArgsSetup::from() called with non-Setup subcommand"),
-		}
-	}
-}
-
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Import an account with steamguard already set up")]
 pub(crate) struct ArgsImport {
+	#[clap(long, help = "Paths to one or more maFiles, eg. \"./gaben.maFile\"")]
 	pub files: Vec<String>,
 }
 
-impl From<Subcommands> for ArgsImport {
-	fn from(sub: Subcommands) -> Self {
-		match sub {
-			Subcommands::Import { files } => Self { files },
-			_ => panic!("ArgsImport::from() called with non-Import subcommand"),
-		}
-	}
-}
-
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Interactive interface for trade confirmations")]
 pub(crate) struct ArgsTrade {
+	#[clap(short, long, help = "Accept all open trade confirmations. Does not open interactive interface.")]
 	pub accept_all: bool,
+	#[clap(short, long, help = "If submitting a confirmation response fails, exit immediately.")]
 	pub fail_fast: bool,
 }
 
-impl From<Subcommands> for ArgsTrade {
-	fn from(sub: Subcommands) -> Self {
-		match sub {
-			Subcommands::Trade { accept_all, fail_fast } => Self { accept_all, fail_fast },
-			_ => panic!("ArgsTrade::from() called with non-Trade subcommand"),
-		}
-	}
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Remove the authenticator from an account.")]
+pub(crate) struct ArgsRemove {
+	#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
+	username: String,
 }
+
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Encrypt all maFiles")]
+pub(crate) struct ArgsEncrypt;
+
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Decrypt all maFiles")]
+pub(crate) struct ArgsDecrypt;
