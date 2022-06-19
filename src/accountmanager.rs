@@ -180,8 +180,8 @@ impl Manifest {
 			.insert(account.account_name.clone(), Arc::new(Mutex::new(account)));
 	}
 
-	pub fn import_account(&mut self, import_path: String) -> anyhow::Result<()> {
-		let path = Path::new(&import_path);
+	pub fn import_account(&mut self, import_path: &String) -> anyhow::Result<()> {
+		let path = Path::new(import_path);
 		ensure!(path.exists(), "{} does not exist.", import_path);
 		ensure!(path.is_file(), "{} is not a file.", import_path);
 
@@ -576,7 +576,7 @@ mod tests {
 		let mut loaded_manifest = Manifest::new(manifest_path.as_path());
 		assert!(matches!(
 			loaded_manifest.import_account(
-				tmp_dir
+				&tmp_dir
 					.path()
 					.join("asdf1234.maFile")
 					.into_os_string()
