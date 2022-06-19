@@ -103,10 +103,7 @@ pub(crate) struct ArgsTrade {
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Remove the authenticator from an account.")]
-pub(crate) struct ArgsRemove {
-	#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
-	username: String,
-}
+pub(crate) struct ArgsRemove;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Encrypt all maFiles")]

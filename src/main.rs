@@ -273,141 +273,12 @@ fn run() -> anyhow::Result<()> {
 			.collect::<Vec<String>>()
 	);
 
-	match new_args.sub.as_ref() {
+	match new_args.sub {
 		Some(cli::Subcommands::Trade(args)) => {
-			for a in selected_accounts.iter_mut() {
-				let mut account = a.lock().unwrap();
-
-				info!("Checking for trade confirmations");
-				let confirmations: Vec<Confirmation>;
-				loop {
-					match account.get_trade_confirmations() {
-						Ok(confs) => {
-							confirmations = confs;
-							break;
-						}
-						Err(_) => {
-							info!("failed to get trade confirmations, asking user to log in");
-							do_login(&mut account)?;
-						}
-					}
-				}
-
-				let mut any_failed = false;
-				if args.accept_all {
-					info!("accepting all confirmations");
-					for conf in &confirmations {
-						let result = account.accept_confirmation(conf);
-						if result.is_err() {
-							warn!("accept confirmation result: {:?}", result);
-							any_failed = true;
-							if args.fail_fast {
-								return result;
-							}
-						} else {
-							debug!("accept confirmation result: {:?}", result);
-						}
-					}
-				} else {
-					if termion::is_tty(&stdout()) {
-						let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
-						for conf in &accept {
-							let result = account.accept_confirmation(conf);
-							if result.is_err() {
-								warn!("accept confirmation result: {:?}", result);
-								any_failed = true;
-								if args.fail_fast {
-									return result;
-								}
-							} else {
-								debug!("accept confirmation result: {:?}", result);
-							}
-						}
-						for conf in &deny {
-							let result = account.deny_confirmation(conf);
-							debug!("deny confirmation result: {:?}", result);
-							if result.is_err() {
-								warn!("deny confirmation result: {:?}", result);
-								any_failed = true;
-								if args.fail_fast {
-									return result;
-								}
-							} else {
-								debug!("deny confirmation result: {:?}", result);
-							}
-						}
-					} else {
-						warn!("not a tty, not showing menu");
-						for conf in &confirmations {
-							println!("{}", conf.description());
-						}
-					}
-				}
-
-				if any_failed {
-					error!("Failed to respond to some confirmations.");
-				}
-			}
-
-			manifest.save()?;
+			return do_subcmd_trade(args, &mut manifest, selected_accounts);
 		},
 		Some(cli::Subcommands::Remove(args)) => {
-			println!(
-				"This will remove the mobile authenticator from {} accounts: {}",
-				selected_accounts.len(),
-				selected_accounts
-					.iter()
-					.map(|a| a.lock().unwrap().account_name.clone())
-					.collect::<Vec<String>>()
-					.join(", ")
-			);
-
-			match tui::prompt_char("Do you want to continue?", "yN") {
-				'y' => {}
-				_ => {
-					info!("Aborting!");
-					return Err(errors::UserError::Aborted.into());
-				}
-			}
-
-			let mut successful = vec![];
-			for a in selected_accounts {
-				let account = a.lock().unwrap();
-				match account.remove_authenticator(None) {
-					Ok(success) => {
-						if success {
-							println!("Removed authenticator from {}", account.account_name);
-							successful.push(account.account_name.clone());
-						} else {
-							println!(
-								"Failed to remove authenticator from {}",
-								account.account_name
-							);
-							match tui::prompt_char(
-								"Would you like to remove it from the manifest anyway?",
-								"yN",
-							) {
-								'y' => {
-									successful.push(account.account_name.clone());
-								}
-								_ => {}
-							}
-						}
-					}
-					Err(err) => {
-						error!(
-							"Unexpected error when removing authenticator from {}: {}",
-							account.account_name, err
-						);
-					}
-				}
-			}
-
-			for account_name in successful {
-				manifest.remove_account(account_name);
-			}
-
-			manifest.save()?;
+			return do_subcmd_remove(args, &mut manifest, selected_accounts);
 		},
 		Some(s) => {
 			error!("Unknown subcommand: {:?}", s);
@@ -678,6 +549,145 @@ fn do_subcmd_import(args: cli::ArgsImport, manifest: &mut accountmanager::Manife
 				bail!("Failed to import account: {} {}", &file_path, err);
 			}
 		}
+	}
+
+	manifest.save()?;
+	return Ok(());
+}
+
+fn do_subcmd_trade(args: cli::ArgsTrade, manifest: &mut accountmanager::Manifest, mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
+	for a in selected_accounts.iter_mut() {
+		let mut account = a.lock().unwrap();
+
+		info!("Checking for trade confirmations");
+		let confirmations: Vec<Confirmation>;
+		loop {
+			match account.get_trade_confirmations() {
+				Ok(confs) => {
+					confirmations = confs;
+					break;
+				}
+				Err(_) => {
+					info!("failed to get trade confirmations, asking user to log in");
+					do_login(&mut account)?;
+				}
+			}
+		}
+
+		let mut any_failed = false;
+		if args.accept_all {
+			info!("accepting all confirmations");
+			for conf in &confirmations {
+				let result = account.accept_confirmation(conf);
+				if result.is_err() {
+					warn!("accept confirmation result: {:?}", result);
+					any_failed = true;
+					if args.fail_fast {
+						return result;
+					}
+				} else {
+					debug!("accept confirmation result: {:?}", result);
+				}
+			}
+		} else {
+			if termion::is_tty(&stdout()) {
+				let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
+				for conf in &accept {
+					let result = account.accept_confirmation(conf);
+					if result.is_err() {
+						warn!("accept confirmation result: {:?}", result);
+						any_failed = true;
+						if args.fail_fast {
+							return result;
+						}
+					} else {
+						debug!("accept confirmation result: {:?}", result);
+					}
+				}
+				for conf in &deny {
+					let result = account.deny_confirmation(conf);
+					debug!("deny confirmation result: {:?}", result);
+					if result.is_err() {
+						warn!("deny confirmation result: {:?}", result);
+						any_failed = true;
+						if args.fail_fast {
+							return result;
+						}
+					} else {
+						debug!("deny confirmation result: {:?}", result);
+					}
+				}
+			} else {
+				warn!("not a tty, not showing menu");
+				for conf in &confirmations {
+					println!("{}", conf.description());
+				}
+			}
+		}
+
+		if any_failed {
+			error!("Failed to respond to some confirmations.");
+		}
+	}
+
+	manifest.save()?;
+	return Ok(());
+}
+
+fn do_subcmd_remove(args: cli::ArgsRemove, manifest: &mut accountmanager::Manifest, selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
+	println!(
+		"This will remove the mobile authenticator from {} accounts: {}",
+		selected_accounts.len(),
+		selected_accounts
+			.iter()
+			.map(|a| a.lock().unwrap().account_name.clone())
+			.collect::<Vec<String>>()
+			.join(", ")
+	);
+
+	match tui::prompt_char("Do you want to continue?", "yN") {
+		'y' => {}
+		_ => {
+			info!("Aborting!");
+			return Err(errors::UserError::Aborted.into());
+		}
+	}
+
+	let mut successful = vec![];
+	for a in selected_accounts {
+		let account = a.lock().unwrap();
+		match account.remove_authenticator(None) {
+			Ok(success) => {
+				if success {
+					println!("Removed authenticator from {}", account.account_name);
+					successful.push(account.account_name.clone());
+				} else {
+					println!(
+						"Failed to remove authenticator from {}",
+						account.account_name
+					);
+					match tui::prompt_char(
+						"Would you like to remove it from the manifest anyway?",
+						"yN",
+					) {
+						'y' => {
+							successful.push(account.account_name.clone());
+						}
+						_ => {}
+					}
+				}
+			}
+			Err(err) => {
+				error!(
+					"Unexpected error when removing authenticator from {}: {}",
+					account.account_name, err
+				);
+			}
+		}
+	}
+
+	for account_name in successful {
+		manifest.remove_account(account_name);
 	}
 
 	manifest.save()?;
