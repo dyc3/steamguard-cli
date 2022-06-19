@@ -227,7 +227,7 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	} else {
 		debug!("password is empty");
 	}
-	account.session = Some(do_login_impl(
+	account.set_session(do_login_impl(
 		account.account_name.clone(),
 		password,
 		Some(account),
