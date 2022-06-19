@@ -229,7 +229,9 @@ fn run() -> anyhow::Result<()> {
 		Some(cli::Subcommands::Setup(args)) => {
 			return do_subcmd_setup(args, &mut manifest);
 		},
-		Some(cli::Subcommands::Import(args)) => {todo!()},
+		Some(cli::Subcommands::Import(args)) => {
+			return do_subcmd_import(args, &mut manifest);
+		},
 		Some(cli::Subcommands::Encrypt(args)) => {
 			return do_subcmd_encrypt(args, &mut manifest);
 		},
@@ -237,22 +239,6 @@ fn run() -> anyhow::Result<()> {
 			return do_subcmd_decrypt(args, &mut manifest);
 		},
 		_ => {},
-	}
-
-	if let Some(import_matches) = matches.subcommand_matches("import") {
-		for file_path in import_matches.values_of("files").unwrap() {
-			match manifest.import_account(file_path.into()) {
-				Ok(_) => {
-					info!("Imported account: {}", file_path);
-				}
-				Err(err) => {
-					bail!("Failed to import account: {} {}", file_path, err);
-				}
-			}
-		}
-
-		manifest.save()?;
-		return Ok(());
 	}
 
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
@@ -679,6 +665,22 @@ fn do_subcmd_setup(args: cli::ArgsSetup, manifest: &mut accountmanager::Manifest
 		account.revocation_code
 	);
 
+	return Ok(());
+}
+
+fn do_subcmd_import(args: cli::ArgsImport, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+	for file_path in args.files {
+		match manifest.import_account(&file_path) {
+			Ok(_) => {
+				info!("Imported account: {}", &file_path);
+			}
+			Err(err) => {
+				bail!("Failed to import account: {} {}", &file_path, err);
+			}
+		}
+	}
+
+	manifest.save()?;
 	return Ok(());
 }
 
