@@ -120,7 +120,6 @@ fn cli() -> App<'static> {
 			App::new("debug")
 			.arg(
 				Arg::with_name("demo-conf-menu")
-				.help("Show an example confirmation menu using dummy data.")
 				.takes_value(false)
 			)
 		)

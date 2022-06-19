@@ -74,7 +74,7 @@ impl FromStr for Verbosity {
 #[derive(Debug, Clone, Parser)]
 #[clap(about="Debug stuff, not useful for most users.")]
 pub(crate) struct ArgsDebug {
-	#[clap(long)]
+	#[clap(long, help = "Show an example confirmation menu using dummy data.")]
 	pub demo_conf_menu: bool
 }
 
