@@ -3,7 +3,7 @@ use clap::Parser;
 use clap_complete::Shell;
 
 #[derive(Debug, Clone, Parser)]
-#[clap(author, version, about = "Generate Steam 2FA codes and confirm Steam trades from the command line.", long_about = None)]
+#[clap(name="steamguard-cli", bin_name="steamguard", author, version, about = "Generate Steam 2FA codes and confirm Steam trades from the command line.", long_about = None)]
 pub(crate) struct Args {
 	#[clap(short, long, help = "Steam username, case-sensitive.", long_help = "Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")]
 	pub username: Option<String>,
