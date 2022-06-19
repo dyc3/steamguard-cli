@@ -65,13 +65,6 @@ fn cli() -> App<'static> {
 				.help("Specify your encryption passkey.")
 				.takes_value(true)
 		)
-		.arg(
-			Arg::with_name("verbosity")
-				.short('v')
-				.help("Log what is going on verbosely.")
-				.takes_value(false)
-				.multiple(true)
-		)
 		// .subcommand(
 		// 	App::new("completion")
 		// 		.about("Generate shell completions")
