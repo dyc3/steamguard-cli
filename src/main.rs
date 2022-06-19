@@ -230,14 +230,16 @@ fn run() -> anyhow::Result<()> {
 			return do_subcmd_setup(args, &mut manifest);
 		},
 		Some(cli::Subcommands::Import(args)) => {todo!()},
-		Some(cli::Subcommands::Encrypt(args)) => {todo!()},
-		Some(cli::Subcommands::Decrypt(args)) => {todo!()},
+		Some(cli::Subcommands::Encrypt(args)) => {
+			return do_subcmd_encrypt(args, &mut manifest);
+		},
+		Some(cli::Subcommands::Decrypt(args)) => {
+			return do_subcmd_decrypt(args, &mut manifest);
+		},
 		_ => {},
 	}
 
-	if matches.is_present("setup") {
-
-	} else if let Some(import_matches) = matches.subcommand_matches("import") {
+	if let Some(import_matches) = matches.subcommand_matches("import") {
 		for file_path in import_matches.values_of("files").unwrap() {
 			match manifest.import_account(file_path.into()) {
 				Ok(_) => {
@@ -249,33 +251,6 @@ fn run() -> anyhow::Result<()> {
 			}
 		}
 
-		manifest.save()?;
-		return Ok(());
-	} else if matches.is_present("encrypt") {
-		if !manifest.has_passkey() {
-			loop {
-				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
-				let passkey_confirm =
-					rpassword::prompt_password_stdout("Confirm encryption passkey: ").ok();
-				if passkey == passkey_confirm {
-					break;
-				}
-				error!("Passkeys do not match, try again.");
-			}
-			manifest.submit_passkey(passkey);
-		}
-		manifest.load_accounts()?;
-		for entry in &mut manifest.entries {
-			entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
-		}
-		manifest.save()?;
-		return Ok(());
-	} else if matches.is_present("decrypt") {
-		manifest.load_accounts()?;
-		for entry in &mut manifest.entries {
-			entry.encryption = None;
-		}
-		manifest.submit_passkey(None);
 		manifest.save()?;
 		return Ok(());
 	}
@@ -704,5 +679,37 @@ fn do_subcmd_setup(args: cli::ArgsSetup, manifest: &mut accountmanager::Manifest
 		account.revocation_code
 	);
 
+	return Ok(());
+}
+
+fn do_subcmd_encrypt(args: cli::ArgsEncrypt, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+	if !manifest.has_passkey() {
+		let mut passkey;
+		loop {
+			passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+			let passkey_confirm =
+				rpassword::prompt_password_stdout("Confirm encryption passkey: ").ok();
+			if passkey == passkey_confirm {
+				break;
+			}
+			error!("Passkeys do not match, try again.");
+		}
+		manifest.submit_passkey(passkey);
+	}
+	manifest.load_accounts()?;
+	for entry in &mut manifest.entries {
+		entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
+	}
+	manifest.save()?;
+	return Ok(());
+}
+
+fn do_subcmd_decrypt(args: cli::ArgsDecrypt, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+	manifest.load_accounts()?;
+	for entry in &mut manifest.entries {
+		entry.encryption = None;
+	}
+	manifest.submit_passkey(None);
+	manifest.save()?;
 	return Ok(());
 }
