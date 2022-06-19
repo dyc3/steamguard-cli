@@ -372,7 +372,8 @@ impl From<std::io::Error> for ManifestAccountLoadError {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use tempdir::TempDir;
+	use steamguard::ExposeSecret;
+use tempdir::TempDir;
 
 	#[test]
 	fn test_should_save_new_manifest() {
@@ -390,7 +391,7 @@ mod tests {
 		let mut manifest = Manifest::new(manifest_path.as_path());
 		let mut account = SteamGuardAccount::new();
 		account.account_name = "asdf1234".into();
-		account.revocation_code = "R12345".into();
+		account.revocation_code = String::from("R12345").into();
 		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
 			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
 		)?;
@@ -419,7 +420,7 @@ mod tests {
 				.get_account(&account_name)?
 				.lock()
 				.unwrap()
-				.revocation_code,
+				.revocation_code.expose_secret(),
 			"R12345"
 		);
 		assert_eq!(
@@ -443,7 +444,7 @@ mod tests {
 		let mut manifest = Manifest::new(manifest_path.as_path());
 		let mut account = SteamGuardAccount::new();
 		account.account_name = "asdf1234".into();
-		account.revocation_code = "R12345".into();
+		account.revocation_code = String::from("R12345").into();
 		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
 			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
 		)?;
@@ -479,7 +480,7 @@ mod tests {
 				.get_account(&account_name)?
 				.lock()
 				.unwrap()
-				.revocation_code,
+				.revocation_code.expose_secret(),
 			"R12345"
 		);
 		assert_eq!(
@@ -504,12 +505,12 @@ mod tests {
 		let mut manifest = Manifest::new(manifest_path.as_path());
 		let mut account = SteamGuardAccount::new();
 		account.account_name = "asdf1234".into();
-		account.revocation_code = "R12345".into();
+		account.revocation_code = String::from("R12345").into();
 		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
 			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
 		)
 		.unwrap();
-		account.uri = "otpauth://;laksdjf;lkasdjf;lkasdj;flkasdjlkf;asjdlkfjslk;adjfl;kasdjf;lksdjflk;asjd;lfajs;ldkfjaslk;djf;lsakdjf;lksdj".into();
+		account.uri = String::from("otpauth://;laksdjf;lkasdjf;lkasdj;flkasdjlkf;asjdlkfjslk;adjfl;kasdjf;lksdjflk;asjd;lfajs;ldkfjaslk;djf;lsakdjf;lksdj").into();
 		account.token_gid = "asdf1234".into();
 		manifest.add_account(account);
 		manifest.submit_passkey(passkey.clone());
@@ -539,7 +540,7 @@ mod tests {
 				.get_account(&account_name)?
 				.lock()
 				.unwrap()
-				.revocation_code,
+				.revocation_code.expose_secret(),
 			"R12345"
 		);
 		assert_eq!(
@@ -564,7 +565,7 @@ mod tests {
 		let mut manifest = Manifest::new(manifest_path.as_path());
 		let mut account = SteamGuardAccount::new();
 		account.account_name = "asdf1234".into();
-		account.revocation_code = "R12345".into();
+		account.revocation_code = String::from("R12345").into();
 		account.shared_secret = steamguard::token::TwoFactorSecret::parse_shared_secret(
 			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
 		)
@@ -603,7 +604,7 @@ mod tests {
 				.get_account(&account_name)?
 				.lock()
 				.unwrap()
-				.revocation_code,
+				.revocation_code.expose_secret(),
 			"R12345"
 		);
 		assert_eq!(
@@ -690,7 +691,7 @@ mod tests {
 		let account_name = manifest.entries[0].account_name.clone();
 		let account = manifest.get_account(&account_name)?;
 		assert_eq!(account_name, account.lock().unwrap().account_name);
-		assert_eq!(account.lock().unwrap().revocation_code, "R12345");
+		assert_eq!(account.lock().unwrap().revocation_code.expose_secret(), "R12345");
 		assert_eq!(
 			account.lock().unwrap().session.as_ref().unwrap().steam_id,
 			1234
@@ -699,7 +700,7 @@ mod tests {
 		let account_name = manifest.entries[1].account_name.clone();
 		let account = manifest.get_account(&account_name)?;
 		assert_eq!(account_name, account.lock().unwrap().account_name);
-		assert_eq!(account.lock().unwrap().revocation_code, "R56789");
+		assert_eq!(account.lock().unwrap().revocation_code.expose_secret(), "R56789");
 		assert_eq!(
 			account.lock().unwrap().session.as_ref().unwrap().steam_id,
 			5678

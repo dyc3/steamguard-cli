@@ -13,6 +13,7 @@ use reqwest::{
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, convert::TryInto};
+pub use secrecy::{ExposeSecret, SecretString};
 use steamapi::SteamApiClient;
 pub use userlogin::{LoginError, UserLogin};
 #[macro_use]
@@ -27,6 +28,7 @@ mod confirmation;
 pub mod steamapi;
 pub mod token;
 mod userlogin;
+mod secret_string;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";
 // const COMMUNITY_BASE: String = "https://steamcommunity.com";
@@ -39,19 +41,24 @@ extern crate base64;
 extern crate cookie;
 extern crate hmacsha1;
 
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SteamGuardAccount {
 	pub account_name: String,
 	pub serial_number: String,
-	pub revocation_code: String,
+	#[serde(with = "secret_string")]
+	pub revocation_code: SecretString,
 	pub shared_secret: TwoFactorSecret,
 	pub token_gid: String,
-	pub identity_secret: String,
+	#[serde(with = "secret_string")]
+	pub identity_secret: SecretString,
 	pub server_time: u64,
-	pub uri: String,
+	#[serde(with = "secret_string")]
+	pub uri: SecretString,
 	pub fully_enrolled: bool,
 	pub device_id: String,
-	pub secret_1: String,
+	#[serde(with = "secret_string")]
+	pub secret_1: SecretString,
 	#[serde(default, rename = "Session")]
 	pub session: Option<steamapi::Session>,
 }
@@ -75,15 +82,15 @@ impl SteamGuardAccount {
 		return SteamGuardAccount {
 			account_name: String::from(""),
 			serial_number: String::from(""),
-			revocation_code: String::from(""),
+			revocation_code: String::from("").into(),
 			shared_secret: TwoFactorSecret::new(),
 			token_gid: String::from(""),
-			identity_secret: String::from(""),
+			identity_secret: String::from("").into(),
 			server_time: 0,
-			uri: String::from(""),
+			uri: String::from("").into(),
 			fully_enrolled: false,
 			device_id: String::from(""),
-			secret_1: "".into(),
+			secret_1: String::from("").into(),
 			session: Option::None,
 		};
 	}
@@ -100,7 +107,7 @@ impl SteamGuardAccount {
 		params.insert("a", session.steam_id.to_string());
 		params.insert(
 			"k",
-			generate_confirmation_hash_for_time(time, tag, &self.identity_secret),
+			generate_confirmation_hash_for_time(time, tag, &self.identity_secret.expose_secret()),
 		);
 		params.insert("t", time.to_string());
 		params.insert("m", String::from("android"));
@@ -226,12 +233,12 @@ impl SteamGuardAccount {
 	/// Returns whether or not the operation was successful.
 	pub fn remove_authenticator(&self, revocation_code: Option<String>) -> anyhow::Result<bool> {
 		ensure!(
-			matches!(revocation_code, Some(_)) || !self.revocation_code.is_empty(),
+			matches!(revocation_code, Some(_)) || !self.revocation_code.expose_secret().is_empty(),
 			"Revocation code not provided."
 		);
 		let client: SteamApiClient = SteamApiClient::new(self.session.clone());
 		let resp =
-			client.remove_authenticator(revocation_code.unwrap_or(self.revocation_code.clone()))?;
+			client.remove_authenticator(revocation_code.unwrap_or(self.revocation_code.expose_secret().to_owned()))?;
 		Ok(resp.success)
 	}
 }
