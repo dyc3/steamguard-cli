@@ -80,7 +80,7 @@ pub(crate) struct ArgsDebug {
 #[derive(Debug, Clone, Parser)]
 #[clap(about="Generate shell completions")]
 pub(crate) struct ArgsCompletions {
-	#[clap(arg_enum, help = "The shell to generate completions for.")]
+	#[clap(short, long, arg_enum, help = "The shell to generate completions for.")]
 	pub shell: Shell,
 }
 
