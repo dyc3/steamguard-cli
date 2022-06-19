@@ -1,5 +1,5 @@
 extern crate rpassword;
-use clap::{Parser, IntoApp};
+use clap::{IntoApp, Parser};
 use log::*;
 use std::{
 	io::{stdout, Write},
@@ -53,11 +53,11 @@ fn run() -> anyhow::Result<()> {
 	match args.sub {
 		Some(cli::Subcommands::Debug(args)) => {
 			return do_subcmd_debug(args);
-		},
+		}
 		Some(cli::Subcommands::Completion(args)) => {
 			return do_subcmd_completion(args);
-		},
-		_ => {},
+		}
+		_ => {}
 	};
 
 	let mafiles_dir = if let Some(mafiles_path) = &args.mafiles_path {
@@ -122,17 +122,17 @@ fn run() -> anyhow::Result<()> {
 	match args.sub {
 		Some(cli::Subcommands::Setup(args)) => {
 			return do_subcmd_setup(args, &mut manifest);
-		},
+		}
 		Some(cli::Subcommands::Import(args)) => {
 			return do_subcmd_import(args, &mut manifest);
-		},
+		}
 		Some(cli::Subcommands::Encrypt(args)) => {
 			return do_subcmd_encrypt(args, &mut manifest);
-		},
+		}
 		Some(cli::Subcommands::Decrypt(args)) => {
 			return do_subcmd_decrypt(args, &mut manifest);
-		},
-		_ => {},
+		}
+		_ => {}
 	}
 
 	let selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
@@ -170,14 +170,14 @@ fn run() -> anyhow::Result<()> {
 	match args.sub {
 		Some(cli::Subcommands::Trade(args)) => {
 			return do_subcmd_trade(args, &mut manifest, selected_accounts);
-		},
+		}
 		Some(cli::Subcommands::Remove(args)) => {
 			return do_subcmd_remove(args, &mut manifest, selected_accounts);
-		},
+		}
 		Some(s) => {
 			error!("Unknown subcommand: {:?}", s);
 			return Err(errors::UserError::UnknownSubcommand.into());
-		},
+		}
 		_ => {
 			debug!("No subcommand given, assuming user wants a 2fa code");
 			return do_subcmd_code(selected_accounts);
@@ -319,7 +319,10 @@ fn do_subcmd_completion(args: cli::ArgsCompletions) -> Result<(), anyhow::Error>
 	return Ok(());
 }
 
-fn do_subcmd_setup(args: cli::ArgsSetup, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+fn do_subcmd_setup(
+	args: cli::ArgsSetup,
+	manifest: &mut accountmanager::Manifest,
+) -> anyhow::Result<()> {
 	println!("Log in to the account that you want to link to steamguard-cli");
 	print!("Username: ");
 	let username = if args.username.is_some() {
@@ -336,8 +339,7 @@ fn do_subcmd_setup(args: cli::ArgsSetup, manifest: &mut accountmanager::Manifest
 			username
 		);
 	}
-	let session =
-		do_login_raw(username).expect("Failed to log in. Account has not been linked.");
+	let session = do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
 	let mut linker = AccountLinker::new(session);
 	let account: SteamGuardAccount;
@@ -434,7 +436,10 @@ fn do_subcmd_setup(args: cli::ArgsSetup, manifest: &mut accountmanager::Manifest
 	return Ok(());
 }
 
-fn do_subcmd_import(args: cli::ArgsImport, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+fn do_subcmd_import(
+	args: cli::ArgsImport,
+	manifest: &mut accountmanager::Manifest,
+) -> anyhow::Result<()> {
 	for file_path in args.files {
 		match manifest.import_account(&file_path) {
 			Ok(_) => {
@@ -450,7 +455,11 @@ fn do_subcmd_import(args: cli::ArgsImport, manifest: &mut accountmanager::Manife
 	return Ok(());
 }
 
-fn do_subcmd_trade(args: cli::ArgsTrade, manifest: &mut accountmanager::Manifest, mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
+fn do_subcmd_trade(
+	args: cli::ArgsTrade,
+	manifest: &mut accountmanager::Manifest,
+	mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+) -> anyhow::Result<()> {
 	for a in selected_accounts.iter_mut() {
 		let mut account = a.lock().unwrap();
 
@@ -529,7 +538,11 @@ fn do_subcmd_trade(args: cli::ArgsTrade, manifest: &mut accountmanager::Manifest
 	return Ok(());
 }
 
-fn do_subcmd_remove(_args: cli::ArgsRemove, manifest: &mut accountmanager::Manifest, selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
+fn do_subcmd_remove(
+	_args: cli::ArgsRemove,
+	manifest: &mut accountmanager::Manifest,
+	selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+) -> anyhow::Result<()> {
 	println!(
 		"This will remove the mobile authenticator from {} accounts: {}",
 		selected_accounts.len(),
@@ -589,7 +602,10 @@ fn do_subcmd_remove(_args: cli::ArgsRemove, manifest: &mut accountmanager::Manif
 	return Ok(());
 }
 
-fn do_subcmd_encrypt(_args: cli::ArgsEncrypt, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+fn do_subcmd_encrypt(
+	_args: cli::ArgsEncrypt,
+	manifest: &mut accountmanager::Manifest,
+) -> anyhow::Result<()> {
 	if !manifest.has_passkey() {
 		let mut passkey;
 		loop {
@@ -611,7 +627,10 @@ fn do_subcmd_encrypt(_args: cli::ArgsEncrypt, manifest: &mut accountmanager::Man
 	return Ok(());
 }
 
-fn do_subcmd_decrypt(_args: cli::ArgsDecrypt, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+fn do_subcmd_decrypt(
+	_args: cli::ArgsDecrypt,
+	manifest: &mut accountmanager::Manifest,
+) -> anyhow::Result<()> {
 	manifest.load_accounts()?;
 	for entry in &mut manifest.entries {
 		entry.encryption = None;

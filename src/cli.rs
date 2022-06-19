@@ -1,16 +1,31 @@
-use std::str::FromStr;
-use clap::{Parser, clap_derive::ArgEnum};
+use clap::{clap_derive::ArgEnum, Parser};
 use clap_complete::Shell;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(name="steamguard-cli", bin_name="steamguard", author, version, about = "Generate Steam 2FA codes and confirm Steam trades from the command line.", long_about = None)]
 pub(crate) struct Args {
-	#[clap(short, long, conflicts_with="all", help = "Steam username, case-sensitive.", long_help = "Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")]
+	#[clap(
+		short,
+		long,
+		conflicts_with = "all",
+		help = "Steam username, case-sensitive.",
+		long_help = "Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected."
+	)]
 	pub username: Option<String>,
-	#[clap(short, long, conflicts_with="username", help = "Select all accounts in the manifest.")]
+	#[clap(
+		short,
+		long,
+		conflicts_with = "username",
+		help = "Select all accounts in the manifest."
+	)]
 	pub all: bool,
 	/// The path to the maFiles directory.
-	#[clap(short, long, help = "Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json. Default: ~/.config/steamguard-cli/maFiles")]
+	#[clap(
+		short,
+		long,
+		help = "Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json. Default: ~/.config/steamguard-cli/maFiles"
+	)]
 	pub mafiles_path: Option<String>,
 	#[clap(short, long, help = "Specify your encryption passkey.")]
 	pub passkey: Option<String>,
@@ -44,13 +59,16 @@ pub(crate) enum Verbosity {
 
 impl std::fmt::Display for Verbosity {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{}", match self {
-			Verbosity::Error => "error",
-			Verbosity::Warn => "warn",
-			Verbosity::Info => "info",
-			Verbosity::Debug => "debug",
-			Verbosity::Trace => "trace",
-		}))
+		f.write_fmt(format_args!(
+			"{}",
+			match self {
+				Verbosity::Error => "error",
+				Verbosity::Warn => "warn",
+				Verbosity::Info => "info",
+				Verbosity::Debug => "debug",
+				Verbosity::Trace => "trace",
+			}
+		))
 	}
 }
 
@@ -69,16 +87,15 @@ impl FromStr for Verbosity {
 	}
 }
 
-
 #[derive(Debug, Clone, Parser)]
-#[clap(about="Debug stuff, not useful for most users.")]
+#[clap(about = "Debug stuff, not useful for most users.")]
 pub(crate) struct ArgsDebug {
 	#[clap(long, help = "Show an example confirmation menu using dummy data.")]
-	pub demo_conf_menu: bool
+	pub demo_conf_menu: bool,
 }
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about="Generate shell completions")]
+#[clap(about = "Generate shell completions")]
 pub(crate) struct ArgsCompletions {
 	#[clap(short, long, arg_enum, help = "The shell to generate completions for.")]
 	pub shell: Shell,
@@ -101,9 +118,17 @@ pub(crate) struct ArgsImport {
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Interactive interface for trade confirmations")]
 pub(crate) struct ArgsTrade {
-	#[clap(short, long, help = "Accept all open trade confirmations. Does not open interactive interface.")]
+	#[clap(
+		short,
+		long,
+		help = "Accept all open trade confirmations. Does not open interactive interface."
+	)]
 	pub accept_all: bool,
-	#[clap(short, long, help = "If submitting a confirmation response fails, exit immediately.")]
+	#[clap(
+		short,
+		long,
+		help = "If submitting a confirmation response fails, exit immediately."
+	)]
 	pub fail_fast: bool,
 }
 
