@@ -121,6 +121,46 @@ impl FromStr for Verbosity {
 	}
 }
 
+struct ArgsSetup {
+	username: Option<String>,
+}
+
+impl From<Subcommands> for ArgsSetup {
+	fn from(sub: Subcommands) -> Self {
+		match sub {
+			Subcommands::Setup { username } => Self { username },
+			_ => panic!("ArgsSetup::from() called with non-Setup subcommand"),
+		}
+	}
+}
+
+struct ArgsImport {
+	files: Vec<String>,
+}
+
+impl From<Subcommands> for ArgsImport {
+	fn from(sub: Subcommands) -> Self {
+		match sub {
+			Subcommands::Import { files } => Self { files },
+			_ => panic!("ArgsImport::from() called with non-Import subcommand"),
+		}
+	}
+}
+
+struct ArgsTrade {
+	accept_all: bool,
+	fail_fast: bool,
+}
+
+impl From<Subcommands> for ArgsTrade {
+	fn from(sub: Subcommands) -> Self {
+		match sub {
+			Subcommands::Trade { accept_all, fail_fast } => Self { accept_all, fail_fast },
+			_ => panic!("ArgsTrade::from() called with non-Trade subcommand"),
+		}
+	}
+}
+
 fn cli() -> App<'static> {
 	App::new("steamguard-cli")
 		.version(crate_version!())
@@ -329,120 +369,18 @@ fn run() -> anyhow::Result<()> {
 
 	if let Some(subcmd) = new_args.sub {
 		match subcmd {
-			Subcommands::Setup{ username } => {},
-			s => {
-				error!("Unknown subcommand: {:?}", s);
+			Subcommands::Setup{ username } => {
+				do_subcmd_setup(new_args.sub.unwrap().into(), &mut manifest)?;
 			},
+			Subcommands::Import { files } => {todo!()},
+			Subcommands::Encrypt {} => {todo!()},
+			Subcommands::Decrypt {} => {todo!()},
+			_ => {},
 		}
 	}
 
 	if matches.is_present("setup") {
-		println!("Log in to the account that you want to link to steamguard-cli");
-		print!("Username: ");
-		let username = tui::prompt();
-		let account_name = username.clone();
-		if manifest.account_exists(&username) {
-			bail!(
-				"Account {} already exists in manifest, remove it first",
-				username
-			);
-		}
-		let session =
-			do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
-		let mut linker = AccountLinker::new(session);
-		let account: SteamGuardAccount;
-		loop {
-			match linker.link() {
-				Ok(a) => {
-					account = a;
-					break;
-				}
-				Err(AccountLinkError::MustRemovePhoneNumber) => {
-					println!("There is already a phone number on this account, please remove it and try again.");
-					bail!("There is already a phone number on this account, please remove it and try again.");
-				}
-				Err(AccountLinkError::MustProvidePhoneNumber) => {
-					println!("Enter your phone number in the following format: +1 123-456-7890");
-					print!("Phone number: ");
-					linker.phone_number = tui::prompt().replace(&['(', ')', '-'][..], "");
-				}
-				Err(AccountLinkError::AuthenticatorPresent) => {
-					println!("An authenticator is already present on this account.");
-					bail!("An authenticator is already present on this account.");
-				}
-				Err(AccountLinkError::MustConfirmEmail) => {
-					println!("Check your email and click the link.");
-					tui::pause();
-				}
-				Err(err) => {
-					error!(
-						"Failed to link authenticator. Account has not been linked. {}",
-						err
-					);
-					return Err(err.into());
-				}
-			}
-		}
-		manifest.add_account(account);
-		match manifest.save() {
-			Ok(_) => {}
-			Err(err) => {
-				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
-				println!(
-					"Just in case, here is the account info. Save it somewhere just in case!\n{:?}",
-					manifest.get_account(&account_name).unwrap().lock().unwrap()
-				);
-				return Err(err.into());
-			}
-		}
-
-		let account_arc = manifest.get_account(&account_name).unwrap();
-		let mut account = account_arc.lock().unwrap();
-
-		println!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code);
-		tui::pause();
-
-		debug!("attempting link finalization");
-		print!("Enter SMS code: ");
-		let sms_code = tui::prompt();
-		let mut tries = 0;
-		loop {
-			match linker.finalize(&mut account, sms_code.clone()) {
-				Ok(_) => break,
-				Err(FinalizeLinkError::WantMore) => {
-					debug!("steam wants more 2fa codes (tries: {})", tries);
-					tries += 1;
-					if tries >= 30 {
-						error!("Failed to finalize: unable to generate valid 2fa codes");
-						bail!("Failed to finalize: unable to generate valid 2fa codes");
-					}
-				}
-				Err(err) => {
-					error!("Failed to finalize: {}", err);
-					return Err(err.into());
-				}
-			}
-		}
-
-		println!("Authenticator finalized.");
-		match manifest.save() {
-			Ok(_) => {}
-			Err(err) => {
-				println!(
-					"Failed to save manifest, but we were able to save it before. {}",
-					err
-				);
-				return Err(err);
-			}
-		}
-
-		println!(
-			"Authenticator has been finalized. Please actually write down your revocation code: {}",
-			account.revocation_code
-		);
-
-		return Ok(());
 	} else if let Some(import_matches) = matches.subcommand_matches("import") {
 		for file_path in import_matches.values_of("files").unwrap() {
 			match manifest.import_account(file_path.into()) {
@@ -521,7 +459,139 @@ fn run() -> anyhow::Result<()> {
 	if let Some(subcmd) = new_args.sub {
 		match subcmd {
 			Subcommands::Trade{ accept_all, fail_fast } => {
-				todo!()
+				for a in selected_accounts.iter_mut() {
+					let mut account = a.lock().unwrap();
+
+					info!("Checking for trade confirmations");
+					let confirmations: Vec<Confirmation>;
+					loop {
+						match account.get_trade_confirmations() {
+							Ok(confs) => {
+								confirmations = confs;
+								break;
+							}
+							Err(_) => {
+								info!("failed to get trade confirmations, asking user to log in");
+								do_login(&mut account)?;
+							}
+						}
+					}
+
+					let mut any_failed = false;
+					if accept_all {
+						info!("accepting all confirmations");
+						for conf in &confirmations {
+							let result = account.accept_confirmation(conf);
+							if result.is_err() {
+								warn!("accept confirmation result: {:?}", result);
+								any_failed = true;
+								if fail_fast {
+									return result;
+								}
+							} else {
+								debug!("accept confirmation result: {:?}", result);
+							}
+						}
+					} else {
+						if termion::is_tty(&stdout()) {
+							let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
+							for conf in &accept {
+								let result = account.accept_confirmation(conf);
+								if result.is_err() {
+									warn!("accept confirmation result: {:?}", result);
+									any_failed = true;
+									if fail_fast {
+										return result;
+									}
+								} else {
+									debug!("accept confirmation result: {:?}", result);
+								}
+							}
+							for conf in &deny {
+								let result = account.deny_confirmation(conf);
+								debug!("deny confirmation result: {:?}", result);
+								if result.is_err() {
+									warn!("deny confirmation result: {:?}", result);
+									any_failed = true;
+									if fail_fast {
+										return result;
+									}
+								} else {
+									debug!("deny confirmation result: {:?}", result);
+								}
+							}
+						} else {
+							warn!("not a tty, not showing menu");
+							for conf in &confirmations {
+								println!("{}", conf.description());
+							}
+						}
+					}
+
+					if any_failed {
+						error!("Failed to respond to some confirmations.");
+					}
+				}
+
+				manifest.save()?;
+			},
+			Subcommands::Remove { username } => {
+				println!(
+					"This will remove the mobile authenticator from {} accounts: {}",
+					selected_accounts.len(),
+					selected_accounts
+						.iter()
+						.map(|a| a.lock().unwrap().account_name.clone())
+						.collect::<Vec<String>>()
+						.join(", ")
+				);
+
+				match tui::prompt_char("Do you want to continue?", "yN") {
+					'y' => {}
+					_ => {
+						info!("Aborting!");
+						return Err(errors::UserError::Aborted.into());
+					}
+				}
+
+				let mut successful = vec![];
+				for a in selected_accounts {
+					let account = a.lock().unwrap();
+					match account.remove_authenticator(None) {
+						Ok(success) => {
+							if success {
+								println!("Removed authenticator from {}", account.account_name);
+								successful.push(account.account_name.clone());
+							} else {
+								println!(
+									"Failed to remove authenticator from {}",
+									account.account_name
+								);
+								match tui::prompt_char(
+									"Would you like to remove it from the manifest anyway?",
+									"yN",
+								) {
+									'y' => {
+										successful.push(account.account_name.clone());
+									}
+									_ => {}
+								}
+							}
+						}
+						Err(err) => {
+							error!(
+								"Unexpected error when removing authenticator from {}: {}",
+								account.account_name, err
+							);
+						}
+					}
+				}
+
+				for account_name in successful {
+					manifest.remove_account(account_name);
+				}
+
+				manifest.save()?;
 			},
 			s => {
 				error!("Unknown subcommand: {:?}", s);
@@ -541,142 +611,6 @@ fn run() -> anyhow::Result<()> {
 		}
 	}
 
-	if let Some(trade_matches) = matches.subcommand_matches("trade") {
-		info!("trade");
-		for a in selected_accounts.iter_mut() {
-			let mut account = a.lock().unwrap();
-
-			info!("Checking for trade confirmations");
-			let confirmations: Vec<Confirmation>;
-			loop {
-				match account.get_trade_confirmations() {
-					Ok(confs) => {
-						confirmations = confs;
-						break;
-					}
-					Err(_) => {
-						info!("failed to get trade confirmations, asking user to log in");
-						do_login(&mut account)?;
-					}
-				}
-			}
-
-			let mut any_failed = false;
-			let fail_fast = trade_matches.is_present("fail-fast");
-			if trade_matches.is_present("accept-all") {
-				info!("accepting all confirmations");
-				for conf in &confirmations {
-					let result = account.accept_confirmation(conf);
-					if result.is_err() {
-						warn!("accept confirmation result: {:?}", result);
-						any_failed = true;
-						if fail_fast {
-							return result;
-						}
-					} else {
-						debug!("accept confirmation result: {:?}", result);
-					}
-				}
-			} else {
-				if termion::is_tty(&stdout()) {
-					let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
-					for conf in &accept {
-						let result = account.accept_confirmation(conf);
-						if result.is_err() {
-							warn!("accept confirmation result: {:?}", result);
-							any_failed = true;
-							if fail_fast {
-								return result;
-							}
-						} else {
-							debug!("accept confirmation result: {:?}", result);
-						}
-					}
-					for conf in &deny {
-						let result = account.deny_confirmation(conf);
-						debug!("deny confirmation result: {:?}", result);
-						if result.is_err() {
-							warn!("deny confirmation result: {:?}", result);
-							any_failed = true;
-							if fail_fast {
-								return result;
-							}
-						} else {
-							debug!("deny confirmation result: {:?}", result);
-						}
-					}
-				} else {
-					warn!("not a tty, not showing menu");
-					for conf in &confirmations {
-						println!("{}", conf.description());
-					}
-				}
-			}
-
-			if any_failed {
-				error!("Failed to respond to some confirmations.");
-			}
-		}
-
-		manifest.save()?;
-	} else if let Some(_) = matches.subcommand_matches("remove") {
-		println!(
-			"This will remove the mobile authenticator from {} accounts: {}",
-			selected_accounts.len(),
-			selected_accounts
-				.iter()
-				.map(|a| a.lock().unwrap().account_name.clone())
-				.collect::<Vec<String>>()
-				.join(", ")
-		);
-
-		match tui::prompt_char("Do you want to continue?", "yN") {
-			'y' => {}
-			_ => {
-				info!("Aborting!");
-				return Err(errors::UserError::Aborted.into());
-			}
-		}
-
-		let mut successful = vec![];
-		for a in selected_accounts {
-			let account = a.lock().unwrap();
-			match account.remove_authenticator(None) {
-				Ok(success) => {
-					if success {
-						println!("Removed authenticator from {}", account.account_name);
-						successful.push(account.account_name.clone());
-					} else {
-						println!(
-							"Failed to remove authenticator from {}",
-							account.account_name
-						);
-						match tui::prompt_char(
-							"Would you like to remove it from the manifest anyway?",
-							"yN",
-						) {
-							'y' => {
-								successful.push(account.account_name.clone());
-							}
-							_ => {}
-						}
-					}
-				}
-				Err(err) => {
-					error!(
-						"Unexpected error when removing authenticator from {}: {}",
-						account.account_name, err
-					);
-				}
-			}
-		}
-
-		for account_name in successful {
-			manifest.remove_account(account_name);
-		}
-
-		manifest.save()?;
-	}
 	Ok(())
 }
 
@@ -801,6 +735,114 @@ fn get_mafiles_dir() -> String {
 	return paths[0].to_str().unwrap().into();
 }
 
-fn do_subcmd_setup(args: Subcommands) -> anyhow::Result<()> {
+fn do_subcmd_setup(args: ArgsSetup, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+	println!("Log in to the account that you want to link to steamguard-cli");
+	print!("Username: ");
+	let username = args.username.unwrap_or(tui::prompt());
+	if args.username.is_some() {
+		println!("{}", username);
+	}
+	let account_name = username.clone();
+	if manifest.account_exists(&username) {
+		bail!(
+			"Account {} already exists in manifest, remove it first",
+			username
+		);
+	}
+	let session =
+		do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
+	let mut linker = AccountLinker::new(session);
+	let account: SteamGuardAccount;
+	loop {
+		match linker.link() {
+			Ok(a) => {
+				account = a;
+				break;
+			}
+			Err(AccountLinkError::MustRemovePhoneNumber) => {
+				println!("There is already a phone number on this account, please remove it and try again.");
+				bail!("There is already a phone number on this account, please remove it and try again.");
+			}
+			Err(AccountLinkError::MustProvidePhoneNumber) => {
+				println!("Enter your phone number in the following format: +1 123-456-7890");
+				print!("Phone number: ");
+				linker.phone_number = tui::prompt().replace(&['(', ')', '-'][..], "");
+			}
+			Err(AccountLinkError::AuthenticatorPresent) => {
+				println!("An authenticator is already present on this account.");
+				bail!("An authenticator is already present on this account.");
+			}
+			Err(AccountLinkError::MustConfirmEmail) => {
+				println!("Check your email and click the link.");
+				tui::pause();
+			}
+			Err(err) => {
+				error!(
+					"Failed to link authenticator. Account has not been linked. {}",
+					err
+				);
+				return Err(err.into());
+			}
+		}
+	}
+	manifest.add_account(account);
+	match manifest.save() {
+		Ok(_) => {}
+		Err(err) => {
+			error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
+			println!(
+				"Just in case, here is the account info. Save it somewhere just in case!\n{:?}",
+				manifest.get_account(&account_name).unwrap().lock().unwrap()
+			);
+			return Err(err.into());
+		}
+	}
+
+	let account_arc = manifest.get_account(&account_name).unwrap();
+	let mut account = account_arc.lock().unwrap();
+
+	println!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code);
+	tui::pause();
+
+	debug!("attempting link finalization");
+	print!("Enter SMS code: ");
+	let sms_code = tui::prompt();
+	let mut tries = 0;
+	loop {
+		match linker.finalize(&mut account, sms_code.clone()) {
+			Ok(_) => break,
+			Err(FinalizeLinkError::WantMore) => {
+				debug!("steam wants more 2fa codes (tries: {})", tries);
+				tries += 1;
+				if tries >= 30 {
+					error!("Failed to finalize: unable to generate valid 2fa codes");
+					bail!("Failed to finalize: unable to generate valid 2fa codes");
+				}
+			}
+			Err(err) => {
+				error!("Failed to finalize: {}", err);
+				return Err(err.into());
+			}
+		}
+	}
+
+	println!("Authenticator finalized.");
+	match manifest.save() {
+		Ok(_) => {}
+		Err(err) => {
+			println!(
+				"Failed to save manifest, but we were able to save it before. {}",
+				err
+			);
+			return Err(err);
+		}
+	}
+
+	println!(
+		"Authenticator has been finalized. Please actually write down your revocation code: {}",
+		account.revocation_code
+	);
+
+	return Ok(());
 }
