@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use clap::Parser;
+use clap::{Parser, clap_derive::ArgEnum};
 use clap_complete::Shell;
 
 #[derive(Debug, Clone, Parser)]
@@ -14,7 +14,7 @@ pub(crate) struct Args {
 	pub mafiles_path: Option<String>,
 	#[clap(short, long, help = "Specify your encryption passkey.")]
 	pub passkey: Option<String>,
-	#[clap(short, long, default_value_t=Verbosity::Info, help = "Set the log level.")]
+	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level.")]
 	pub verbosity: Verbosity,
 
 	#[clap(subcommand)]
@@ -33,7 +33,7 @@ pub(crate) enum Subcommands {
 	Decrypt(ArgsDecrypt),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, ArgEnum)]
 pub(crate) enum Verbosity {
 	Error = 0,
 	Warn = 1,
