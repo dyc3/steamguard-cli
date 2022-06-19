@@ -174,8 +174,8 @@ fn run() -> anyhow::Result<()> {
 		_ => {},
 	};
 
-	let mafiles_dir = if matches.occurrences_of("mafiles-path") > 0 {
-		matches.value_of("mafiles-path").unwrap().into()
+	let mafiles_dir = if let Some(mafiles_path) = new_args.mafiles_path {
+		mafiles_path
 	} else {
 		get_mafiles_dir()
 	};
@@ -202,7 +202,7 @@ fn run() -> anyhow::Result<()> {
 		manifest = accountmanager::Manifest::load(path.as_path())?;
 	}
 
-	let mut passkey: Option<String> = matches.value_of("passkey").map(|s| s.into());
+	let mut passkey: Option<String> = new_args.passkey;
 	manifest.submit_passkey(passkey);
 
 	loop {

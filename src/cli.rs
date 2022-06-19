@@ -9,8 +9,8 @@ pub(crate) struct Args {
 	#[clap(short, long, help = "Select all accounts in the manifest.")]
 	pub all: bool,
 	/// The path to the maFiles directory.
-	#[clap(short, long, default_value = "~/.config/steamguard-cli/maFiles", help = "Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json.")]
-	pub mafiles_path: String,
+	#[clap(short, long, help = "Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json. Default: ~/.config/steamguard-cli/maFiles")]
+	pub mafiles_path: Option<String>,
 	#[clap(short, long, help = "Specify your encryption passkey.")]
 	pub passkey: Option<String>,
 	#[clap(short, long, default_value_t=Verbosity::Info, help = "Set the log level.")]
