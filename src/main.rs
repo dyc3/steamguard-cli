@@ -136,7 +136,7 @@ fn main() {
 
 fn run() -> anyhow::Result<()> {
 	let new_args = cli::Args::parse();
-	println!("{:?}", new_args);
+	info!("{:?}", new_args);
 
 	let matches = cli().get_matches();
 
