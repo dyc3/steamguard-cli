@@ -306,6 +306,28 @@ fn get_mafiles_dir() -> String {
 	return paths[0].to_str().unwrap().into();
 }
 
+fn load_accounts_with_prompts(manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+	loop {
+		match manifest.load_accounts() {
+			Ok(_) => return Ok(()),
+			Err(
+				accountmanager::ManifestAccountLoadError::MissingPasskey
+				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
+			) => {
+				if manifest.has_passkey() {
+					error!("Incorrect passkey");
+				}
+				let passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				manifest.submit_passkey(passkey);
+			}
+			Err(e) => {
+				error!("Could not load accounts: {}", e);
+				return Err(e.into());
+			}
+		}
+	}
+}
+
 fn do_subcmd_debug(args: cli::ArgsDebug) -> anyhow::Result<()> {
 	if args.demo_conf_menu {
 		demos::demo_confirmation_menu();
@@ -631,7 +653,7 @@ fn do_subcmd_decrypt(
 	_args: cli::ArgsDecrypt,
 	manifest: &mut accountmanager::Manifest,
 ) -> anyhow::Result<()> {
-	manifest.load_accounts()?;
+	load_accounts_with_prompts(manifest)?;
 	for entry in &mut manifest.entries {
 		entry.encryption = None;
 	}
