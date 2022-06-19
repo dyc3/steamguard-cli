@@ -14,7 +14,7 @@ pub(crate) struct Args {
 	pub mafiles_path: Option<String>,
 	#[clap(short, long, help = "Specify your encryption passkey.")]
 	pub passkey: Option<String>,
-	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level.")]
+	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
 	pub verbosity: Verbosity,
 
 	#[clap(subcommand)]
