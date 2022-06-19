@@ -8,13 +8,13 @@ use reqwest::{
 	header::{HeaderMap, HeaderName, HeaderValue, SET_COOKIE},
 	Url,
 };
-use secrecy::{SerializableSecret, CloneableSecret, DebugSecret, ExposeSecret};
-use zeroize::Zeroize;
+use secrecy::{CloneableSecret, DebugSecret, ExposeSecret, SerializableSecret};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::iter::FromIterator;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
+use zeroize::Zeroize;
 
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();

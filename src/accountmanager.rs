@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use steamguard::{SteamGuardAccount, ExposeSecret};
+use steamguard::{ExposeSecret, SteamGuardAccount};
 use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -169,7 +169,10 @@ impl Manifest {
 
 	pub fn add_account(&mut self, account: SteamGuardAccount) {
 		debug!("adding account to manifest: {}", account.account_name);
-		let steamid = account.session.as_ref().map_or(0, |s| s.expose_secret().steam_id);
+		let steamid = account
+			.session
+			.as_ref()
+			.map_or(0, |s| s.expose_secret().steam_id);
 		self.entries.push(ManifestEntry {
 			filename: format!("{}.maFile", &account.account_name),
 			steam_id: steamid,
@@ -373,7 +376,7 @@ impl From<std::io::Error> for ManifestAccountLoadError {
 mod tests {
 	use super::*;
 	use steamguard::ExposeSecret;
-use tempdir::TempDir;
+	use tempdir::TempDir;
 
 	#[test]
 	fn test_should_save_new_manifest() {
@@ -420,7 +423,8 @@ use tempdir::TempDir;
 				.get_account(&account_name)?
 				.lock()
 				.unwrap()
-				.revocation_code.expose_secret(),
+				.revocation_code
+				.expose_secret(),
 			"R12345"
 		);
 		assert_eq!(
@@ -480,7 +484,8 @@ use tempdir::TempDir;
 				.get_account(&account_name)?
 				.lock()
 				.unwrap()
-				.revocation_code.expose_secret(),
+				.revocation_code
+				.expose_secret(),
 			"R12345"
 		);
 		assert_eq!(
@@ -540,7 +545,8 @@ use tempdir::TempDir;
 				.get_account(&account_name)?
 				.lock()
 				.unwrap()
-				.revocation_code.expose_secret(),
+				.revocation_code
+				.expose_secret(),
 			"R12345"
 		);
 		assert_eq!(
@@ -604,7 +610,8 @@ use tempdir::TempDir;
 				.get_account(&account_name)?
 				.lock()
 				.unwrap()
-				.revocation_code.expose_secret(),
+				.revocation_code
+				.expose_secret(),
 			"R12345"
 		);
 		assert_eq!(
@@ -675,7 +682,14 @@ use tempdir::TempDir;
 		let account = manifest.get_account(&account_name)?;
 		assert_eq!(account_name, account.lock().unwrap().account_name);
 		assert_eq!(
-			account.lock().unwrap().session.as_ref().unwrap().expose_secret().web_cookie,
+			account
+				.lock()
+				.unwrap()
+				.session
+				.as_ref()
+				.unwrap()
+				.expose_secret()
+				.web_cookie,
 			None
 		);
 		Ok(())
@@ -691,18 +705,38 @@ use tempdir::TempDir;
 		let account_name = manifest.entries[0].account_name.clone();
 		let account = manifest.get_account(&account_name)?;
 		assert_eq!(account_name, account.lock().unwrap().account_name);
-		assert_eq!(account.lock().unwrap().revocation_code.expose_secret(), "R12345");
 		assert_eq!(
-			account.lock().unwrap().session.as_ref().unwrap().expose_secret().steam_id,
+			account.lock().unwrap().revocation_code.expose_secret(),
+			"R12345"
+		);
+		assert_eq!(
+			account
+				.lock()
+				.unwrap()
+				.session
+				.as_ref()
+				.unwrap()
+				.expose_secret()
+				.steam_id,
 			1234
 		);
 
 		let account_name = manifest.entries[1].account_name.clone();
 		let account = manifest.get_account(&account_name)?;
 		assert_eq!(account_name, account.lock().unwrap().account_name);
-		assert_eq!(account.lock().unwrap().revocation_code.expose_secret(), "R56789");
 		assert_eq!(
-			account.lock().unwrap().session.as_ref().unwrap().expose_secret().steam_id,
+			account.lock().unwrap().revocation_code.expose_secret(),
+			"R56789"
+		);
+		assert_eq!(
+			account
+				.lock()
+				.unwrap()
+				.session
+				.as_ref()
+				.unwrap()
+				.expose_secret()
+				.steam_id,
 			5678
 		);
 		Ok(())

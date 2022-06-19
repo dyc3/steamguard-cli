@@ -1,13 +1,19 @@
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
-use secrecy::{SecretString, ExposeSecret};
+use secrecy::{ExposeSecret, SecretString};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Helper to allow serializing a [secrecy::SecretString] as a [String]
-pub(crate) fn serialize<S>(secret_string: &SecretString, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+pub(crate) fn serialize<S>(secret_string: &SecretString, serializer: S) -> Result<S::Ok, S::Error>
+where
+	S: Serializer,
+{
 	serializer.serialize_str(secret_string.expose_secret())
 }
 
 /// Helper to allow deserializing a [String] as a [secrecy::SecretString]
-pub(crate) fn deserialize<'de, D>(d: D) -> Result<secrecy::SecretString, D::Error> where D: Deserializer<'de> {
+pub(crate) fn deserialize<'de, D>(d: D) -> Result<secrecy::SecretString, D::Error>
+where
+	D: Deserializer<'de>,
+{
 	let s = String::deserialize(d)?;
 	Ok(SecretString::new(s))
 }

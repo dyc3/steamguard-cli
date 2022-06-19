@@ -7,8 +7,8 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use steamguard::{
-	steamapi, AccountLinkError, AccountLinker, Confirmation, FinalizeLinkError, LoginError,
-	SteamGuardAccount, UserLogin, ExposeSecret,
+	steamapi, AccountLinkError, AccountLinker, Confirmation, ExposeSecret, FinalizeLinkError,
+	LoginError, SteamGuardAccount, UserLogin,
 };
 
 use crate::accountmanager::ManifestAccountLoadError;

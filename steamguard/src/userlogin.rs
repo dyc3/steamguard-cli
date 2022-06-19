@@ -155,7 +155,13 @@ impl UserLogin {
 			self.client.transfer_login(login_resp)?;
 		}
 
-		return Ok(self.client.session.as_ref().unwrap().expose_secret().to_owned());
+		return Ok(self
+			.client
+			.session
+			.as_ref()
+			.unwrap()
+			.expose_secret()
+			.to_owned());
 	}
 }
 

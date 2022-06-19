@@ -11,9 +11,9 @@ use reqwest::{
 	Url,
 };
 use scraper::{Html, Selector};
+pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, convert::TryInto};
-pub use secrecy::{ExposeSecret, SecretString};
 use steamapi::SteamApiClient;
 pub use userlogin::{LoginError, UserLogin};
 #[macro_use]
@@ -25,10 +25,10 @@ extern crate maplit;
 
 mod accountlinker;
 mod confirmation;
+mod secret_string;
 pub mod steamapi;
 pub mod token;
 mod userlogin;
-mod secret_string;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";
 // const COMMUNITY_BASE: String = "https://steamcommunity.com";
@@ -40,7 +40,6 @@ mod secret_string;
 extern crate base64;
 extern crate cookie;
 extern crate hmacsha1;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SteamGuardAccount {
@@ -240,8 +239,9 @@ impl SteamGuardAccount {
 			"Revocation code not provided."
 		);
 		let client: SteamApiClient = SteamApiClient::new(self.session.clone());
-		let resp =
-			client.remove_authenticator(revocation_code.unwrap_or(self.revocation_code.expose_secret().to_owned()))?;
+		let resp = client.remove_authenticator(
+			revocation_code.unwrap_or(self.revocation_code.expose_secret().to_owned()),
+		)?;
 		Ok(resp.success)
 	}
 }
