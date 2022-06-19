@@ -11,7 +11,7 @@ use steamguard::{
 	SteamGuardAccount, UserLogin,
 };
 
-use crate::{accountmanager::ManifestAccountLoadError};
+use crate::accountmanager::ManifestAccountLoadError;
 
 #[macro_use]
 extern crate lazy_static;
@@ -135,7 +135,7 @@ fn run() -> anyhow::Result<()> {
 		_ => {},
 	}
 
-	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
+	let selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
 	loop {
 		match get_selected_accounts(&args, &mut manifest) {
 			Ok(accounts) => {
@@ -529,7 +529,7 @@ fn do_subcmd_trade(args: cli::ArgsTrade, manifest: &mut accountmanager::Manifest
 	return Ok(());
 }
 
-fn do_subcmd_remove(args: cli::ArgsRemove, manifest: &mut accountmanager::Manifest, selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
+fn do_subcmd_remove(_args: cli::ArgsRemove, manifest: &mut accountmanager::Manifest, selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
 	println!(
 		"This will remove the mobile authenticator from {} accounts: {}",
 		selected_accounts.len(),
@@ -589,7 +589,7 @@ fn do_subcmd_remove(args: cli::ArgsRemove, manifest: &mut accountmanager::Manife
 	return Ok(());
 }
 
-fn do_subcmd_encrypt(args: cli::ArgsEncrypt, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+fn do_subcmd_encrypt(_args: cli::ArgsEncrypt, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
 	if !manifest.has_passkey() {
 		let mut passkey;
 		loop {
@@ -611,7 +611,7 @@ fn do_subcmd_encrypt(args: cli::ArgsEncrypt, manifest: &mut accountmanager::Mani
 	return Ok(());
 }
 
-fn do_subcmd_decrypt(args: cli::ArgsDecrypt, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+fn do_subcmd_decrypt(_args: cli::ArgsDecrypt, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
 	manifest.load_accounts()?;
 	for entry in &mut manifest.entries {
 		entry.encryption = None;
