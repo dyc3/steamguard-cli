@@ -1,5 +1,5 @@
 extern crate rpassword;
-use clap::{crate_version, App, Arg, ArgMatches, Parser, Subcommand};
+use clap::{crate_version, App, Arg, ArgMatches, Parser, IntoApp};
 use log::*;
 use std::{
 	io::{stdout, Write},
@@ -11,7 +11,7 @@ use steamguard::{
 	SteamGuardAccount, UserLogin,
 };
 
-use crate::{accountmanager::ManifestAccountLoadError, cli::Subcommands};
+use crate::{accountmanager::ManifestAccountLoadError};
 
 #[macro_use]
 extern crate lazy_static;
@@ -65,16 +65,15 @@ fn cli() -> App<'static> {
 				.help("Specify your encryption passkey.")
 				.takes_value(true)
 		)
-		// .subcommand(
-		// 	App::new("completion")
-		// 		.about("Generate shell completions")
-		// 		.arg(
-		// 			Arg::with_name("shell")
-		// 				.long("shell")
-		// 				.takes_value(true)
-		// 				.possible_values(&Shell::variants())
-		// 		)
-		// )
+		.subcommand(
+			App::new("completion")
+				.about("Generate shell completions")
+				.arg(
+					Arg::with_name("shell")
+						.long("shell")
+						.takes_value(true)
+				)
+		)
 		.subcommand(
 			App::new("trade")
 				.about("Interactive interface for trade confirmations")
@@ -152,14 +151,9 @@ fn run() -> anyhow::Result<()> {
 		Some(cli::Subcommands::Debug(args)) => {
 			return do_subcmd_debug(args);
 		},
-		// Subcommand::Completions{shell} => {
-		// 	// cli().gen_completions_to(
-		// 	// 	"steamguard",
-		// 	// 	Shell::from_str(completion_matches.value_of("shell").unwrap()).unwrap(),
-		// 	// 	&mut std::io::stdout(),
-		// 	// );
-		// 	return Ok(());
-		// },
+		Some(cli::Subcommands::Completion(args)) => {
+			return do_subcmd_completion(args);
+		},
 		_ => {},
 	};
 
@@ -414,6 +408,12 @@ fn do_subcmd_debug(args: cli::ArgsDebug) -> anyhow::Result<()> {
 	if args.demo_conf_menu {
 		demos::demo_confirmation_menu();
 	}
+	return Ok(());
+}
+
+fn do_subcmd_completion(args: cli::ArgsCompletions) -> Result<(), anyhow::Error> {
+	let mut app = cli::Args::command_for_update();
+	clap_complete::generate(args.shell, &mut app, "steamguard", &mut std::io::stdout());
 	return Ok(());
 }
 

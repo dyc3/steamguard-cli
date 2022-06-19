@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use clap::Parser;
+use clap_complete::Shell;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(author, version, about = "Generate Steam 2FA codes and confirm Steam trades from the command line.", long_about = None)]
@@ -23,9 +24,7 @@ pub(crate) struct Args {
 #[derive(Debug, Clone, Parser)]
 pub(crate) enum Subcommands {
 	Debug(ArgsDebug),
-	// Completions {
-		// TODO: Add completions
-	// },
+	Completion(ArgsCompletions),
 	Setup(ArgsSetup),
 	Import(ArgsImport),
 	Trade(ArgsTrade),
@@ -76,6 +75,13 @@ impl FromStr for Verbosity {
 pub(crate) struct ArgsDebug {
 	#[clap(long, help = "Show an example confirmation menu using dummy data.")]
 	pub demo_conf_menu: bool
+}
+
+#[derive(Debug, Clone, Parser)]
+#[clap(about="Generate shell completions")]
+pub(crate) struct ArgsCompletions {
+	#[clap(arg_enum, help = "The shell to generate completions for.")]
+	pub shell: Shell,
 }
 
 #[derive(Debug, Clone, Parser)]
