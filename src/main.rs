@@ -1,5 +1,5 @@
 extern crate rpassword;
-use clap::{crate_version, App, Arg, ArgMatches, Parser, IntoApp};
+use clap::{Parser, IntoApp};
 use log::*;
 use std::{
 	io::{stdout, Write},
@@ -29,101 +29,6 @@ mod encryption;
 mod errors;
 mod tui;
 
-fn cli() -> App<'static> {
-	App::new("steamguard-cli")
-		.version(crate_version!())
-		.bin_name("steamguard")
-		.author("dyc3 (Carson McManus)")
-		.about("Generate Steam 2FA codes and confirm Steam trades from the command line.")
-		.arg(
-			Arg::with_name("username")
-				.long("username")
-				.short('u')
-				.takes_value(true)
-				.help("Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")
-				.conflicts_with("all")
-		)
-		.arg(
-			Arg::with_name("all")
-				.long("all")
-				.short('a')
-				.takes_value(false)
-				.help("Select all accounts in the manifest.")
-				.conflicts_with("username")
-		)
-		.arg(
-			Arg::with_name("mafiles-path")
-				.long("mafiles-path")
-				.short('m')
-				.default_value("~/maFiles")
-				.help("Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json.")
-		)
-		.arg(
-			Arg::with_name("passkey")
-				.long("passkey")
-				.short('p')
-				.help("Specify your encryption passkey.")
-				.takes_value(true)
-		)
-		.subcommand(
-			App::new("completion")
-				.about("Generate shell completions")
-				.arg(
-					Arg::with_name("shell")
-						.long("shell")
-						.takes_value(true)
-				)
-		)
-		.subcommand(
-			App::new("trade")
-				.about("Interactive interface for trade confirmations")
-				.arg(
-					Arg::with_name("accept-all")
-						.short('a')
-						.long("accept-all")
-						.takes_value(false)
-						.help("Accept all open trade confirmations. Does not open interactive interface.")
-				)
-				.arg(
-					Arg::with_name("fail-fast")
-						.takes_value(false)
-						.help("If submitting a confirmation response fails, exit immediately.")
-				)
-		)
-		.subcommand(
-			App::new("setup")
-			.about("Set up a new account with steamguard-cli")
-		)
-		.subcommand(
-			App::new("import")
-				.about("Import an account with steamguard already set up")
-				.arg(
-					Arg::with_name("files")
-						.required(true)
-						.multiple(true)
-				)
-		)
-		.subcommand(
-			App::new("remove")
-			.about("Remove the authenticator from an account.")
-		)
-		.subcommand(
-			App::new("encrypt")
-				.about("Encrypt maFiles.")
-		)
-		.subcommand(
-			App::new("decrypt")
-				.about("Decrypt maFiles.")
-		)
-		.subcommand(
-			App::new("debug")
-			.arg(
-				Arg::with_name("demo-conf-menu")
-				.takes_value(false)
-			)
-		)
-}
-
 fn main() {
 	std::process::exit(match run() {
 		Ok(_) => 0,
@@ -135,19 +40,17 @@ fn main() {
 }
 
 fn run() -> anyhow::Result<()> {
-	let new_args = cli::Args::parse();
-	info!("{:?}", new_args);
-
-	let matches = cli().get_matches();
+	let args = cli::Args::parse();
+	info!("{:?}", args);
 
 	stderrlog::new()
-		.verbosity(new_args.verbosity as usize)
+		.verbosity(args.verbosity as usize)
 		.module(module_path!())
 		.module("steamguard")
 		.init()
 		.unwrap();
 
-	match new_args.sub {
+	match args.sub {
 		Some(cli::Subcommands::Debug(args)) => {
 			return do_subcmd_debug(args);
 		},
@@ -157,7 +60,7 @@ fn run() -> anyhow::Result<()> {
 		_ => {},
 	};
 
-	let mafiles_dir = if let Some(mafiles_path) = &new_args.mafiles_path {
+	let mafiles_dir = if let Some(mafiles_path) = &args.mafiles_path {
 		mafiles_path.clone()
 	} else {
 		get_mafiles_dir()
@@ -185,7 +88,7 @@ fn run() -> anyhow::Result<()> {
 		manifest = accountmanager::Manifest::load(path.as_path())?;
 	}
 
-	let mut passkey: Option<String> = new_args.passkey.clone();
+	let mut passkey: Option<String> = args.passkey.clone();
 	manifest.submit_passkey(passkey);
 
 	loop {
@@ -216,7 +119,7 @@ fn run() -> anyhow::Result<()> {
 		}
 	}
 
-	match new_args.sub {
+	match args.sub {
 		Some(cli::Subcommands::Setup(args)) => {
 			return do_subcmd_setup(args, &mut manifest);
 		},
@@ -234,7 +137,7 @@ fn run() -> anyhow::Result<()> {
 
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
 	loop {
-		match get_selected_accounts(&new_args, &mut manifest) {
+		match get_selected_accounts(&args, &mut manifest) {
 			Ok(accounts) => {
 				selected_accounts = accounts;
 				break;
@@ -264,7 +167,7 @@ fn run() -> anyhow::Result<()> {
 			.collect::<Vec<String>>()
 	);
 
-	match new_args.sub {
+	match args.sub {
 		Some(cli::Subcommands::Trade(args)) => {
 			return do_subcmd_trade(args, &mut manifest, selected_accounts);
 		},
