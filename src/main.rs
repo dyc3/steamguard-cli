@@ -157,8 +157,8 @@ fn run() -> anyhow::Result<()> {
 		_ => {},
 	};
 
-	let mafiles_dir = if let Some(mafiles_path) = new_args.mafiles_path {
-		mafiles_path
+	let mafiles_dir = if let Some(mafiles_path) = &new_args.mafiles_path {
+		mafiles_path.clone()
 	} else {
 		get_mafiles_dir()
 	};
@@ -185,7 +185,7 @@ fn run() -> anyhow::Result<()> {
 		manifest = accountmanager::Manifest::load(path.as_path())?;
 	}
 
-	let mut passkey: Option<String> = new_args.passkey;
+	let mut passkey: Option<String> = new_args.passkey.clone();
 	manifest.submit_passkey(passkey);
 
 	loop {
@@ -234,7 +234,7 @@ fn run() -> anyhow::Result<()> {
 
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
 	loop {
-		match get_selected_accounts(&matches, &mut manifest) {
+		match get_selected_accounts(&new_args, &mut manifest) {
 			Ok(accounts) => {
 				selected_accounts = accounts;
 				break;
@@ -283,19 +283,19 @@ fn run() -> anyhow::Result<()> {
 }
 
 fn get_selected_accounts(
-	matches: &ArgMatches,
+	args: &cli::Args,
 	manifest: &mut accountmanager::Manifest,
 ) -> anyhow::Result<Vec<Arc<Mutex<SteamGuardAccount>>>, ManifestAccountLoadError> {
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
 
-	if matches.is_present("all") {
+	if args.all {
 		manifest.load_accounts()?;
 		for entry in &manifest.entries {
 			selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
 		}
 	} else {
-		let entry = if matches.is_present("username") {
-			manifest.get_entry(&matches.value_of("username").unwrap().into())
+		let entry = if let Some(username) = &args.username {
+			manifest.get_entry(&username)
 		} else {
 			manifest
 				.entries
