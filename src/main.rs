@@ -150,10 +150,7 @@ fn run() -> anyhow::Result<()> {
 
 	match new_args.sub {
 		Some(cli::Subcommands::Debug(args)) => {
-			if args.demo_conf_menu {
-				demos::demo_confirmation_menu();
-			}
-			return Ok(());
+			return do_subcmd_debug(args);
 		},
 		// Subcommand::Completions{shell} => {
 		// 	// cli().gen_completions_to(
@@ -411,6 +408,13 @@ fn get_mafiles_dir() -> String {
 	}
 
 	return paths[0].to_str().unwrap().into();
+}
+
+fn do_subcmd_debug(args: cli::ArgsDebug) -> anyhow::Result<()> {
+	if args.demo_conf_menu {
+		demos::demo_confirmation_menu();
+	}
+	return Ok(());
 }
 
 fn do_subcmd_setup(args: cli::ArgsSetup, manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
