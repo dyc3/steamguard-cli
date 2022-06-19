@@ -5,9 +5,9 @@ use clap_complete::Shell;
 #[derive(Debug, Clone, Parser)]
 #[clap(name="steamguard-cli", bin_name="steamguard", author, version, about = "Generate Steam 2FA codes and confirm Steam trades from the command line.", long_about = None)]
 pub(crate) struct Args {
-	#[clap(short, long, help = "Steam username, case-sensitive.", long_help = "Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")]
+	#[clap(short, long, conflicts_with="all", help = "Steam username, case-sensitive.", long_help = "Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected.")]
 	pub username: Option<String>,
-	#[clap(short, long, help = "Select all accounts in the manifest.")]
+	#[clap(short, long, conflicts_with="username", help = "Select all accounts in the manifest.")]
 	pub all: bool,
 	/// The path to the maFiles directory.
 	#[clap(short, long, help = "Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json. Default: ~/.config/steamguard-cli/maFiles")]
