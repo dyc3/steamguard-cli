@@ -168,20 +168,19 @@ fn run() -> anyhow::Result<()> {
 			.collect::<Vec<String>>()
 	);
 
-	match args.sub {
-		Some(cli::Subcommands::Trade(args)) => {
+	match args.sub.unwrap_or(cli::Subcommands::Code(args.code)) {
+		cli::Subcommands::Trade(args) => {
 			return do_subcmd_trade(args, &mut manifest, selected_accounts);
 		}
-		Some(cli::Subcommands::Remove(args)) => {
+		cli::Subcommands::Remove(args) => {
 			return do_subcmd_remove(args, &mut manifest, selected_accounts);
 		}
-		Some(s) => {
+		cli::Subcommands::Code(args) => {
+			return do_subcmd_code(args, selected_accounts);
+		}
+		s => {
 			error!("Unknown subcommand: {:?}", s);
 			return Err(errors::UserError::UnknownSubcommand.into());
-		}
-		_ => {
-			debug!("No subcommand given, assuming user wants a 2fa code");
-			return do_subcmd_code(args.into(), selected_accounts);
 		}
 	}
 }
