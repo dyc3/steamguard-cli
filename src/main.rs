@@ -261,7 +261,7 @@ fn do_login_impl(
 			}
 			Err(LoginError::Need2FA) => match account {
 				Some(a) => {
-					let server_time = steamapi::get_server_time();
+					let server_time = steamapi::get_server_time()?.server_time;
 					login.twofactor_code = a.generate_code(server_time);
 				}
 				None => {
@@ -663,7 +663,7 @@ fn do_subcmd_decrypt(
 }
 
 fn do_subcmd_code(selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
-	let server_time = steamapi::get_server_time();
+	let server_time = steamapi::get_server_time()?.server_time;
 	debug!("Time used to generate codes: {}", server_time);
 	for account in selected_accounts {
 		info!(
