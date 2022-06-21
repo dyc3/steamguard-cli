@@ -1,6 +1,7 @@
 extern crate rpassword;
 use clap::{IntoApp, Parser};
 use log::*;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
 	io::{stdout, Write},
 	path::Path,
@@ -180,7 +181,7 @@ fn run() -> anyhow::Result<()> {
 		}
 		_ => {
 			debug!("No subcommand given, assuming user wants a 2fa code");
-			return do_subcmd_code(selected_accounts);
+			return do_subcmd_code(args.into(), selected_accounts);
 		}
 	}
 }
@@ -662,8 +663,15 @@ fn do_subcmd_decrypt(
 	return Ok(());
 }
 
-fn do_subcmd_code(selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
-	let server_time = steamapi::get_server_time()?.server_time;
+fn do_subcmd_code(
+	args: cli::ArgsCode,
+	selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+) -> anyhow::Result<()> {
+	let server_time = if args.offline {
+		SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
+	} else {
+		steamapi::get_server_time()?.server_time
+	};
 	debug!("Time used to generate codes: {}", server_time);
 	for account in selected_accounts {
 		info!(
