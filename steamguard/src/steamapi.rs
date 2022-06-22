@@ -113,17 +113,53 @@ impl SerializableSecret for Session {}
 impl CloneableSecret for Session {}
 impl DebugSecret for Session {}
 
-pub fn get_server_time() -> i64 {
+/// Represents the response from `/ITwoFactorService/QueryTime/v0001`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryTimeResponse {
+	/// The time that the server will use to check your two factor code.
+	#[serde(deserialize_with = "parse_json_string_as_number")]
+	pub server_time: u64,
+	#[serde(deserialize_with = "parse_json_string_as_number")]
+	pub skew_tolerance_seconds: u64,
+	#[serde(deserialize_with = "parse_json_string_as_number")]
+	pub large_time_jink: u64,
+	pub probe_frequency_seconds: u64,
+	pub adjusted_time_probe_frequency_seconds: u64,
+	pub hint_probe_frequency_seconds: u64,
+	pub sync_timeout: u64,
+	pub try_again_seconds: u64,
+	pub max_attempts: u64,
+}
+
+/// Queries Steam for the current time.
+///
+/// Endpoint: `/ITwoFactorService/QueryTime/v0001`
+///
+/// Example Response:
+/// ```json
+/// {
+///   "response": {
+///     "server_time": "1655768666",
+///     "skew_tolerance_seconds": "60",
+///     "large_time_jink": "86400",
+///     "probe_frequency_seconds": 3600,
+///     "adjusted_time_probe_frequency_seconds": 300,
+///     "hint_probe_frequency_seconds": 60,
+///     "sync_timeout": 60,
+///     "try_again_seconds": 900,
+///     "max_attempts": 3
+///   }
+/// }
+/// ```
+pub fn get_server_time() -> anyhow::Result<QueryTimeResponse> {
 	let client = reqwest::blocking::Client::new();
 	let resp = client
 		.post("https://api.steampowered.com/ITwoFactorService/QueryTime/v0001")
 		.body("steamid=0")
-		.send();
-	let value: serde_json::Value = resp.unwrap().json().unwrap();
+		.send()?;
+	let resp: SteamApiResponse<QueryTimeResponse> = resp.json()?;
 
-	return String::from(value["response"]["server_time"].as_str().unwrap())
-		.parse()
-		.unwrap();
+	return Ok(resp.response);
 }
 
 /// Provides raw access to the Steam API. Handles cookies, some deserialization, etc. to make it easier. It covers `ITwoFactorService` from the Steam web API, and some mobile app specific api endpoints.
@@ -457,7 +493,7 @@ impl SteamApiClient {
 		&self,
 		sms_code: String,
 		code_2fa: String,
-		time_2fa: i64,
+		time_2fa: u64,
 	) -> anyhow::Result<FinalizeAddAuthenticatorResponse> {
 		ensure!(matches!(self.session, Some(_)));
 		let params = hashmap! {

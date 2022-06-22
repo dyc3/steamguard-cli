@@ -82,7 +82,7 @@ impl AccountLinker {
 		account: &mut SteamGuardAccount,
 		sms_code: String,
 	) -> anyhow::Result<(), FinalizeLinkError> {
-		let time = crate::steamapi::get_server_time();
+		let time = crate::steamapi::get_server_time()?.server_time;
 		let code = account.generate_code(time);
 		let resp: FinalizeAddAuthenticatorResponse =
 			self.client

@@ -1,6 +1,7 @@
 extern crate rpassword;
 use clap::{IntoApp, Parser};
 use log::*;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
 	io::{stdout, Write},
 	path::Path,
@@ -167,20 +168,19 @@ fn run() -> anyhow::Result<()> {
 			.collect::<Vec<String>>()
 	);
 
-	match args.sub {
-		Some(cli::Subcommands::Trade(args)) => {
+	match args.sub.unwrap_or(cli::Subcommands::Code(args.code)) {
+		cli::Subcommands::Trade(args) => {
 			return do_subcmd_trade(args, &mut manifest, selected_accounts);
 		}
-		Some(cli::Subcommands::Remove(args)) => {
+		cli::Subcommands::Remove(args) => {
 			return do_subcmd_remove(args, &mut manifest, selected_accounts);
 		}
-		Some(s) => {
+		cli::Subcommands::Code(args) => {
+			return do_subcmd_code(args, selected_accounts);
+		}
+		s => {
 			error!("Unknown subcommand: {:?}", s);
 			return Err(errors::UserError::UnknownSubcommand.into());
-		}
-		_ => {
-			debug!("No subcommand given, assuming user wants a 2fa code");
-			return do_subcmd_code(selected_accounts);
 		}
 	}
 }
@@ -261,7 +261,7 @@ fn do_login_impl(
 			}
 			Err(LoginError::Need2FA) => match account {
 				Some(a) => {
-					let server_time = steamapi::get_server_time();
+					let server_time = steamapi::get_server_time()?.server_time;
 					login.twofactor_code = a.generate_code(server_time);
 				}
 				None => {
@@ -662,8 +662,15 @@ fn do_subcmd_decrypt(
 	return Ok(());
 }
 
-fn do_subcmd_code(selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>) -> anyhow::Result<()> {
-	let server_time = steamapi::get_server_time();
+fn do_subcmd_code(
+	args: cli::ArgsCode,
+	selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+) -> anyhow::Result<()> {
+	let server_time = if args.offline {
+		SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
+	} else {
+		steamapi::get_server_time()?.server_time
+	};
 	debug!("Time used to generate codes: {}", server_time);
 	for account in selected_accounts {
 		info!(

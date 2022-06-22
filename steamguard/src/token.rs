@@ -18,14 +18,14 @@ impl TwoFactorSecret {
 	}
 
 	/// Generate a 5 character 2FA code to that can be used to log in to Steam.
-	pub fn generate_code(&self, time: i64) -> String {
+	pub fn generate_code(&self, time: u64) -> String {
 		let steam_guard_code_translations: [u8; 26] = [
 			50, 51, 52, 53, 54, 55, 56, 57, 66, 67, 68, 70, 71, 72, 74, 75, 77, 78, 80, 81, 82, 84,
 			86, 87, 88, 89,
 		];
 
 		// this effectively makes it so that it creates a new code every 30 seconds.
-		let time_bytes: [u8; 8] = build_time_bytes(time / 30i64);
+		let time_bytes: [u8; 8] = build_time_bytes(time / 30u64);
 		let hashed_data = hmacsha1::hmac_sha1(self.0.expose_secret(), &time_bytes);
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
@@ -70,7 +70,7 @@ impl PartialEq for TwoFactorSecret {
 
 impl Eq for TwoFactorSecret {}
 
-fn build_time_bytes(time: i64) -> [u8; 8] {
+fn build_time_bytes(time: u64) -> [u8; 8] {
 	return time.to_be_bytes();
 }
 
@@ -104,7 +104,7 @@ mod tests {
 		let secret: FooBar =
 			serde_json::from_str(&"{\"secret\":\"zvIayp3JPvtvX/QGHqsqKBk/44s=\"}")?;
 
-		let code = secret.secret.generate_code(1616374841i64);
+		let code = secret.secret.generate_code(1616374841u64);
 		assert_eq!(code, "2F9J5");
 
 		return Ok(());
@@ -130,7 +130,7 @@ mod tests {
 
 	#[test]
 	fn test_build_time_bytes() {
-		let t1 = build_time_bytes(1617591917i64);
+		let t1 = build_time_bytes(1617591917u64);
 		let t2: [u8; 8] = [0, 0, 0, 0, 96, 106, 126, 109];
 		assert!(
 			t1.iter().zip(t2.iter()).all(|(a, b)| a == b),
@@ -143,7 +143,7 @@ mod tests {
 	fn test_generate_code() -> anyhow::Result<()> {
 		let secret = TwoFactorSecret::parse_shared_secret("zvIayp3JPvtvX/QGHqsqKBk/44s=".into())?;
 
-		let code = secret.generate_code(1616374841i64);
+		let code = secret.generate_code(1616374841u64);
 		assert_eq!(code, "2F9J5");
 		return Ok(());
 	}

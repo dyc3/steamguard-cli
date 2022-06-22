@@ -34,6 +34,9 @@ pub(crate) struct Args {
 
 	#[clap(subcommand)]
 	pub sub: Option<Subcommands>,
+
+	#[clap(flatten)]
+	pub code: ArgsCode,
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -46,6 +49,7 @@ pub(crate) enum Subcommands {
 	Remove(ArgsRemove),
 	Encrypt(ArgsEncrypt),
 	Decrypt(ArgsDecrypt),
+	Code(ArgsCode),
 }
 
 #[derive(Debug, Clone, Copy, ArgEnum)]
@@ -143,3 +147,21 @@ pub(crate) struct ArgsEncrypt;
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Decrypt all maFiles")]
 pub(crate) struct ArgsDecrypt;
+
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Generate 2FA codes")]
+pub(crate) struct ArgsCode {
+	#[clap(
+		long,
+		help = "Assume the computer's time is correct. Don't ask Steam for the time when generating codes."
+	)]
+	pub offline: bool,
+}
+
+// HACK: the derive API doesn't support default subcommands, so we are going to make it so that it'll be easier to switch over when it's implemented.
+// See: https://github.com/clap-rs/clap/issues/3857
+impl From<Args> for ArgsCode {
+	fn from(args: Args) -> Self {
+		args.code
+	}
+}
