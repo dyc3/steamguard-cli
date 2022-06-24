@@ -33,7 +33,7 @@ serde_json = "1.0"
 rsa = "0.5.0"
 rand = "0.8.4"
 standback = "0.2.17" # required to fix a compilation error on a transient dependency
-clap = { version = "3.1.18", features = ["derive", "cargo"] }
+clap = { version = "3.1.18", features = ["derive", "cargo", "env"] }
 clap_complete = "3.2.1"
 log = "0.4.14"
 stderrlog = "0.4"
