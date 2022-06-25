@@ -1945,7 +1945,6 @@ dependencies = [
  "stderrlog",
  "steamguard",
  "tempdir",
- "termion",
  "text_io",
  "thiserror",
  "uuid",
