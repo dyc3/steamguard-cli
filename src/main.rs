@@ -1,5 +1,6 @@
 extern crate rpassword;
 use clap::{IntoApp, Parser};
+use crossterm::tty::IsTty;
 use log::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
@@ -7,7 +8,6 @@ use std::{
 	path::Path,
 	sync::{Arc, Mutex},
 };
-use crossterm::tty::IsTty;
 use steamguard::{
 	steamapi, AccountLinkError, AccountLinker, Confirmation, ExposeSecret, FinalizeLinkError,
 	LoginError, SteamGuardAccount, UserLogin,
