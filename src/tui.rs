@@ -1,14 +1,16 @@
+use crossterm::{
+	cursor,
+	event::{Event, KeyCode, KeyEvent, KeyModifiers},
+	execute,
+	style::{Color, Print, PrintStyledContent, SetForegroundColor, Stylize},
+	terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+	QueueableCommand,
+};
 use log::*;
 use regex::Regex;
 use std::collections::HashSet;
-use std::io::{Read, Write};
+use std::io::{stdout, Write};
 use steamguard::Confirmation;
-use termion::{
-	event::{Event, Key},
-	input::TermRead,
-	raw::IntoRawMode,
-	screen::AlternateScreen,
-};
 
 lazy_static! {
 	static ref CAPTCHA_VALID_CHARS: Regex =
@@ -38,16 +40,26 @@ fn test_validate_captcha_text() {
 }
 
 /// Prompt the user for text input.
-pub fn prompt() -> String {
-	let mut text = String::new();
-	let _ = std::io::stdout().flush();
-	std::io::stdin()
-		.read_line(&mut text)
-		.expect("Did not enter a correct string");
-	return String::from(text.strip_suffix('\n').unwrap());
+pub(crate) fn prompt() -> String {
+	stdout().flush().unwrap();
+
+	let mut line = String::new();
+	while let Event::Key(KeyEvent { code, .. }) = crossterm::event::read().unwrap() {
+		match code {
+			KeyCode::Enter => {
+				break;
+			}
+			KeyCode::Char(c) => {
+				line.push(c);
+			}
+			_ => {}
+		}
+	}
+
+	line
 }
 
-pub fn prompt_captcha_text(captcha_gid: &String) -> String {
+pub(crate) fn prompt_captcha_text(captcha_gid: &String) -> String {
 	println!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
 	let mut captcha_text;
 	loop {
@@ -64,11 +76,21 @@ pub fn prompt_captcha_text(captcha_gid: &String) -> String {
 /// Prompt the user for a single character response. Useful for asking yes or no questions.
 ///
 /// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.
-pub fn prompt_char(text: &str, chars: &str) -> char {
-	return prompt_char_impl(&mut std::io::stdin(), text, chars);
+pub(crate) fn prompt_char(text: &str, chars: &str) -> char {
+	loop {
+		let _ = stdout().queue(Print(format!("{} [{}] ", text, chars)));
+		let _ = stdout().flush();
+		let input = prompt();
+		if let Ok(c) = prompt_char_impl(input, chars) {
+			return c;
+		}
+	}
 }
 
-fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
+fn prompt_char_impl<T>(input: T, chars: &str) -> anyhow::Result<char>
+where
+	T: Into<String>,
+{
 	let uppers = chars.replace(char::is_lowercase, "");
 	if uppers.len() > 1 {
 		panic!("Invalid chars for prompt_char. Maximum 1 uppercase letter is allowed.");
@@ -79,141 +101,162 @@ fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
 		None
 	};
 
-	loop {
-		print!("{} [{}] ", text, chars);
-		let _ = std::io::stdout().flush();
-		let answer = input
-			.read_line()
-			.expect("Unable to read input")
-			.unwrap()
-			.to_ascii_lowercase();
-		if answer.len() == 0 {
-			if let Some(a) = default_answer {
-				return a;
-			}
-		} else if answer.len() > 1 {
-			continue;
-		}
+	let answer: String = input.into().to_ascii_lowercase();
 
-		let answer_char = answer.chars().collect::<Vec<char>>()[0];
-		if chars.to_ascii_lowercase().contains(answer_char) {
-			return answer_char;
+	if answer.len() == 0 {
+		if let Some(a) = default_answer {
+			return Ok(a);
+		} else {
+			bail!("no valid answer")
 		}
+	} else if answer.len() > 1 {
+		bail!("answer too long")
 	}
+
+	let answer_char = answer.chars().collect::<Vec<char>>()[0];
+	if chars.to_ascii_lowercase().contains(answer_char) {
+		return Ok(answer_char);
+	}
+
+	bail!("no valid answer")
 }
 
 /// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
-pub fn prompt_confirmation_menu(
+pub(crate) fn prompt_confirmation_menu(
 	confirmations: Vec<Confirmation>,
-) -> (Vec<Confirmation>, Vec<Confirmation>) {
-	println!("press a key other than enter to show the menu.");
+) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
 	let mut to_accept_idx: HashSet<usize> = HashSet::new();
 	let mut to_deny_idx: HashSet<usize> = HashSet::new();
 
-	let mut screen = AlternateScreen::from(std::io::stdout().into_raw_mode().unwrap());
-	let stdin = std::io::stdin();
+	execute!(stdout(), EnterAlternateScreen)?;
+	crossterm::terminal::enable_raw_mode()?;
 
 	let mut selected_idx = 0;
 
-	for c in stdin.events() {
-		match c.expect("could not get events") {
-			Event::Key(Key::Char('a')) => {
+	loop {
+		execute!(
+			stdout(),
+			Clear(ClearType::All),
+			cursor::MoveTo(1, 1),
+			PrintStyledContent(
+				"arrow keys to select, [a]ccept, [d]eny, [i]gnore, [enter] confirm choices\n\n"
+					.white()
+			),
+		)?;
+
+		for i in 0..confirmations.len() {
+			stdout().queue(Print("\r"))?;
+			if selected_idx == i {
+				stdout().queue(SetForegroundColor(Color::Yellow))?;
+				stdout().queue(Print(" >"))?;
+			} else {
+				stdout().queue(SetForegroundColor(Color::White))?;
+				stdout().queue(Print("  "))?;
+			}
+
+			if to_accept_idx.contains(&i) {
+				stdout().queue(SetForegroundColor(Color::Green))?;
+				stdout().queue(Print("[a]"))?;
+			} else if to_deny_idx.contains(&i) {
+				stdout().queue(SetForegroundColor(Color::Red))?;
+				stdout().queue(Print("[d]"))?;
+			} else {
+				stdout().queue(Print("[ ]"))?;
+			}
+
+			if selected_idx == i {
+				stdout().queue(SetForegroundColor(Color::Yellow))?;
+			}
+
+			stdout().queue(Print(format!(" {}\n", confirmations[i].description())))?;
+		}
+
+		stdout().flush()?;
+
+		match crossterm::event::read()? {
+			Event::Resize(_, _) => continue,
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('a'),
+				..
+			}) => {
 				to_accept_idx.insert(selected_idx);
 				to_deny_idx.remove(&selected_idx);
 			}
-			Event::Key(Key::Char('d')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('d'),
+				..
+			}) => {
 				to_accept_idx.remove(&selected_idx);
 				to_deny_idx.insert(selected_idx);
 			}
-			Event::Key(Key::Char('i')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('i'),
+				..
+			}) => {
 				to_accept_idx.remove(&selected_idx);
 				to_deny_idx.remove(&selected_idx);
 			}
-			Event::Key(Key::Char('A')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('A'),
+				..
+			}) => {
 				(0..confirmations.len()).for_each(|i| {
 					to_accept_idx.insert(i);
 					to_deny_idx.remove(&i);
 				});
 			}
-			Event::Key(Key::Char('D')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('D'),
+				..
+			}) => {
 				(0..confirmations.len()).for_each(|i| {
 					to_accept_idx.remove(&i);
 					to_deny_idx.insert(i);
 				});
 			}
-			Event::Key(Key::Char('I')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('I'),
+				..
+			}) => {
 				(0..confirmations.len()).for_each(|i| {
 					to_accept_idx.remove(&i);
 					to_deny_idx.remove(&i);
 				});
 			}
-			Event::Key(Key::Up) if selected_idx > 0 => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Up, ..
+			}) if selected_idx > 0 => {
 				selected_idx -= 1;
 			}
-			Event::Key(Key::Down) if selected_idx < confirmations.len() - 1 => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Down,
+				..
+			}) if selected_idx < confirmations.len() - 1 => {
 				selected_idx += 1;
 			}
-			Event::Key(Key::Char('\n')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Enter,
+				..
+			}) => {
 				break;
 			}
-			Event::Key(Key::Esc) | Event::Key(Key::Ctrl('c')) => {
-				return (vec![], vec![]);
+			Event::Key(KeyEvent {
+				code: KeyCode::Esc, ..
+			})
+			| Event::Key(KeyEvent {
+				code: KeyCode::Char('c'),
+				modifiers: KeyModifiers::CONTROL,
+			}) => {
+				return Ok((vec![], vec![]));
 			}
 			_ => {}
 		}
-
-		write!(
-			screen,
-			"{}{}{}arrow keys to select, [a]ccept, [d]eny, [i]gnore, [enter] confirm choices\n\n",
-			termion::clear::All,
-			termion::cursor::Goto(1, 1),
-			termion::color::Fg(termion::color::White)
-		)
-		.unwrap();
-		for i in 0..confirmations.len() {
-			if selected_idx == i {
-				write!(
-					screen,
-					"\r{} >",
-					termion::color::Fg(termion::color::LightYellow)
-				)
-				.unwrap();
-			} else {
-				write!(screen, "\r{}  ", termion::color::Fg(termion::color::White)).unwrap();
-			}
-
-			if to_accept_idx.contains(&i) {
-				write!(
-					screen,
-					"{}[a]",
-					termion::color::Fg(termion::color::LightGreen)
-				)
-				.unwrap();
-			} else if to_deny_idx.contains(&i) {
-				write!(
-					screen,
-					"{}[d]",
-					termion::color::Fg(termion::color::LightRed)
-				)
-				.unwrap();
-			} else {
-				write!(screen, "[ ]").unwrap();
-			}
-
-			if selected_idx == i {
-				write!(
-					screen,
-					"{}",
-					termion::color::Fg(termion::color::LightYellow)
-				)
-				.unwrap();
-			}
-
-			write!(screen, " {}\n", confirmations[i].description()).unwrap();
-		}
 	}
 
-	return (
+	execute!(stdout(), LeaveAlternateScreen)?;
+	crossterm::terminal::disable_raw_mode()?;
+
+	return Ok((
 		to_accept_idx
 			.iter()
 			.map(|i| confirmations[*i].clone())
@@ -222,14 +265,18 @@ pub fn prompt_confirmation_menu(
 			.iter()
 			.map(|i| confirmations[*i].clone())
 			.collect(),
-	);
+	));
 }
 
-pub fn pause() {
+pub(crate) fn pause() {
 	println!("Press any key to continue...");
-	let mut stdout = std::io::stdout().into_raw_mode().unwrap();
-	stdout.flush().unwrap();
-	std::io::stdin().events().next();
+	let _ = stdout().flush();
+	loop {
+		match crossterm::event::read().expect("could not read terminal events") {
+			Event::Key(_) => break,
+			_ => continue,
+		}
+	}
 }
 
 #[cfg(test)]
@@ -238,36 +285,33 @@ mod prompt_char_tests {
 
 	#[test]
 	fn test_gives_answer() {
-		let inputs = ['y', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
+		let answer = prompt_char_impl("y", "yn").unwrap();
 		assert_eq!(answer, 'y');
 	}
 
 	#[test]
 	fn test_gives_default() {
-		let inputs = ['\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "Yn");
+		let answer = prompt_char_impl("", "Yn").unwrap();
 		assert_eq!(answer, 'y');
 	}
 
 	#[test]
 	fn test_should_not_give_default() {
-		let inputs = ['n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "Yn");
+		let answer = prompt_char_impl("n", "Yn").unwrap();
 		assert_eq!(answer, 'n');
 	}
 
 	#[test]
 	fn test_should_not_give_invalid() {
-		let inputs = ['g', '\n', 'n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
+		let answer = prompt_char_impl("g", "yn");
+		assert!(matches!(answer, Err(_)));
+		let answer = prompt_char_impl("n", "yn").unwrap();
 		assert_eq!(answer, 'n');
 	}
 
 	#[test]
 	fn test_should_not_give_multichar() {
-		let inputs = ['y', 'y', '\n', 'n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
-		assert_eq!(answer, 'n');
+		let answer = prompt_char_impl("yy", "yn");
+		assert!(matches!(answer, Err(_)));
 	}
 }

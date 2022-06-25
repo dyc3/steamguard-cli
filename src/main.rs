@@ -1,5 +1,6 @@
 extern crate rpassword;
 use clap::{IntoApp, Parser};
+use crossterm::tty::IsTty;
 use log::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
@@ -28,7 +29,7 @@ mod cli;
 mod demos;
 mod encryption;
 mod errors;
-mod tui;
+pub(crate) mod tui;
 
 fn main() {
 	std::process::exit(match run() {
@@ -329,6 +330,12 @@ fn load_accounts_with_prompts(manifest: &mut accountmanager::Manifest) -> anyhow
 }
 
 fn do_subcmd_debug(args: cli::ArgsDebug) -> anyhow::Result<()> {
+	if args.demo_prompt {
+		demos::demo_prompt();
+	}
+	if args.demo_prompt_char {
+		demos::demo_prompt_char();
+	}
 	if args.demo_conf_menu {
 		demos::demo_confirmation_menu();
 	}
@@ -516,8 +523,8 @@ fn do_subcmd_trade(
 				}
 			}
 		} else {
-			if termion::is_tty(&stdout()) {
-				let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
+			if stdout().is_tty() {
+				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
 				for conf in &accept {
 					let result = account.accept_confirmation(conf);
 					if result.is_err() {
