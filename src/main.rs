@@ -7,6 +7,7 @@ use std::{
 	path::Path,
 	sync::{Arc, Mutex},
 };
+use crossterm::tty::IsTty;
 use steamguard::{
 	steamapi, AccountLinkError, AccountLinker, Confirmation, ExposeSecret, FinalizeLinkError,
 	LoginError, SteamGuardAccount, UserLogin,
@@ -522,7 +523,7 @@ fn do_subcmd_trade(
 				}
 			}
 		} else {
-			if termion::is_tty(&stdout()) {
+			if stdout().is_tty() {
 				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
 				for conf in &accept {
 					let result = account.accept_confirmation(conf);
