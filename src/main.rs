@@ -517,7 +517,7 @@ fn do_subcmd_trade(
 			}
 		} else {
 			if termion::is_tty(&stdout()) {
-				let (accept, deny) = tui::prompt_confirmation_menu(confirmations);
+				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
 				for conf in &accept {
 					let result = account.accept_confirmation(conf);
 					if result.is_err() {

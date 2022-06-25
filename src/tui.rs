@@ -1,14 +1,17 @@
+use crossterm::{
+	cursor,
+	event::{Event, KeyCode, KeyEvent, KeyModifiers},
+	execute,
+	style::{Print, PrintStyledContent, Stylize, Color, SetForegroundColor},
+	terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+	QueueableCommand,
+};
 use log::*;
 use regex::Regex;
 use std::collections::HashSet;
-use std::io::{Read, Write};
+use std::io::{stdin, stdout, Read, Write};
 use steamguard::Confirmation;
-use termion::{
-	event::{Event, Key},
-	input::TermRead,
-	raw::IntoRawMode,
-	screen::AlternateScreen,
-};
+use termion::{input::TermRead, raw::IntoRawMode};
 
 lazy_static! {
 	static ref CAPTCHA_VALID_CHARS: Regex =
@@ -105,115 +108,139 @@ fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
 /// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
 pub(crate) fn prompt_confirmation_menu(
 	confirmations: Vec<Confirmation>,
-) -> (Vec<Confirmation>, Vec<Confirmation>) {
-	println!("press a key other than enter to show the menu.");
+) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
 	let mut to_accept_idx: HashSet<usize> = HashSet::new();
 	let mut to_deny_idx: HashSet<usize> = HashSet::new();
 
-	let mut screen = AlternateScreen::from(std::io::stdout().into_raw_mode().unwrap());
-	let stdin = std::io::stdin();
+	execute!(stdout(), EnterAlternateScreen)?;
+	crossterm::terminal::enable_raw_mode()?;
 
 	let mut selected_idx = 0;
 
-	for c in stdin.events() {
-		match c.expect("could not get events") {
-			Event::Key(Key::Char('a')) => {
+	loop {
+		execute!(
+			stdout(),
+			Clear(ClearType::All),
+			cursor::MoveTo(1, 1),
+			PrintStyledContent(
+				"arrow keys to select, [a]ccept, [d]eny, [i]gnore, [enter] confirm choices\n\n"
+					.white()
+			),
+		)?;
+
+		for i in 0..confirmations.len() {
+			stdout().queue(Print("\r"))?;
+			if selected_idx == i {
+				stdout().queue(SetForegroundColor(Color::Yellow))?;
+				stdout().queue(Print(" >"))?;
+			} else {
+				stdout().queue(SetForegroundColor(Color::White))?;
+				stdout().queue(Print("  "))?;
+			}
+
+			if to_accept_idx.contains(&i) {
+				stdout().queue(SetForegroundColor(Color::Green))?;
+				stdout().queue(Print("[a]"))?;
+			} else if to_deny_idx.contains(&i) {
+				stdout().queue(SetForegroundColor(Color::Red))?;
+				stdout().queue(Print("[d]"))?;
+			} else {
+				stdout().queue(Print("[ ]"))?;
+			}
+
+			if selected_idx == i {
+				stdout().queue(SetForegroundColor(Color::Yellow))?;
+			}
+
+			stdout().queue(Print(format!(" {}\n", confirmations[i].description())))?;
+		}
+
+		stdout().flush()?;
+
+		match crossterm::event::read()? {
+			Event::Resize(_, _) => continue,
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('a'),
+				..
+			}) => {
 				to_accept_idx.insert(selected_idx);
 				to_deny_idx.remove(&selected_idx);
 			}
-			Event::Key(Key::Char('d')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('d'),
+				..
+			}) => {
 				to_accept_idx.remove(&selected_idx);
 				to_deny_idx.insert(selected_idx);
 			}
-			Event::Key(Key::Char('i')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('i'),
+				..
+			}) => {
 				to_accept_idx.remove(&selected_idx);
 				to_deny_idx.remove(&selected_idx);
 			}
-			Event::Key(Key::Char('A')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('A'),
+				..
+			}) => {
 				(0..confirmations.len()).for_each(|i| {
 					to_accept_idx.insert(i);
 					to_deny_idx.remove(&i);
 				});
 			}
-			Event::Key(Key::Char('D')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('D'),
+				..
+			}) => {
 				(0..confirmations.len()).for_each(|i| {
 					to_accept_idx.remove(&i);
 					to_deny_idx.insert(i);
 				});
 			}
-			Event::Key(Key::Char('I')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Char('I'),
+				..
+			}) => {
 				(0..confirmations.len()).for_each(|i| {
 					to_accept_idx.remove(&i);
 					to_deny_idx.remove(&i);
 				});
 			}
-			Event::Key(Key::Up) if selected_idx > 0 => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Up, ..
+			}) if selected_idx > 0 => {
 				selected_idx -= 1;
 			}
-			Event::Key(Key::Down) if selected_idx < confirmations.len() - 1 => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Down,
+				..
+			}) if selected_idx < confirmations.len() - 1 => {
 				selected_idx += 1;
 			}
-			Event::Key(Key::Char('\n')) => {
+			Event::Key(KeyEvent {
+				code: KeyCode::Enter,
+				..
+			}) => {
 				break;
 			}
-			Event::Key(Key::Esc) | Event::Key(Key::Ctrl('c')) => {
-				return (vec![], vec![]);
+			Event::Key(KeyEvent {
+				code: KeyCode::Esc, ..
+			})
+			| Event::Key(KeyEvent {
+				code: KeyCode::Char('c'),
+				modifiers: KeyModifiers::CONTROL,
+			}) => {
+				return Ok((vec![], vec![]));
 			}
 			_ => {}
 		}
-
-		write!(
-			screen,
-			"{}{}{}arrow keys to select, [a]ccept, [d]eny, [i]gnore, [enter] confirm choices\n\n",
-			termion::clear::All,
-			termion::cursor::Goto(1, 1),
-			termion::color::Fg(termion::color::White)
-		)
-		.unwrap();
-		for i in 0..confirmations.len() {
-			if selected_idx == i {
-				write!(
-					screen,
-					"\r{} >",
-					termion::color::Fg(termion::color::LightYellow)
-				)
-				.unwrap();
-			} else {
-				write!(screen, "\r{}  ", termion::color::Fg(termion::color::White)).unwrap();
-			}
-
-			if to_accept_idx.contains(&i) {
-				write!(
-					screen,
-					"{}[a]",
-					termion::color::Fg(termion::color::LightGreen)
-				)
-				.unwrap();
-			} else if to_deny_idx.contains(&i) {
-				write!(
-					screen,
-					"{}[d]",
-					termion::color::Fg(termion::color::LightRed)
-				)
-				.unwrap();
-			} else {
-				write!(screen, "[ ]").unwrap();
-			}
-
-			if selected_idx == i {
-				write!(
-					screen,
-					"{}",
-					termion::color::Fg(termion::color::LightYellow)
-				)
-				.unwrap();
-			}
-
-			write!(screen, " {}\n", confirmations[i].description()).unwrap();
-		}
 	}
 
-	return (
+	execute!(stdout(), LeaveAlternateScreen)?;
+	crossterm::terminal::disable_raw_mode()?;
+
+	return Ok((
 		to_accept_idx
 			.iter()
 			.map(|i| confirmations[*i].clone())
@@ -222,7 +249,7 @@ pub(crate) fn prompt_confirmation_menu(
 			.iter()
 			.map(|i| confirmations[*i].clone())
 			.collect(),
-	);
+	));
 }
 
 pub(crate) fn pause() {

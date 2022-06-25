@@ -33,6 +33,6 @@ pub fn demo_confirmation_menu() {
 			creator: 09870987,
 			description: "example confirmation".into(),
 		},
-	]);
+	]).expect("confirmation menu demo failed");
 	println!("accept: {}, deny: {}", accept.len(), deny.len());
 }
