@@ -285,36 +285,33 @@ mod prompt_char_tests {
 
 	#[test]
 	fn test_gives_answer() {
-		let inputs = ['y', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(inputs, "yn").unwrap();
+		let answer = prompt_char_impl("y", "yn").unwrap();
 		assert_eq!(answer, 'y');
 	}
 
 	#[test]
 	fn test_gives_default() {
-		let inputs = ['\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(inputs, "Yn").unwrap();
+		let answer = prompt_char_impl("", "Yn").unwrap();
 		assert_eq!(answer, 'y');
 	}
 
 	#[test]
 	fn test_should_not_give_default() {
-		let inputs = ['n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(inputs, "Yn").unwrap();
+		let answer = prompt_char_impl("n", "Yn").unwrap();
 		assert_eq!(answer, 'n');
 	}
 
 	#[test]
 	fn test_should_not_give_invalid() {
-		let inputs = ['g', '\n', 'n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(inputs, "yn").unwrap();
+		let answer = prompt_char_impl("g", "yn");
+		assert!(matches!(answer, Err(_)));
+		let answer = prompt_char_impl("n", "yn").unwrap();
 		assert_eq!(answer, 'n');
 	}
 
 	#[test]
 	fn test_should_not_give_multichar() {
-		let inputs = ['y', 'y', '\n', 'n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(inputs, "yn").unwrap();
-		assert_eq!(answer, 'n');
+		let answer = prompt_char_impl("yy", "yn");
+		assert!(matches!(answer, Err(_)));
 	}
 }
