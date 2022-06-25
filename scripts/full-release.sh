@@ -52,9 +52,10 @@ if [[ $DRY_RUN == false ]]; then
 fi
 if [[ $BUMP != "" ]]; then
 	params+=(--bump "$BUMP")
+	params+=(--bump-dependencies "$BUMP")
 fi
 if [[ $SKIP_CRATE_PUBLISH == true ]]; then
-	params+=(--skip-publish)
+	params+=(--no-publish)
 fi
 cargo smart-release --update-crates-index --no-changelog "${params[@]}"
 
