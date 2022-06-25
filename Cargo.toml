@@ -41,7 +41,7 @@ cookie = "0.14"
 regex = "1"
 lazy_static = "1.4.0"
 uuid = { version = "0.8", features = ["v4"] }
-steamguard = { version ="^0.4.2", path = "./steamguard" }
+steamguard = { path = "./steamguard" }
 dirs = "3.0.2"
 ring = "0.16.20"
 aes = "0.7.4"
