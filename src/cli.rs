@@ -27,7 +27,12 @@ pub(crate) struct Args {
 		help = "Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json. Default: ~/.config/steamguard-cli/maFiles"
 	)]
 	pub mafiles_path: Option<String>,
-	#[clap(short, long, help = "Specify your encryption passkey.")]
+	#[clap(
+		short,
+		long,
+		env = "STEAMGUARD_CLI_PASSKEY",
+		help = "Specify your encryption passkey."
+	)]
 	pub passkey: Option<String>,
 	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
 	pub verbosity: Verbosity,
