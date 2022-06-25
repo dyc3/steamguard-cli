@@ -2,16 +2,15 @@ use crossterm::{
 	cursor,
 	event::{Event, KeyCode, KeyEvent, KeyModifiers},
 	execute,
-	style::{Print, PrintStyledContent, Stylize, Color, SetForegroundColor},
+	style::{Color, Print, PrintStyledContent, SetForegroundColor, Stylize},
 	terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 	QueueableCommand,
 };
 use log::*;
 use regex::Regex;
 use std::collections::HashSet;
-use std::io::{stdin, stdout, Read, Write};
+use std::io::{stdout, Write};
 use steamguard::Confirmation;
-use termion::{input::TermRead, raw::IntoRawMode};
 
 lazy_static! {
 	static ref CAPTCHA_VALID_CHARS: Regex =
@@ -42,12 +41,22 @@ fn test_validate_captcha_text() {
 
 /// Prompt the user for text input.
 pub(crate) fn prompt() -> String {
-	let mut text = String::new();
-	let _ = std::io::stdout().flush();
-	std::io::stdin()
-		.read_line(&mut text)
-		.expect("Did not enter a correct string");
-	return String::from(text.strip_suffix('\n').unwrap());
+	stdout().flush().unwrap();
+
+	let mut line = String::new();
+	while let Event::Key(KeyEvent { code, .. }) = crossterm::event::read().unwrap() {
+		match code {
+			KeyCode::Enter => {
+				break;
+			}
+			KeyCode::Char(c) => {
+				line.push(c);
+			}
+			_ => {}
+		}
+	}
+
+	line
 }
 
 pub(crate) fn prompt_captcha_text(captcha_gid: &String) -> String {
@@ -68,10 +77,20 @@ pub(crate) fn prompt_captcha_text(captcha_gid: &String) -> String {
 ///
 /// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.
 pub(crate) fn prompt_char(text: &str, chars: &str) -> char {
-	return prompt_char_impl(&mut std::io::stdin(), text, chars);
+	loop {
+		let _ = stdout().queue(Print(format!("{} [{}] ", text, chars)));
+		let _ = stdout().flush();
+		let input = prompt();
+		if let Ok(c) = prompt_char_impl(input, chars) {
+			return c;
+		}
+	}
 }
 
-fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
+fn prompt_char_impl<T>(input: T, chars: &str) -> anyhow::Result<char>
+where
+	T: Into<String>,
+{
 	let uppers = chars.replace(char::is_lowercase, "");
 	if uppers.len() > 1 {
 		panic!("Invalid chars for prompt_char. Maximum 1 uppercase letter is allowed.");
@@ -82,27 +101,24 @@ fn prompt_char_impl(input: &mut impl Read, text: &str, chars: &str) -> char {
 		None
 	};
 
-	loop {
-		print!("{} [{}] ", text, chars);
-		let _ = std::io::stdout().flush();
-		let answer = input
-			.read_line()
-			.expect("Unable to read input")
-			.unwrap()
-			.to_ascii_lowercase();
-		if answer.len() == 0 {
-			if let Some(a) = default_answer {
-				return a;
-			}
-		} else if answer.len() > 1 {
-			continue;
-		}
+	let answer: String = input.into().to_ascii_lowercase();
 
-		let answer_char = answer.chars().collect::<Vec<char>>()[0];
-		if chars.to_ascii_lowercase().contains(answer_char) {
-			return answer_char;
+	if answer.len() == 0 {
+		if let Some(a) = default_answer {
+			return Ok(a);
+		} else {
+			bail!("no valid answer")
 		}
+	} else if answer.len() > 1 {
+		bail!("answer too long")
 	}
+
+	let answer_char = answer.chars().collect::<Vec<char>>()[0];
+	if chars.to_ascii_lowercase().contains(answer_char) {
+		return Ok(answer_char);
+	}
+
+	bail!("no valid answer")
 }
 
 /// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
@@ -254,9 +270,13 @@ pub(crate) fn prompt_confirmation_menu(
 
 pub(crate) fn pause() {
 	println!("Press any key to continue...");
-	let mut stdout = std::io::stdout().into_raw_mode().unwrap();
-	stdout.flush().unwrap();
-	std::io::stdin().events().next();
+	let _ = stdout().flush();
+	loop {
+		match crossterm::event::read().expect("could not read terminal events") {
+			Event::Key(_) => break,
+			_ => continue,
+		}
+	}
 }
 
 #[cfg(test)]
@@ -266,35 +286,35 @@ mod prompt_char_tests {
 	#[test]
 	fn test_gives_answer() {
 		let inputs = ['y', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
+		let answer = prompt_char_impl(inputs, "yn").unwrap();
 		assert_eq!(answer, 'y');
 	}
 
 	#[test]
 	fn test_gives_default() {
 		let inputs = ['\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "Yn");
+		let answer = prompt_char_impl(inputs, "Yn").unwrap();
 		assert_eq!(answer, 'y');
 	}
 
 	#[test]
 	fn test_should_not_give_default() {
 		let inputs = ['n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "Yn");
+		let answer = prompt_char_impl(inputs, "Yn").unwrap();
 		assert_eq!(answer, 'n');
 	}
 
 	#[test]
 	fn test_should_not_give_invalid() {
 		let inputs = ['g', '\n', 'n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
+		let answer = prompt_char_impl(inputs, "yn").unwrap();
 		assert_eq!(answer, 'n');
 	}
 
 	#[test]
 	fn test_should_not_give_multichar() {
 		let inputs = ['y', 'y', '\n', 'n', '\n'].iter().collect::<String>();
-		let answer = prompt_char_impl(&mut inputs.as_bytes(), "ligma balls", "yn");
+		let answer = prompt_char_impl(inputs, "yn").unwrap();
 		assert_eq!(answer, 'n');
 	}
 }

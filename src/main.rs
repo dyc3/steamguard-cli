@@ -329,6 +329,12 @@ fn load_accounts_with_prompts(manifest: &mut accountmanager::Manifest) -> anyhow
 }
 
 fn do_subcmd_debug(args: cli::ArgsDebug) -> anyhow::Result<()> {
+	if args.demo_prompt {
+		demos::demo_prompt();
+	}
+	if args.demo_prompt_char {
+		demos::demo_prompt_char();
+	}
 	if args.demo_conf_menu {
 		demos::demo_confirmation_menu();
 	}
