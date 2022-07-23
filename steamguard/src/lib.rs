@@ -184,15 +184,28 @@ impl SteamGuardAccount {
 			pub success: bool,
 		}
 
-		let resp: SendConfirmationResponse = client.get("https://steamcommunity.com/mobileconf/ajaxop".parse::<Url>().unwrap())
+		let resp = client.get("https://steamcommunity.com/mobileconf/ajaxop".parse::<Url>().unwrap())
 			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
 			.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
 			.header(COOKIE, cookies.cookies(&url).unwrap())
 			.query(&query_params)
-			.send()?
-			.json()?;
+			.send()?;
 
-		ensure!(resp.success);
+		trace!("send_confirmation_ajax() response: {:?}", &resp);
+		debug!(
+			"send_confirmation_ajax() response status code: {}",
+			&resp.status()
+		);
+
+		let raw = resp.text()?;
+		debug!("send_confirmation_ajax() response body: {:?}", &raw);
+
+		let body: SendConfirmationResponse = serde_json::from_str(raw.as_str())?;
+
+		if !body.success {
+			return Err(anyhow!("Server responded with failure."));
+		}
+
 		Ok(())
 	}
 
