@@ -1,7 +1,9 @@
 [workspace]
 
 members = [
-	"steamguard"
+	"steamguard",
+	"metalmann-cli",
+	"metalmann",
 ]
 
 [package]
