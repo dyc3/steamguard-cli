@@ -4,13 +4,12 @@ use anyhow::bail;
 use log::*;
 use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED};
 use serde::{Serialize, Deserialize};
-use serde_json::Value;
 
-use crate::{webapi, schema::IEconItemsResponse};
+use crate::{webapi, schema::IEconItemsResponse, tf2meta::Quality};
 
 #[derive(Debug, Clone)]
 pub struct Tf2Inventory {
-	items: Vec<Tf2InventoryItem>
+	pub items: Vec<Tf2InventoryItem>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,7 +25,7 @@ pub struct Tf2InventoryItem {
 	/// The number of "uses" an item has, generally only has a value in excess of '1' on "usable items", such as the Dueling Mini-Game.
 	quantity: u32,
 	origin: u32,
-	quality: Value,
+	quality: Quality,
 	/// A boolean value that is true if the item cannot be traded. Assume false if not present.
 	#[serde(default)]
 	flag_cannot_trade: bool,
