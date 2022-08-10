@@ -50,7 +50,7 @@ fn main() -> anyhow::Result<()> {
 
 	info!("inventory has {} items", inventory.items.len());
 	let inelligible_weapons = inventory.items.iter()
-		.filter(|item| item.is_weapon(&schema) && (item.quality != Quality::Unique || item.flag_cannot_craft || item.flag_cannot_trade || schema.get_schema_item(item.defindex).unwrap().name.starts_with("Festive")))
+		.filter(|item| item.is_weapon(&schema) && (item.quality != Quality::Unique || item.flag_cannot_craft || item.flag_cannot_trade || schema.get_item(item.defindex).unwrap().name.starts_with("Festive")))
 		.collect::<Vec<_>>();
 	info!("inventory has {} inelligible weapons (not craftable, not tradable, festive, or not unique)", inelligible_weapons.len());
 	let unique_weapons = inventory.items.iter()
@@ -64,19 +64,23 @@ fn main() -> anyhow::Result<()> {
 		if valuable_uniques.contains(&item.defindex) {
 			continue
 		}
-		if schema.get_schema_item(item.defindex).unwrap().name.starts_with("Festive") {
+		if schema.get_item(item.defindex).unwrap().name.starts_with("Festive") {
 			continue
 		}
 		quantities.entry(item.defindex).or_insert(Vec::new()).push(item)
 	}
 	for (defindex, items) in &quantities {
-		let schemaitem = schema.get_schema_item(*defindex).unwrap();
+		let schemaitem = schema.get_item(*defindex).unwrap();
 		println!("Item({}): {} - {}", defindex, schemaitem.name, items.len());
 	}
-	let dupes: HashMap<_, _> = quantities.iter().filter(|(defindex, items)| items.len() >= 2).collect();
-	println!("Duplicates, safe to craft into metal");
+	let mut dupes: HashMap<_, _> = quantities.iter().filter(|(defindex, items)| items.len() >= 2).collect();
+	// // remove an instance so that we keep 1 of each weapon
+	// for (defindex, items) in dupes.iter_mut() {
+	// 	items.truncate(items.len() - 1);
+	// }
+	println!("Duplicates - safe to craft into metal");
 	for (defindex, items) in &dupes {
-		let schemaitem = schema.get_schema_item(**defindex).unwrap();
+		let schemaitem = schema.get_item(**defindex).unwrap();
 		println!("Item({}): {} - {}", defindex, schemaitem.name, items.len());
 	}
 

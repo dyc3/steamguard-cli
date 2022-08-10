@@ -44,21 +44,39 @@ pub struct Tf2InventoryItem {
 	pub flag_cannot_craft: bool,
 	pub custom_name: Option<String>,
 	pub custom_desc: Option<String>,
-	pub attributes: Option<Vec<Tf2InventoryItemAttributes>>,
+	pub attributes: Option<Vec<Tf2InventoryItemAttribute>>,
 }
 
 impl Tf2InventoryItem {
 	pub fn get_schema_item(&self, schema: &Tf2Schema) -> Option<Tf2SchemaItem> {
-		schema.get_schema_item(self.defindex)
+		schema.get_item(self.defindex).cloned()
 	}
 
 	pub fn is_weapon(&self, schema: &Tf2Schema) -> bool {
 		matches!(self.get_schema_item(&schema).unwrap().item_slot, Some(ItemSlot::Primary | ItemSlot::Secondary | ItemSlot::Melee))
 	}
+
+	pub fn has_attribute(&self, defindex: u32) -> bool {
+		if let Some(attrs) = self.attributes.as_ref() {
+			return attrs.iter().find(|attr| attr.defindex == defindex).is_some()
+		}
+		false
+	}
+
+	pub fn get_attribute(&self, defindex: u32) -> Option<Tf2InventoryItemAttribute> {
+		if let Some(attrs) = self.attributes.as_ref() {
+			return attrs.iter().find(|attr| attr.defindex == defindex).cloned()
+		}
+		None
+	}
+
+	pub fn is_stattrak(&self) -> bool {
+		return self.has_attribute(719)
+	}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Tf2InventoryItemAttributes {
+pub struct Tf2InventoryItemAttribute {
 	/// The index to the attributes definition in the schema, e.g. 133 for the medal number attribute for the Gentle Manne's Service Medal.
 	defindex: u32,
 	value: Option<serde_json::Value>,
