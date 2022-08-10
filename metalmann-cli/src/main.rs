@@ -2,7 +2,7 @@ use std::{fs::File, collections::HashMap};
 
 use log::*;
 use clap::Parser;
-use metalmann::{inventory::Tf2Inventory, tf2meta::Quality};
+use metalmann::{inventory::{Tf2Inventory, Tf2InventoryItem}, tf2meta::Quality};
 
 mod cli;
 
@@ -46,18 +46,24 @@ fn main() -> anyhow::Result<()> {
 		264, // Frying Pan
 		474, // The Conscientious Objector
 		939, // The Bat Outta Hell
+		851, // The AWPer Hand
 	];
 
 	info!("inventory has {} items", inventory.items.len());
 	let inelligible_weapons = inventory.items.iter()
 		.filter(|item| item.is_weapon(&schema) && (item.quality != Quality::Unique || item.flag_cannot_craft || item.flag_cannot_trade || schema.get_item(item.defindex).unwrap().name.starts_with("Festive")))
+		.cloned()
 		.collect::<Vec<_>>();
 	info!("inventory has {} inelligible weapons (not craftable, not tradable, festive, or not unique)", inelligible_weapons.len());
 	let unique_weapons = inventory.items.iter()
 		.filter(|item| item.quality == Quality::Unique && item.is_weapon(&schema))
+		.cloned()
 		.collect::<Vec<_>>();
 	info!("inventory has {} unique quality weapons", unique_weapons.len());
-	let craftable_weapons = unique_weapons.iter().filter(|item| !item.flag_cannot_craft && !item.flag_cannot_trade).collect::<Vec<_>>();
+	let craftable_weapons = unique_weapons.iter()
+		.filter(|item| !item.flag_cannot_craft && !item.flag_cannot_trade)
+		.cloned()
+		.collect::<Vec<_>>();
 	info!("inventory has {} weapons craftable into metal", craftable_weapons.len());
 	let mut quantities = HashMap::new();
 	for item in craftable_weapons {
@@ -73,14 +79,42 @@ fn main() -> anyhow::Result<()> {
 		let schemaitem = schema.get_item(*defindex).unwrap();
 		println!("Item({}): {} - {}", defindex, schemaitem.name, items.len());
 	}
-	let mut dupes: HashMap<_, _> = quantities.iter().filter(|(defindex, items)| items.len() >= 2).collect();
-	// // remove an instance so that we keep 1 of each weapon
-	// for (defindex, items) in dupes.iter_mut() {
-	// 	items.truncate(items.len() - 1);
-	// }
+	let mut inelligible_dupes: HashMap<u32, Vec<Tf2InventoryItem>> = HashMap::new();
+	for item in inelligible_weapons {
+		inelligible_dupes.entry(item.defindex).or_insert(Vec::new()).push(item)
+	}
+	println!("Inelligible Duplicates - Makes unique weapons of the same kind elligible to craft");
+	for (defindex, items) in &inelligible_dupes {
+		let schemaitem = schema.get_item(*defindex).unwrap();
+		for item in items {
+			print!("Item({}): {} {} ", defindex, item.quality, schemaitem.name);
+			if item.quality == Quality::Unique {
+				if item.flag_cannot_craft {
+					print!("uncraftable ");
+				}
+				else if item.flag_cannot_trade {
+					print!("untradable ");
+				}
+			}
+			println!();
+		}
+	}
+	let mut dupes: HashMap<u32, Vec<Tf2InventoryItem>> = HashMap::new();
+	for (defindex, items) in quantities.iter_mut() {
+		if inelligible_dupes.contains_key(&defindex) {
+			dupes.insert(*defindex, items.to_vec());
+		} else {
+			if items.len() >= 2 {
+				items.truncate(items.len() - 1);
+			}
+			if items.len() > 1 {
+				dupes.insert(*defindex, items.to_vec());
+			}
+		}
+	}
 	println!("Duplicates - safe to craft into metal");
 	for (defindex, items) in &dupes {
-		let schemaitem = schema.get_item(**defindex).unwrap();
+		let schemaitem = schema.get_item(*defindex).unwrap();
 		println!("Item({}): {} - {}", defindex, schemaitem.name, items.len());
 	}
 

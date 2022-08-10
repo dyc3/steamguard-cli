@@ -19,6 +19,12 @@ pub enum Quality {
 	Unknown = 255,
 }
 
+impl std::fmt::Display for Quality {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{:?}", self))
+	}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ItemSlot {
@@ -37,4 +43,10 @@ pub enum ItemSlot {
 	Action,
 	Taunt,
 	Utility,
+}
+
+impl std::fmt::Display for ItemSlot {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{:?}", self))
+	}
 }
