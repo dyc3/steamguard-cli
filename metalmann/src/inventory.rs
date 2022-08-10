@@ -5,7 +5,7 @@ use log::*;
 use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED};
 use serde::{Serialize, Deserialize};
 
-use crate::{webapi, schema::{IEconItemsResponse, Tf2Schema, Tf2SchemaItem}, tf2meta::Quality};
+use crate::{webapi, schema::{IEconItemsResponse, Tf2Schema, Tf2SchemaItem}, tf2meta::{Quality, ItemSlot}};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tf2Inventory {
@@ -50,6 +50,10 @@ pub struct Tf2InventoryItem {
 impl Tf2InventoryItem {
 	pub fn get_schema_item(&self, schema: &Tf2Schema) -> Option<Tf2SchemaItem> {
 		schema.get_schema_item(self.defindex)
+	}
+
+	pub fn is_weapon(&self, schema: &Tf2Schema) -> bool {
+		matches!(self.get_schema_item(&schema).unwrap().item_slot, Some(ItemSlot::Primary | ItemSlot::Secondary | ItemSlot::Melee))
 	}
 }
 

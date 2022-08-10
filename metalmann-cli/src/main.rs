@@ -1,8 +1,8 @@
-use std::{fs::File, path::Path};
+use std::{fs::File};
 
 use log::*;
 use clap::Parser;
-use metalmann::inventory::Tf2Inventory;
+use metalmann::{inventory::Tf2Inventory, tf2meta::Quality};
 
 mod cli;
 
@@ -42,6 +42,11 @@ fn main() -> anyhow::Result<()> {
 		}
 	};
 	info!("inventory has {} items", inventory.items.len());
+	let unique_weapons = inventory.items.iter().filter(|item| item.quality == Quality::Unique && item.is_weapon(&schema)).collect::<Vec<_>>();
+	info!("inventory has {} unique quality weapons", unique_weapons.len());
+	let craftable_weapons = unique_weapons.iter().filter(|item| !item.flag_cannot_craft).collect::<Vec<_>>();
+	info!("inventory has {} weapons craftable into metal", craftable_weapons.len());
+
 
 	Ok(())
 }

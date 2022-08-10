@@ -5,7 +5,7 @@ use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED};
 use serde::{Serialize, Deserialize};
 use chrono::{Utc, TimeZone};
 
-use crate::webapi;
+use crate::{webapi, tf2meta::{Quality, ItemSlot}};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Tf2Schema {
@@ -34,6 +34,11 @@ pub struct Tf2SchemaItem {
 	/// The item's unique index, used to refer to instances of the item in GetPlayerItems.
 	pub defindex: u32,
 	pub proper_name: bool,
+	pub item_slot: Option<ItemSlot>,
+	pub image_url: Option<String>,
+	pub image_url_large: Option<String>,
+	/// The item's default quality value. See description of "qualities" above.
+	pub item_quality: Quality,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
