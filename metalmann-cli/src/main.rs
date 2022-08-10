@@ -147,6 +147,45 @@ fn main() -> anyhow::Result<()> {
 	}
 
 
+	println!("Group by same class");
+	let craftables = dupes.into_values().into_iter().flatten().collect::<Vec<_>>();
+	let mut grouped = HashMap::new();
+	for item in craftables {
+		let schemaitem = schema.get_item(item.defindex).unwrap();
+		if let Some(used_by) = &schemaitem.used_by_classes {
+			if used_by.len() > 1 {
+				warn!("unsupported Item({}) {}, used by more than one class", item.defindex, schemaitem.name);
+				continue
+			}
+			grouped.entry(used_by[0]).or_insert(Vec::new()).push(item);
+		} else {
+			warn!("unsupported Item({}) {}, used by all classes", item.defindex, schemaitem.name);
+			continue;
+		}
+	}
+	for (class, items) in &grouped {
+		println!("Class({}): {}", class, items.len());
+	}
+
+	println!("Create pairs");
+	let mut pairs: Vec<[Tf2InventoryItem; 2]> = Vec::new();
+	for (_class, items) in grouped.into_iter() {
+		for chunk in items.chunks_exact(2).into_iter() {
+			let mut c = Vec::from(chunk).into_iter();
+			let first = c.next().unwrap();
+			let second = c.next().unwrap();
+			pairs.push([first, second]);
+		}
+	}
+	for pair in &pairs {
+		for item in pair {
+			let schemaitem = schema.get_item(item.defindex).unwrap();
+			print!("Item({}) {} ", item.defindex, schemaitem.name);
+		}
+		println!()
+	}
+
+
 	Ok(())
 }
 

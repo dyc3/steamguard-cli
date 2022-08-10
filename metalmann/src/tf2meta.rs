@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use serde_repr::{Serialize_repr, Deserialize_repr};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Quality {
 	Normal = 0,
@@ -25,7 +25,7 @@ impl std::fmt::Display for Quality {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ItemSlot {
 	Primary,
@@ -46,6 +46,25 @@ pub enum ItemSlot {
 }
 
 impl std::fmt::Display for ItemSlot {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{:?}", self))
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Tf2Class {
+	Scout,
+	Soldier,
+	Pyro,
+	Demoman,
+	Heavy,
+	Engineer,
+	Medic,
+	Sniper,
+	Spy,
+}
+
+impl std::fmt::Display for Tf2Class {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("{:?}", self))
 	}

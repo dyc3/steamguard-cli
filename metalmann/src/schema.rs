@@ -5,7 +5,7 @@ use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED};
 use serde::{Serialize, Deserialize};
 use chrono::{Utc, TimeZone};
 
-use crate::{webapi, tf2meta::{Quality, ItemSlot}};
+use crate::{webapi, tf2meta::{Quality, ItemSlot, Tf2Class}};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Tf2Schema {
@@ -48,6 +48,7 @@ pub struct Tf2SchemaItem {
 	pub image_url_large: Option<String>,
 	/// The item's default quality value. See description of "qualities" above.
 	pub item_quality: Quality,
+	pub used_by_classes: Option<Vec<Tf2Class>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
