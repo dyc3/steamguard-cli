@@ -1,4 +1,4 @@
-use std::{fs::File};
+use std::{fs::File, collections::HashMap};
 
 use log::*;
 use clap::Parser;
@@ -41,11 +41,44 @@ fn main() -> anyhow::Result<()> {
 			Tf2Inventory::from_reader(cache_file)?
 		}
 	};
+
+	let valuable_uniques: Vec<u32> = vec![
+		264, // Frying Pan
+		474, // The Conscientious Objector
+		939, // The Bat Outta Hell
+	];
+
 	info!("inventory has {} items", inventory.items.len());
-	let unique_weapons = inventory.items.iter().filter(|item| item.quality == Quality::Unique && item.is_weapon(&schema)).collect::<Vec<_>>();
+	let inelligible_weapons = inventory.items.iter()
+		.filter(|item| item.is_weapon(&schema) && (item.quality != Quality::Unique || item.flag_cannot_craft || item.flag_cannot_trade || schema.get_schema_item(item.defindex).unwrap().name.starts_with("Festive")))
+		.collect::<Vec<_>>();
+	info!("inventory has {} inelligible weapons (not craftable, not tradable, festive, or not unique)", inelligible_weapons.len());
+	let unique_weapons = inventory.items.iter()
+		.filter(|item| item.quality == Quality::Unique && item.is_weapon(&schema))
+		.collect::<Vec<_>>();
 	info!("inventory has {} unique quality weapons", unique_weapons.len());
-	let craftable_weapons = unique_weapons.iter().filter(|item| !item.flag_cannot_craft).collect::<Vec<_>>();
+	let craftable_weapons = unique_weapons.iter().filter(|item| !item.flag_cannot_craft && !item.flag_cannot_trade).collect::<Vec<_>>();
 	info!("inventory has {} weapons craftable into metal", craftable_weapons.len());
+	let mut quantities = HashMap::new();
+	for item in craftable_weapons {
+		if valuable_uniques.contains(&item.defindex) {
+			continue
+		}
+		if schema.get_schema_item(item.defindex).unwrap().name.starts_with("Festive") {
+			continue
+		}
+		quantities.entry(item.defindex).or_insert(Vec::new()).push(item)
+	}
+	for (defindex, items) in &quantities {
+		let schemaitem = schema.get_schema_item(*defindex).unwrap();
+		println!("Item({}): {} - {}", defindex, schemaitem.name, items.len());
+	}
+	let dupes: HashMap<_, _> = quantities.iter().filter(|(defindex, items)| items.len() >= 2).collect();
+	println!("Duplicates, safe to craft into metal");
+	for (defindex, items) in &dupes {
+		let schemaitem = schema.get_schema_item(**defindex).unwrap();
+		println!("Item({}): {} - {}", defindex, schemaitem.name, items.len());
+	}
 
 
 	Ok(())
