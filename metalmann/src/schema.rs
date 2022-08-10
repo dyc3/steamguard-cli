@@ -1,5 +1,5 @@
 use std::{collections::HashMap, io::{Write, Read}};
-use anyhow::bail;
+use anyhow::{bail, anyhow};
 use log::*;
 use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED};
 use serde::{Serialize, Deserialize};
@@ -120,6 +120,10 @@ pub fn fetch_item_schema(if_modified_since: Option<chrono::DateTime<Utc>>) -> an
 		debug!("response code: {}", resp.status());
 		if resp.status() != 200 {
 			warn!("failed to get schema with HTTP status code: {}", resp.status());
+			if resp.status() == 304 {
+				info!("schema not modified, safe to use cached version");
+				return Err(anyhow!("schema not modified, safe to use cached version"));
+			}
 			break;
 		}
 		if let Some(last_mod) = resp.headers().get(LAST_MODIFIED) {

@@ -2,7 +2,7 @@ use std::{fs::File, collections::HashMap};
 
 use log::*;
 use clap::Parser;
-use metalmann::{inventory::{Tf2Inventory, Tf2InventoryItem}, tf2meta::Quality};
+use metalmann::{inventory::{Tf2Inventory, Tf2InventoryItem}, tf2meta::Quality, schema::Tf2Schema};
 
 mod cli;
 
@@ -19,9 +19,37 @@ fn main() -> anyhow::Result<()> {
 
 	metalmann::webapi::set_web_api_key(args.web_api_key);
 
-	let schema = metalmann::schema::fetch_item_schema(None)?;
-	// println!("{:?}", schema);
-	println!("last modified: {:?}", schema.last_modified);
+	let schema_cache_path = format!("{}/metalmann/", dirs::cache_dir().unwrap().to_str().unwrap());
+	std::fs::create_dir_all(&schema_cache_path)?;
+	let schema_cache_path = format!("{}/schema.json", schema_cache_path);
+	let cached_schema = match File::open(&schema_cache_path) {
+		Ok(schema_file) => {
+			Some(Tf2Schema::from_reader(schema_file)?)
+		}
+		Err(_) => None,
+	};
+
+	let last_modified = match &cached_schema {
+		Some(c) => c.last_modified,
+		_ => None,
+	};
+	let schema = match metalmann::schema::fetch_item_schema(last_modified) {
+		Ok(s) => {
+			let w = File::create(schema_cache_path)?;
+			s.write_to(w)?;
+			s
+		},
+		Err(err) => {
+			if cached_schema.is_some() {
+				warn!("failed to fetch schema: {} -- using cached version instead", err);
+				cached_schema.unwrap()
+			} else {
+				error!("failed to fetch schema, and no cache exists: {}", err);
+				return Err(err);
+			}
+		}
+	};
+	info!("schema last modified: {:?}", schema.last_modified);
 
 	let steamid = 76561198054667933;
 	let inventory_cache_path = format!("{}/metalmann/inventory/", dirs::cache_dir().unwrap().to_str().unwrap());
