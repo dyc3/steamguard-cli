@@ -135,7 +135,9 @@ pub fn fetch_item_schema(if_modified_since: Option<chrono::DateTime<Utc>>) -> an
 		}
 
 		debug!("schema response contained {} items, appending", data.items.len());
-		let _ = data.items.iter().map(|item| schema.items.insert(item.defindex, item.clone()));
+		for item in data.items {
+			schema.items.insert(item.defindex, item);
+		}
 
 		if data.next.is_none() {
 			debug!("done getting item schema");
@@ -162,7 +164,11 @@ pub fn fetch_item_schema(if_modified_since: Option<chrono::DateTime<Utc>>) -> an
 	}
 
 	debug!("schema response contained {} attributes, appending", data.attributes.len());
-	let _ = data.attributes.iter().map(|attr| schema.attributes.insert(attr.defindex, attr.clone()));
+	for attr in data.attributes {
+		schema.attributes.insert(attr.defindex, attr);
+	}
+
+	debug!("schema built: {} items, {} attributes", schema.items.len(), schema.attributes.len());
 
 	Ok(schema)
 }
