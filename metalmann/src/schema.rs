@@ -1,15 +1,26 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io::{Write, Read}};
 use anyhow::bail;
 use log::*;
 use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED};
 use serde::{Serialize, Deserialize};
+use chrono::{Utc, FixedOffset, TimeZone};
 
 use crate::webapi;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Tf2Schema {
-	items: Vec<Tf2SchemaItem>,
-	last_modified: Option<chrono::NaiveDateTime>,
+	pub items: Vec<Tf2SchemaItem>,
+	pub last_modified: Option<chrono::DateTime<Utc>>,
+}
+
+impl Tf2Schema {
+	pub fn write_to<T>(&self, w: T) -> anyhow::Result<()> where T: Write {
+		Ok(serde_json::to_writer(w, self)?)
+	}
+
+	pub fn from_reader<T>(r: T) -> anyhow::Result<Self> where T: Read {
+		Ok(serde_json::from_reader(r)?)
+	}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,7 +34,7 @@ pub struct Tf2SchemaItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct IEconItemsResponse<T> {
-	result: T
+	pub(crate) result: T
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,7 +45,7 @@ pub(crate) struct ResponseGetSchemaItems {
 }
 
 /// Endpoint: GET https://api.steampowered.com/IEconItems_440/GetSchemaItems/v0001/?key=<API key>
-pub fn fetch_item_schema(if_modified_since: Option<chrono::NaiveDateTime>) -> anyhow::Result<Tf2Schema> {
+pub fn fetch_item_schema(if_modified_since: Option<chrono::DateTime<Utc>>) -> anyhow::Result<Tf2Schema> {
 	debug!("fetch_item_schema");
 	let mut next_item_start: Option<u64> = None;
 	let mut schema = Tf2Schema { ..Default::default() };
@@ -64,8 +75,8 @@ pub fn fetch_item_schema(if_modified_since: Option<chrono::NaiveDateTime>) -> an
 		}
 		if let Some(last_mod) = resp.headers().get(LAST_MODIFIED) {
 			debug!("parsing Last-Modified header");
-			let t = chrono::NaiveDateTime::parse_from_str(last_mod.to_str()?, "%a, %d %b %Y %H:%M:%S GMT")?;
-			schema.last_modified = Some(t);
+			let t = Utc.datetime_from_str(last_mod.to_str()?, "%a, %d %b %Y %H:%M:%S GMT")?;
+			schema.last_modified = Some(t.into());
 		}
 		let text = resp.text()?;
 		let data: IEconItemsResponse<ResponseGetSchemaItems> = serde_json::from_str(text.as_str())?;
