@@ -12,3 +12,4 @@ clap = { version = "3.1.18", features = ["derive", "cargo", "env"] }
 metalmann = { path = "../metalmann" }
 log = "0.4.14"
 stderrlog = "0.4"
+dirs = "3.0.2"

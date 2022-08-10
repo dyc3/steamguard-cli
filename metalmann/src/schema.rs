@@ -3,7 +3,7 @@ use anyhow::bail;
 use log::*;
 use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED};
 use serde::{Serialize, Deserialize};
-use chrono::{Utc, FixedOffset, TimeZone};
+use chrono::{Utc, TimeZone};
 
 use crate::webapi;
 
@@ -21,15 +21,19 @@ impl Tf2Schema {
 	pub fn from_reader<T>(r: T) -> anyhow::Result<Self> where T: Read {
 		Ok(serde_json::from_reader(r)?)
 	}
+
+	pub fn get_schema_item(&self, defindex: u32) -> Option<Tf2SchemaItem> {
+		self.items.iter().find(|item| item.defindex == defindex).cloned()
+	}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tf2SchemaItem {
 	/// A string that defines the item in the items_game.txt
-	name: String,
+	pub name: String,
 	/// The item's unique index, used to refer to instances of the item in GetPlayerItems.
-	defindex: u32,
-	proper_name: bool,
+	pub defindex: u32,
+	pub proper_name: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
