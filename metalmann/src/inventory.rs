@@ -1,15 +1,20 @@
 use std::{collections::HashMap, io::{Write, Read}};
 
 use anyhow::bail;
+use chrono::{Utc, TimeZone};
 use log::*;
-use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED};
+use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED, EXPIRES};
 use serde::{Serialize, Deserialize};
 
 use crate::{webapi, schema::{IEconItemsResponse, Tf2Schema, Tf2SchemaItem}, tf2meta::{Quality, ItemSlot}};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tf2Inventory {
-	pub items: Vec<Tf2InventoryItem>
+	#[serde(default)]
+	pub steamid: u64,
+	pub items: Vec<Tf2InventoryItem>,
+	#[serde(default)]
+	pub expires_at: Option<chrono::DateTime<Utc>>,
 }
 
 impl Tf2Inventory {
@@ -19,6 +24,10 @@ impl Tf2Inventory {
 
 	pub fn from_reader<T>(r: T) -> anyhow::Result<Self> where T: Read {
 		Ok(serde_json::from_reader(r)?)
+	}
+
+	pub fn steamid(&self) -> u64 {
+		self.steamid
 	}
 }
 
@@ -99,12 +108,14 @@ pub(crate) struct ResponseGetPlayerItems {
 impl From<IEconItemsResponse<ResponseGetPlayerItems>> for Tf2Inventory {
 	fn from(resp: IEconItemsResponse<ResponseGetPlayerItems>) -> Self {
 		Tf2Inventory {
-			items: resp.result.items
+			steamid: Default::default(),
+			items: resp.result.items,
+			expires_at: Default::default(),
 		}
 	}
 }
 
-/// Endpoint: GET http://api.steampowered.com/IEconItems_440/GetPlayerItems/v0001/
+/// Endpoint: GET http://api.steampowered.com/IEconItems_440/GetPlayerItems/v1/
 pub fn fetch_inventory(steamid: u64) -> anyhow::Result<Tf2Inventory> {
 	debug!("fetch_inventory");
 
@@ -114,17 +125,26 @@ pub fn fetch_inventory(steamid: u64) -> anyhow::Result<Tf2Inventory> {
 	}
 	let apikey = apikey.unwrap();
 
-	let mut url = "https://api.steampowered.com/IEconItems_440/GetPlayerItems/v0001/".parse::<reqwest::Url>().unwrap();
+	let mut url = "https://api.steampowered.com/IEconItems_440/GetPlayerItems/v1/".parse::<reqwest::Url>().unwrap();
 	url.set_query(Some(format!("key={}&steamid={}", &apikey, steamid).as_str()));
 	let client = reqwest::blocking::Client::default();
 	let req = client.get(url).build()?;
-	let resp = client.execute(req)?.error_for_status()?;
+	let resp = client.execute(req)?;
 	debug!("response code: {}", resp.status());
+	debug!("response header: {:?}", resp.headers());
+	let resp = resp.error_for_status()?;
+	let headers = resp.headers().clone();
 
 	let text = resp.text()?;
 	// println!("{}", text);
 	let data: IEconItemsResponse<ResponseGetPlayerItems> = serde_json::from_str(text.as_str())?;
-	Ok(data.into())
+	let mut inventory: Tf2Inventory = data.into();
+	inventory.steamid = steamid;
+	if let Some(e) = headers.get(EXPIRES) {
+		let t = Utc.datetime_from_str(e.to_str()?, "%a, %d %b %Y %H:%M:%S GMT")?;
+		inventory.expires_at =Some(t.into());
+	}
+	Ok(inventory)
 }
 
 #[cfg(test)]
