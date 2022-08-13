@@ -191,6 +191,11 @@ fn main() -> anyhow::Result<()> {
 		println!()
 	}
 
+	if pairs.len() == 0 {
+		warn!("No valid pairs to craft, aborting!");
+		return Ok(());
+	}
+
 	let mut crafter = Crafter::from_steam_guard_account(account, args.steam_account_password);
 	crafter.init()?;
 	crafter.set_game(440)?;
