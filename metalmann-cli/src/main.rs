@@ -1,8 +1,9 @@
-use std::{fs::File, collections::HashMap};
+use std::{fs::File, collections::HashMap, time::Duration};
 
 use log::*;
 use clap::Parser;
-use metalmann::{inventory::{Tf2Inventory, Tf2InventoryItem}, tf2meta::Quality, schema::Tf2Schema};
+use metalmann::{inventory::{Tf2Inventory, Tf2InventoryItem}, tf2meta::Quality, schema::Tf2Schema, crafting::Crafter};
+use steamguard::{SteamGuardAccount, ExposeSecret};
 
 mod cli;
 
@@ -19,6 +20,11 @@ fn main() -> anyhow::Result<()> {
 
 	metalmann::webapi::set_web_api_key(args.web_api_key);
 
+	info!("loading steamguard account");
+	let account_file = File::open(args.steamguard_account)?;
+	let account = SteamGuardAccount::from_reader(account_file)?;
+
+	info!("loading item schema");
 	let schema_cache_path = format!("{}/metalmann/", dirs::cache_dir().unwrap().to_str().unwrap());
 	std::fs::create_dir_all(&schema_cache_path)?;
 	let schema_cache_path = format!("{}/schema.json", schema_cache_path);
@@ -51,7 +57,7 @@ fn main() -> anyhow::Result<()> {
 	};
 	info!("schema last modified: {:?}", schema.last_modified);
 
-	let steamid = 76561198054667933;
+	let steamid = account.session.as_ref().unwrap().expose_secret().steam_id; // TODO: make steam id accessible from SteamGuardAccount, don't require going into session to grab it.
 	let inventory_cache_path = format!("{}/metalmann/inventory/", dirs::cache_dir().unwrap().to_str().unwrap());
 	std::fs::create_dir_all(&inventory_cache_path)?;
 	let inventory_cache_path = format!("{}/{}.json", inventory_cache_path, steamid);
@@ -185,6 +191,12 @@ fn main() -> anyhow::Result<()> {
 		println!()
 	}
 
+	let mut crafter = Crafter::from_steam_guard_account(account, args.steam_account_password);
+	crafter.init()?;
+	crafter.set_game(440)?;
+	std::thread::sleep(Duration::from_secs(5));
+	crafter.craft_items(metalmann::crafting::ECraftingRecipe::SmeltClassWeapons, pairs[0].iter().map(|i| i.id).collect())?;
+	std::thread::sleep(Duration::from_secs(120));
 
 	Ok(())
 }

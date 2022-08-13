@@ -10,6 +10,12 @@ pub(crate) struct Args {
 
 	#[clap(short, long, env = "STEAM_WEB_API_KEY")]
 	pub web_api_key: String,
+
+	#[clap(long, help="Path to a file that holds a SteamGuardAccount created by steamguard-cli.")]
+	pub steamguard_account: String,
+
+	#[clap(long, env="STEAM_ACCOUNT_PASSWORD", help="The password used to log in to the steam account specified in steamguard_account.")]
+	pub steam_account_password: String,
 }
 
 // FIXME: copied from steamguard-cli::cli::Verbosity, move to common lib instead
