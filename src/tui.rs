@@ -125,6 +125,10 @@ where
 pub(crate) fn prompt_confirmation_menu(
 	confirmations: Vec<Confirmation>,
 ) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
+	if confirmations.len() == 0 {
+		bail!("no confirmations")
+	}
+
 	let mut to_accept_idx: HashSet<usize> = HashSet::new();
 	let mut to_deny_idx: HashSet<usize> = HashSet::new();
 
