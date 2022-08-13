@@ -13,7 +13,7 @@ use reqwest::{
 use scraper::{Html, Selector};
 pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, convert::TryInto};
+use std::{collections::HashMap, convert::TryInto, io::Read};
 use steamapi::SteamApiClient;
 pub use userlogin::{LoginError, UserLogin};
 #[macro_use]
@@ -92,6 +92,13 @@ impl SteamGuardAccount {
 			secret_1: String::from("").into(),
 			session: Option::None,
 		};
+	}
+
+	pub fn from_reader<T>(r: T) -> anyhow::Result<Self>
+	where
+		T: Read,
+	{
+		Ok(serde_json::from_reader(r)?)
 	}
 
 	pub fn set_session(&mut self, session: steamapi::Session) {
