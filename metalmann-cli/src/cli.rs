@@ -1,5 +1,5 @@
 use anyhow;
-use clap::{clap_derive::ArgEnum, Parser};
+use clap::{clap_derive::ArgEnum, Parser, ArgSettings};
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Parser)]
@@ -8,13 +8,13 @@ pub(crate) struct Args {
 	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
 	pub verbosity: Verbosity,
 
-	#[clap(short, long, env = "STEAM_WEB_API_KEY")]
+	#[clap(short, long, env = "STEAM_WEB_API_KEY", setting=ArgSettings::HideEnvValues)]
 	pub web_api_key: String,
 
 	#[clap(long, help="Path to a file that holds a SteamGuardAccount created by steamguard-cli.")]
 	pub steamguard_account: String,
 
-	#[clap(long, env="STEAM_ACCOUNT_PASSWORD", help="The password used to log in to the steam account specified in steamguard_account.")]
+	#[clap(long, env="STEAM_ACCOUNT_PASSWORD", help="The password used to log in to the steam account specified in steamguard_account.", setting=ArgSettings::HideEnvValues)]
 	pub steam_account_password: String,
 }
 
