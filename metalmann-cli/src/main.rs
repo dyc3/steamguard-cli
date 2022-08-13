@@ -81,6 +81,10 @@ fn main() -> anyhow::Result<()> {
 		474, // The Conscientious Objector
 		939, // The Bat Outta Hell
 		851, // The AWPer Hand
+		880, // The Freedom Staff
+		574, // The Wanga Prick
+		1127, // The Crossing Guard
+		947, // The Quackenbirdt
 	];
 
 	info!("inventory has {} items", inventory.items.len());
