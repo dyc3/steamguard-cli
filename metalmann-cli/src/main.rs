@@ -23,6 +23,8 @@ fn main() -> anyhow::Result<()> {
 	info!("loading steamguard account");
 	let account_file = File::open(args.steamguard_account)?;
 	let account = SteamGuardAccount::from_reader(account_file)?;
+	let steamid = account.session.as_ref().unwrap().expose_secret().steam_id; // TODO: make steam id accessible from SteamGuardAccount, don't require going into session to grab it.
+	info!("steamguard account loaded: {}, steadid: {}", account.account_name, steamid);
 
 	info!("loading item schema");
 	let schema_cache_path = format!("{}/metalmann/", dirs::cache_dir().unwrap().to_str().unwrap());
@@ -57,7 +59,6 @@ fn main() -> anyhow::Result<()> {
 	};
 	info!("schema last modified: {:?}", schema.last_modified);
 
-	let steamid = account.session.as_ref().unwrap().expose_secret().steam_id; // TODO: make steam id accessible from SteamGuardAccount, don't require going into session to grab it.
 	let inventory_cache_path = format!("{}/metalmann/inventory/", dirs::cache_dir().unwrap().to_str().unwrap());
 	std::fs::create_dir_all(&inventory_cache_path)?;
 	let inventory_cache_path = format!("{}/{}.json", inventory_cache_path, steamid);
