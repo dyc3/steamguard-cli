@@ -16,6 +16,9 @@ pub(crate) struct Args {
 
 	#[clap(long, env="STEAM_ACCOUNT_PASSWORD", help="The password used to log in to the steam account specified in steamguard_account.", setting=ArgSettings::HideEnvValues)]
 	pub steam_account_password: String,
+
+	#[clap(long, help="Prefer using cached resources instead of fetching the most up to date versions.")]
+	pub prefer_cached: bool,
 }
 
 // FIXME: copied from steamguard-cli::cli::Verbosity, move to common lib instead

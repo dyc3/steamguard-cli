@@ -26,37 +26,7 @@ fn main() -> anyhow::Result<()> {
 	let steamid = account.session.as_ref().unwrap().expose_secret().steam_id; // TODO: make steam id accessible from SteamGuardAccount, don't require going into session to grab it.
 	info!("steamguard account loaded: {}, steadid: {}", account.account_name, steamid);
 
-	info!("loading item schema");
-	let schema_cache_path = format!("{}/metalmann/", dirs::cache_dir().unwrap().to_str().unwrap());
-	std::fs::create_dir_all(&schema_cache_path)?;
-	let schema_cache_path = format!("{}/schema.json", schema_cache_path);
-	let cached_schema = match File::open(&schema_cache_path) {
-		Ok(schema_file) => {
-			Some(Tf2Schema::from_reader(schema_file)?)
-		}
-		Err(_) => None,
-	};
-
-	let last_modified = match &cached_schema {
-		Some(c) => c.last_modified,
-		_ => None,
-	};
-	let schema = match metalmann::schema::fetch_item_schema(last_modified) {
-		Ok(s) => {
-			let w = File::create(schema_cache_path)?;
-			s.write_to(w)?;
-			s
-		},
-		Err(err) => {
-			if cached_schema.is_some() {
-				warn!("failed to fetch schema: {} -- using cached version instead", err);
-				cached_schema.unwrap()
-			} else {
-				error!("failed to fetch schema, and no cache exists: {}", err);
-				return Err(err);
-			}
-		}
-	};
+	let schema = load_schema(args.prefer_cached)?;
 	info!("schema last modified: {:?}", schema.last_modified);
 
 	let inventory_cache_path = format!("{}/metalmann/inventory/", dirs::cache_dir().unwrap().to_str().unwrap());
@@ -201,6 +171,8 @@ fn main() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
+	return Ok(());
+
 	let mut crafter = Crafter::from_steam_guard_account(account, args.steam_account_password);
 	crafter.init()?;
 	crafter.set_game(440)?;
@@ -209,5 +181,47 @@ fn main() -> anyhow::Result<()> {
 	std::thread::sleep(Duration::from_secs(120));
 
 	Ok(())
+}
+
+/// Handles loading the item schema, or using a cached version.
+fn load_schema(prefer_cached: bool) -> anyhow::Result<Tf2Schema> {
+	info!("loading item schema");
+	let schema_cache_path = format!("{}/metalmann/", dirs::cache_dir().unwrap().to_str().unwrap());
+	std::fs::create_dir_all(&schema_cache_path)?;
+	let schema_cache_path = format!("{}/schema.json", schema_cache_path);
+	let cached_schema = match File::open(&schema_cache_path) {
+		Ok(schema_file) => {
+			Some(Tf2Schema::from_reader(schema_file)?)
+		}
+		Err(_) => None,
+	};
+
+	let last_modified = match &cached_schema {
+		Some(c) => c.last_modified,
+		_ => None,
+	};
+
+	if prefer_cached && cached_schema.is_some() {
+		info!("Using cached item schema");
+		return Ok(cached_schema.unwrap());
+	}
+
+	let schema = match metalmann::schema::fetch_item_schema(last_modified) {
+		Ok(s) => {
+			let w = File::create(schema_cache_path)?;
+			s.write_to(w)?;
+			s
+		},
+		Err(err) => {
+			if cached_schema.is_some() {
+				warn!("failed to fetch schema: {} -- using cached version instead", err);
+				cached_schema.unwrap()
+			} else {
+				error!("failed to fetch schema, and no cache exists: {}", err);
+				return Err(err);
+			}
+		}
+	};
+	Ok(schema)
 }
 
