@@ -683,6 +683,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
 name = "dirs-sys"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1276,10 +1285,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "dirs",
+ "dirs 4.0.0",
  "log",
  "metalmann",
- "stderrlog",
+ "stderrlog 0.5.3",
  "steamguard",
  "thiserror",
  "tokio",
@@ -2517,7 +2526,20 @@ dependencies = [
  "chrono",
  "log",
  "termcolor",
- "thread_local",
+ "thread_local 0.3.4",
+]
+
+[[package]]
+name = "stderrlog"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af95cb8a5f79db5b2af2a46f44da7594b5adbcbb65cbf87b8da0959bfdd82460"
+dependencies = [
+ "atty",
+ "chrono",
+ "log",
+ "termcolor",
+ "thread_local 1.1.4",
 ]
 
 [[package]]
@@ -2661,7 +2683,7 @@ dependencies = [
  "clap_complete",
  "cookie 0.14.4",
  "crossterm",
- "dirs",
+ "dirs 3.0.2",
  "hmac-sha1",
  "lazy_static 1.4.0",
  "log",
@@ -2675,7 +2697,7 @@ dependencies = [
  "serde",
  "serde_json",
  "standback",
- "stderrlog",
+ "stderrlog 0.4.3",
  "steamguard",
  "tempdir",
  "text_io",
@@ -2861,6 +2883,15 @@ checksum = "1697c4b57aeeb7a536b647165a2825faddffb1d3bad386d507709bd51a90bb14"
 dependencies = [
  "lazy_static 0.2.11",
  "unreachable",
+]
+
+[[package]]
+name = "thread_local"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5516c27b78311c50bf42c071425c560ac799b11c30b31f87e3081965fe5e0180"
+dependencies = [
+ "once_cell",
 ]
 
 [[package]]
