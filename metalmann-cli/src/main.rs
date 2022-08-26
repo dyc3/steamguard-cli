@@ -29,23 +29,7 @@ fn main() -> anyhow::Result<()> {
 	let schema = load_schema(args.prefer_cached)?;
 	info!("schema last modified: {:?}", schema.last_modified);
 
-	let inventory_cache_path = format!("{}/metalmann/inventory/", dirs::cache_dir().unwrap().to_str().unwrap());
-	std::fs::create_dir_all(&inventory_cache_path)?;
-	let inventory_cache_path = format!("{}/{}.json", inventory_cache_path, steamid);
-	let inventory = match metalmann::inventory::fetch_inventory(steamid) {
-		Ok(inv) => {
-			debug!("writing inventory to cache");
-			let cache_file = File::create(inventory_cache_path)?;
-			inv.write_to(cache_file)?;
-			debug!("done writing inventory to cache");
-			inv
-		},
-		Err(err) => {
-			warn!("failed to fetch inventory: {} - loading from cache", err);
-			let cache_file = File::open(inventory_cache_path)?;
-			Tf2Inventory::from_reader(cache_file)?
-		}
-	};
+	let inventory = load_inventory(steamid, args.prefer_cached)?;
 
 	let valuable_uniques: Vec<u32> = vec![
 		264, // Frying Pan
@@ -181,6 +165,41 @@ fn main() -> anyhow::Result<()> {
 	std::thread::sleep(Duration::from_secs(120));
 
 	Ok(())
+}
+
+/// Handles loading a user's inventory, or using a cached version.
+fn load_inventory(steamid: u64, prefer_cached: bool) -> anyhow::Result<Tf2Inventory> {
+	let inventory_cache_path = format!("{}/metalmann/inventory/", dirs::cache_dir().unwrap().to_str().unwrap());
+	std::fs::create_dir_all(&inventory_cache_path)?;
+	let inventory_cache_path = format!("{}/{}.json", inventory_cache_path, steamid);
+
+	if prefer_cached {
+		match File::open(&inventory_cache_path) {
+			Ok(cache_file) => {
+				return Ok(Tf2Inventory::from_reader(cache_file)?);
+			}
+			Err(err) => {
+				warn!("Could not load inventory from cache: {}", err);
+			}
+		}
+	}
+
+	info!("Fetching inventory for {} from remote", steamid);
+	let inventory = match metalmann::inventory::fetch_inventory(steamid) {
+			Ok(inv) => {
+				debug!("writing inventory to cache");
+				let cache_file = File::create(inventory_cache_path)?;
+				inv.write_to(cache_file)?;
+				debug!("done writing inventory to cache");
+				inv
+			},
+			Err(err) => {
+				warn!("failed to fetch inventory: {} - loading from cache", err);
+				let cache_file = File::open(inventory_cache_path)?;
+				Tf2Inventory::from_reader(cache_file)?
+			}
+		};
+	Ok(inventory)
 }
 
 /// Handles loading the item schema, or using a cached version.
