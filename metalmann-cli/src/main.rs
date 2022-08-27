@@ -237,7 +237,7 @@ fn load_schema(prefer_cached: bool) -> anyhow::Result<Tf2Schema> {
 				cached_schema.unwrap()
 			} else {
 				error!("failed to fetch schema, and no cache exists: {}", err);
-				return Err(err);
+				return Err(err.into());
 			}
 		}
 	};

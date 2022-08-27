@@ -3,6 +3,7 @@ pub mod inventory;
 pub mod schema;
 pub mod webapi;
 pub mod tf2meta;
+pub mod errors;
 
 #[macro_use]
 extern crate maplit;

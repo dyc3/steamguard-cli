@@ -6,7 +6,7 @@ use log::*;
 use reqwest::header::{HeaderMap, IF_MODIFIED_SINCE, LAST_MODIFIED, EXPIRES};
 use serde::{Serialize, Deserialize};
 
-use crate::{webapi, schema::{IEconItemsResponse, Tf2Schema, Tf2SchemaItem}, tf2meta::{Quality, ItemSlot}};
+use crate::{webapi, schema::{IEconItemsResponse, Tf2Schema, Tf2SchemaItem}, tf2meta::{Quality, ItemSlot}, require_web_api_key};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tf2Inventory {
@@ -116,14 +116,10 @@ impl From<IEconItemsResponse<ResponseGetPlayerItems>> for Tf2Inventory {
 }
 
 /// Endpoint: GET http://api.steampowered.com/IEconItems_440/GetPlayerItems/v1/
-pub fn fetch_inventory(steamid: u64) -> anyhow::Result<Tf2Inventory> {
+pub fn fetch_inventory(steamid: u64) -> anyhow::Result<Tf2Inventory, crate::errors::Error> {
 	debug!("fetch_inventory");
 
-	let apikey = webapi::get_web_api_key();
-	if apikey.is_none() {
-		bail!("missing api key, call metalmann::webapi::set_web_api_key() first")
-	}
-	let apikey = apikey.unwrap();
+	let apikey = require_web_api_key!();
 
 	let mut url = "https://api.steampowered.com/IEconItems_440/GetPlayerItems/v1/".parse::<reqwest::Url>().unwrap();
 	url.set_query(Some(format!("key={}&steamid={}", &apikey, steamid).as_str()));
@@ -132,7 +128,9 @@ pub fn fetch_inventory(steamid: u64) -> anyhow::Result<Tf2Inventory> {
 	let resp = client.execute(req)?;
 	debug!("response code: {}", resp.status());
 	debug!("response header: {:?}", resp.headers());
-	let resp = resp.error_for_status()?;
+	if resp.status() != 200 {
+		return Err(crate::errors::Error::ApiError(format!("HTTP status code: {}", resp.status())));
+	}
 	let headers = resp.headers().clone();
 
 	let text = resp.text()?;
@@ -141,8 +139,11 @@ pub fn fetch_inventory(steamid: u64) -> anyhow::Result<Tf2Inventory> {
 	let mut inventory: Tf2Inventory = data.into();
 	inventory.steamid = steamid;
 	if let Some(e) = headers.get(EXPIRES) {
-		let t = Utc.datetime_from_str(e.to_str()?, "%a, %d %b %Y %H:%M:%S GMT")?;
-		inventory.expires_at =Some(t.into());
+		let value = e.to_str()
+			.map_err(|err| crate::errors::Error::MalformedHeader { header: EXPIRES.to_owned(), value: e.to_owned(), source: err.into() })?;
+		let t = Utc.datetime_from_str(value, "%a, %d %b %Y %H:%M:%S GMT")
+			.map_err(|err| crate::errors::Error::MalformedHeader { header: EXPIRES.to_owned(), value: e.to_owned(), source: err.into() })?;
+		inventory.expires_at = Some(t.into());
 	}
 	Ok(inventory)
 }
