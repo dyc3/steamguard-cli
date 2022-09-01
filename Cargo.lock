@@ -1298,7 +1298,7 @@ dependencies = [
 name = "metalmann-proto"
 version = "0.1.0"
 dependencies = [
- "protobuf 3.1.0",
+ "protobuf",
 ]
 
 [[package]]
@@ -1793,26 +1793,6 @@ name = "protobuf"
 version = "2.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db50e77ae196458ccd3dc58a31ea1a90b0698ab1b7928d89f644c25d72070267"
-
-[[package]]
-name = "protobuf"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ee4a7d8b91800c8f167a6268d1a1026607368e1adc84e98fe044aeb905302f7"
-dependencies = [
- "once_cell",
- "protobuf-support",
- "thiserror",
-]
-
-[[package]]
-name = "protobuf-support"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ca157fe12fc7ee2e315f2f735e27df41b3d97cdd70ea112824dac1ffb08ee1c"
-dependencies = [
- "thiserror",
-]
 
 [[package]]
 name = "psl-types"
@@ -2609,7 +2589,7 @@ dependencies = [
  "futures-util",
  "log",
  "num_enum",
- "protobuf 2.24.1",
+ "protobuf",
  "rand 0.8.5",
  "rust-crypto",
  "steam-vent-crypto",
@@ -2643,7 +2623,7 @@ name = "steam-vent-proto"
 version = "0.1.0"
 source = "git+https://github.com/juliarose/steam-vent.git#201691c844b29d17922e27712ae4223fa421f8a6"
 dependencies = [
- "protobuf 2.24.1",
+ "protobuf",
 ]
 
 [[package]]
