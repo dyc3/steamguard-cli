@@ -155,11 +155,13 @@ fn main() -> anyhow::Result<()> {
 		return Ok(());
 	}
 
-	return Ok(());
+	// return Ok(());
 
 	let mut crafter = Crafter::from_steam_guard_account(account, args.steam_account_password);
 	crafter.init()?;
 	crafter.set_game(440)?;
+	std::thread::sleep(Duration::from_secs(5));
+	crafter.gc_hello()?;
 	std::thread::sleep(Duration::from_secs(5));
 	crafter.craft_items(metalmann::crafting::ECraftingRecipe::SmeltClassWeapons, pairs[0].iter().map(|i| i.id).collect())?;
 	std::thread::sleep(Duration::from_secs(120));

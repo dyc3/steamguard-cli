@@ -1,10 +1,18 @@
 use bytes::BufMut;
+use metalmann_proto::base_gcmessages::CMsgClientHello;
+use metalmann_proto::base_gcmessages::EGCBaseMsg;
+use metalmann_proto::econ_gcmessages::EGCItemMsg;
+use metalmann_proto::gcsystemmsgs::EGCBaseClientMsg;
+use steam_vent::gc::ClientFromGCMessage;
 use steam_vent::gc::ClientToGCMessage;
 use steam_vent::message::NetMessage;
 use steam_vent::message::ServiceMethodRequestMessage;
 use steam_vent::proto::enums_clientserver::EMsg;
 use steam_vent::proto::steammessages_clientserver::CMsgClientCMList;
+use steam_vent::proto::steammessages_clientserver::CMsgClientIsLimitedAccount;
+use steam_vent::proto::steammessages_clientserver::CMsgClientSessionToken;
 use steam_vent::proto::steammessages_clientserver_2::CMsgClientPlayingSessionState;
+use steam_vent::proto::steammessages_clientserver_2::CMsgGCClient;
 use steam_vent::proto::steammessages_clientserver_login::CMsgClientAccountInfo;
 use steam_vent::service_method::ServiceMethodRequest;
 use steamid_ng::SteamID;
@@ -15,6 +23,8 @@ use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
+use protobuf::Message;
+use protobuf::ProtobufEnum;
 
 use anyhow::bail;
 use log::*;
@@ -148,8 +158,36 @@ impl Crafter {
 				EMsg::k_EMsgClientAccountInfo => {
 					let message = msg.into_message::<CMsgClientAccountInfo>()?;
 					let persona_name = message.get_persona_name();
+					debug!("Client account info: {}", persona_name);
 					// let _ = tx.send(Message::PersonaName(persona_name.to_owned())).await;
 				},
+				// EMsg::k_EMsgClientSessionToken => {
+				// 	let message: CMsgClientSessionToken = msg.into_message()?;
+				// 	let token = message.get_token();
+				// 	trace!("got Session Token: {}", token);
+				// },
+				EMsg::k_EMsgClientFromGC => {
+					let message = ClientFromGCMessage::from_message(msg)?;
+					debug!("GC Message: appid={} type={} target_job_id={}", message.appid, message.msgtype, message.target_job_id);
+
+					match EGCItemMsg::from_i32(message.msgtype) {
+						Some(EGCItemMsg::k_EMsgGCCraftResponse) => {
+							trace!("message payload: {:?}", message.payload);
+							let result = message.payload_into_message::<metalmann_proto::econ_gcmessages::CMsgCraftingResponse>();
+							match result {
+								Ok(resp) => {
+									info!("Got Crafting response: items: {:?}", resp.item_ids);
+								},
+								Err(err) => {
+									error!("Failed to parse GC message: {:?}", err);
+								}
+							}
+						}
+						_ => {
+							trace!("Unhandled GC message type={}", message.msgtype);
+						}
+					}
+				}
 				k => {
 					trace!("Ignored raw net message: {:?}", k);
 				},
@@ -238,6 +276,15 @@ impl Crafter {
 				CrafterCmdBusMsg::SendHeartbeat => {
 					conn.send_heartbeat().await?;
 				}
+				CrafterCmdBusMsg::GcHello => {
+					let hello = CMsgClientHello::new();
+					let mut gcmsg = ClientToGCMessage::new(440, EGCBaseClientMsg::k_EMsgGCClientHello.value(), false);
+					let mut payload: Vec<u8> = Vec::new();
+					hello.write_to_vec(&mut payload).expect("failed to write payload");
+					gcmsg.set_payload(payload);
+					let result = conn.send_gc(gcmsg).await?;
+					debug!("GC hello send result: {}", result);
+				}
 				CrafterCmdBusMsg::SetGame { appid } => {
 					info!("setting game to {}", appid);
 					conn.set_games_played(&[*appid]).await?;
@@ -306,11 +353,11 @@ impl Crafter {
 		Ok(())
 	}
 
-	// pub fn gc_hello(&mut self) -> anyhow::Result<()> {
-	// 	self.state.as_ref().unwrap().cmd_bus_tx.blocking_send(CrafterCmdBusMsg::GcHello)?;
-	// 	// self.wait_for_message(EMsg::)?;
-	// 	Ok(())
-	// }
+	pub fn gc_hello(&mut self) -> anyhow::Result<()> {
+		self.state.as_ref().unwrap().cmd_bus_tx.blocking_send(CrafterCmdBusMsg::GcHello)?;
+		// self.wait_for_message(EMsg::)?;
+		Ok(())
+	}
 
 	pub fn craft_items(&self, recipe: ECraftingRecipe, ids: Vec<u64>) -> anyhow::Result<()> {
 		trace!("Crafter::craft_items");
