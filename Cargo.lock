@@ -1267,6 +1267,7 @@ dependencies = [
  "maplit",
  "metalmann-proto",
  "once_cell",
+ "protobuf",
  "reqwest",
  "secrecy",
  "serde",
