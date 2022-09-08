@@ -111,7 +111,7 @@ fn run() -> anyhow::Result<()> {
 				if manifest.has_passkey() {
 					error!("Incorrect passkey");
 				}
-				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				passkey = rpassword::prompt_password_stderr("Enter encryption passkey: ").ok();
 				manifest.submit_passkey(passkey);
 			}
 			Err(e) => {

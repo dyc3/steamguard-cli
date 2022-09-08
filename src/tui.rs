@@ -9,7 +9,7 @@ use crossterm::{
 use log::*;
 use regex::Regex;
 use std::collections::HashSet;
-use std::io::{stdout, Write};
+use std::io::{stderr, stdout, Write};
 use steamguard::Confirmation;
 
 lazy_static! {
@@ -41,7 +41,7 @@ fn test_validate_captcha_text() {
 
 /// Prompt the user for text input.
 pub(crate) fn prompt() -> String {
-	stdout().flush().unwrap();
+	stderr().flush().unwrap();
 
 	let mut line = String::new();
 	while let Event::Key(KeyEvent { code, .. }) = crossterm::event::read().unwrap() {
@@ -60,10 +60,10 @@ pub(crate) fn prompt() -> String {
 }
 
 pub(crate) fn prompt_captcha_text(captcha_gid: &String) -> String {
-	println!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
+	eprintln!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
 	let mut captcha_text;
 	loop {
-		print!("Enter captcha text: ");
+		eprint!("Enter captcha text: ");
 		captcha_text = prompt();
 		if captcha_text.len() > 0 && validate_captcha_text(&captcha_text) {
 			break;
@@ -78,8 +78,8 @@ pub(crate) fn prompt_captcha_text(captcha_gid: &String) -> String {
 /// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.
 pub(crate) fn prompt_char(text: &str, chars: &str) -> char {
 	loop {
-		let _ = stdout().queue(Print(format!("{} [{}] ", text, chars)));
-		let _ = stdout().flush();
+		let _ = stderr().queue(Print(format!("{} [{}] ", text, chars)));
+		let _ = stderr().flush();
 		let input = prompt();
 		if let Ok(c) = prompt_char_impl(input, chars) {
 			return c;
@@ -273,8 +273,8 @@ pub(crate) fn prompt_confirmation_menu(
 }
 
 pub(crate) fn pause() {
-	println!("Press any key to continue...");
-	let _ = stdout().flush();
+	eprintln!("Press any key to continue...");
+	let _ = stderr().flush();
 	loop {
 		match crossterm::event::read().expect("could not read terminal events") {
 			Event::Key(_) => break,
