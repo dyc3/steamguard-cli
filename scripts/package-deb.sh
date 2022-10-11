@@ -35,7 +35,7 @@ Depends:
 Version: $VERSION
 Section: base
 Priority: optional
-Architecture: x64
+Architecture: x86_64
 Maintainer: Carson McManus <carson.mcmanus1@gmail.com>
 Description: steamguard-cli
  A command line utility to generate Steam 2FA codes and respond to confirmations.
