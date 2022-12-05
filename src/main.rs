@@ -354,7 +354,7 @@ fn do_subcmd_setup(
 ) -> anyhow::Result<()> {
 	println!("Log in to the account that you want to link to steamguard-cli");
 	print!("Username: ");
-	let username = tui::prompt();
+	let username = tui::prompt().to_lowercase();
 	let account_name = username.clone();
 	if manifest.account_exists(&username) {
 		bail!(
