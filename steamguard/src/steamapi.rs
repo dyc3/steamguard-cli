@@ -353,6 +353,8 @@ impl SteamApiClient {
 		}
 	}
 
+	/// Likely removed now
+	///
 	/// One of the endpoints that handles phone number things. Can check to see if phone is present on account, and maybe do some other stuff. It's not really super clear.
 	///
 	/// Host: steamcommunity.com
@@ -393,6 +395,8 @@ impl SteamApiClient {
 		}
 	}
 
+	/// Likely removed now
+	///
 	/// Works similar to phoneajax. Used in the process to add a phone number to a steam account.
 	/// Valid ops:
 	/// - get_phone_number => `input` is treated as a phone number to add to the account. Yes, this is somewhat counter intuitive.
