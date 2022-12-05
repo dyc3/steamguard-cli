@@ -2,6 +2,8 @@ extern crate rpassword;
 use clap::{IntoApp, Parser};
 use crossterm::tty::IsTty;
 use log::*;
+#[cfg(feature = "qr")]
+use qrcode::QrCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{
 	io::{stdout, Write},
@@ -178,6 +180,10 @@ fn run() -> anyhow::Result<()> {
 		}
 		cli::Subcommands::Code(args) => {
 			return do_subcmd_code(args, selected_accounts);
+		}
+		#[cfg(feature = "qr")]
+		cli::Subcommands::Qr(args) => {
+			return do_subcmd_qr(args, selected_accounts);
 		}
 		s => {
 			error!("Unknown subcommand: {:?}", s);
@@ -683,6 +689,43 @@ fn do_subcmd_code(
 		trace!("{:?}", account);
 		let code = account.lock().unwrap().generate_code(server_time);
 		println!("{}", code);
+	}
+	return Ok(());
+}
+
+#[cfg(feature = "qr")]
+fn do_subcmd_qr(
+	args: cli::ArgsQr,
+	selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+) -> anyhow::Result<()> {
+	use anyhow::Context;
+
+	info!(
+		"Generating QR codes for {} accounts",
+		selected_accounts.len()
+	);
+
+	for account in selected_accounts {
+		let account = account.lock().unwrap();
+		let qr = QrCode::new(account.uri.expose_secret())
+			.context(format!("generating qr code for {}", account.account_name))?;
+
+		info!("Printing QR code for {}", account.account_name);
+		let qr_string = if args.ascii {
+			qr.render()
+				.light_color(' ')
+				.dark_color('#')
+				.module_dimensions(2, 1)
+				.build()
+		} else {
+			use qrcode::render::unicode;
+			qr.render::<unicode::Dense1x2>()
+				.dark_color(unicode::Dense1x2::Light)
+				.light_color(unicode::Dense1x2::Dark)
+				.build()
+		};
+
+		println!("{}", qr_string);
 	}
 	return Ok(());
 }

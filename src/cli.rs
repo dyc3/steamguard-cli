@@ -55,6 +55,8 @@ pub(crate) enum Subcommands {
 	Encrypt(ArgsEncrypt),
 	Decrypt(ArgsDecrypt),
 	Code(ArgsCode),
+	#[cfg(feature = "qr")]
+	Qr(ArgsQr),
 }
 
 #[derive(Debug, Clone, Copy, ArgEnum)]
@@ -170,4 +172,15 @@ impl From<Args> for ArgsCode {
 	fn from(args: Args) -> Self {
 		args.code
 	}
+}
+
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Generate QR codes. This *will* print sensitive data to stdout.")]
+#[cfg(feature = "qr")]
+pub(crate) struct ArgsQr {
+	#[clap(
+		long,
+		help = "Force using ASCII chars to generate QR codes. Useful for terminals that don't support unicode."
+	)]
+	pub ascii: bool,
 }
