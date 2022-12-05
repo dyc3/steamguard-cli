@@ -446,7 +446,7 @@ impl SteamApiClient {
 	/// Endpoint: POST /phone/validate
 	/// Body format: form data
 	/// Example:
-	/// ```
+	/// ```form
 	/// sessionID=FOO&phoneNumber=%2B1+1234567890
 	/// ```
 	/// Found on page: https://store.steampowered.com/phone/add
