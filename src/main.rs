@@ -275,7 +275,7 @@ fn do_login_impl(
 				login.captcha_text = tui::prompt_captcha_text(&captcha_gid);
 			}
 			Err(LoginError::NeedEmail) => {
-				println!("You should have received an email with a code.");
+				println!("You should have received an email with a code. If you did not, check your spam folder, or abort and try again.");
 				print!("Enter code: ");
 				login.email_code = tui::prompt();
 			}
@@ -362,8 +362,10 @@ fn do_subcmd_setup(
 			username
 		);
 	}
+	info!("Logging in to {}", username);
 	let session = do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
+	info!("Adding authenticator...");
 	let mut linker = AccountLinker::new(session);
 	let account: SteamGuardAccount;
 	loop {

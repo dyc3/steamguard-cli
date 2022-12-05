@@ -62,6 +62,9 @@ impl AccountLinker {
 				return Err(AccountLinkError::AuthenticatorPresent);
 			}
 			2 => {
+				// If the user has no phone number on their account, it will always return this status code.
+				// However, this does not mean that this status just means "no phone number". It can also
+				// be literally anything else, so that's why we return GenericFailure here.
 				return Err(AccountLinkError::GenericFailure);
 			}
 			1 => {
@@ -129,7 +132,7 @@ pub enum AccountLinkError {
 	MustConfirmEmail,
 	#[error("Authenticator is already present.")]
 	AuthenticatorPresent,
-	#[error("Steam was unable to link the authenticator to the account. No additional information about this error is available. This is a Steam error, not a steamguard-cli error. Try adding a phone number to your Steam account, or try again later.")]
+	#[error("Steam was unable to link the authenticator to the account. No additional information about this error is available. This is a Steam error, not a steamguard-cli error. Try adding a phone number to your Steam account (which you can do here: https://store.steampowered.com/phone/add), or try again later.")]
 	GenericFailure,
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
