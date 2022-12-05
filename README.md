@@ -55,7 +55,18 @@ steamguard-cli | xclip -selection clipboard
 
 ## Importing 2FA Secret Into Other Applications
 
-It's possible to import your 2FA secret into other applications, like Google Authenticator or KeeWeb. The `uri` field contains a URI in that starts with `otpauth://...`, which you can create a QR code for.
+It's possible to import your 2FA secret into other applications. This is useful if you want to use a password manager to generate your 2FA codes, like KeeWeb.
+
+To make this easy, steamguard-cli can generate a QR code for your 2FA secret. You can then scan this QR code with your password manager.
+
+```bash
+steamguard qr # print QR code for the first account in your maFiles
+steamguard -u <account name> qr # print QR code for a specific account
+```
+
+There are some applications that do not generate correct 2fa codes from the secret, so **do not use them**:
+- Google Authenticator
+- Authy
 
 # Contributing
 
