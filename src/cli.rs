@@ -116,10 +116,7 @@ pub(crate) struct ArgsCompletions {
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Set up a new account with steamguard-cli")]
-pub(crate) struct ArgsSetup {
-	#[clap(short, long, from_global, help = "Steam username, case-sensitive.")]
-	pub username: Option<String>,
-}
+pub(crate) struct ArgsSetup {}
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Import an account with steamguard already set up")]
