@@ -30,6 +30,15 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ "$current_branch" != "master" ]]; then
+  echo "You must be on the master branch to run this script"
+  exit 1
+fi
+
+git pull
+
 echo """
 This will do everything needed to release a new version:
 - bump the version number
