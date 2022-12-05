@@ -353,6 +353,8 @@ impl SteamApiClient {
 		}
 	}
 
+	/// Likely removed now
+	///
 	/// One of the endpoints that handles phone number things. Can check to see if phone is present on account, and maybe do some other stuff. It's not really super clear.
 	///
 	/// Host: steamcommunity.com
@@ -442,14 +444,26 @@ impl SteamApiClient {
 	/// Provides lots of juicy information, like if the number is a VOIP number.
 	/// Host: store.steampowered.com
 	/// Endpoint: POST /phone/validate
+	/// Body format: form data
+	/// Example:
+	/// ```form
+	/// sessionID=FOO&phoneNumber=%2B1+1234567890
+	/// ```
 	/// Found on page: https://store.steampowered.com/phone/add
-	pub fn phone_validate(&self, phone_number: String) -> anyhow::Result<bool> {
+	pub fn phone_validate(&self, phone_number: &String) -> anyhow::Result<PhoneValidateResponse> {
 		let params = hashmap! {
-			"sessionID" => "",
-			"phoneNumber" => "",
+			"sessionID" => self.session.as_ref().unwrap().expose_secret().session_id.as_str(),
+			"phoneNumber" => phone_number.as_str(),
 		};
 
-		todo!();
+		let resp = self
+			.client
+			.post("https://store.steampowered.com/phone/validate")
+			.form(&params)
+			.send()?
+			.json::<PhoneValidateResponse>()?;
+
+		return Ok(resp);
 	}
 
 	/// Starts the authenticator linking process.
@@ -648,6 +662,8 @@ pub struct AddAuthenticatorResponse {
 	pub secret_1: String,
 	/// Result code
 	pub status: i32,
+	#[serde(default)]
+	pub phone_number_hint: Option<String>,
 }
 
 impl AddAuthenticatorResponse {
@@ -676,6 +692,16 @@ pub struct FinalizeAddAuthenticatorResponse {
 	pub server_time: u64,
 	pub want_more: bool,
 	pub success: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct PhoneValidateResponse {
+	success: bool,
+	number: String,
+	is_valid: bool,
+	is_voip: bool,
+	is_fixed: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

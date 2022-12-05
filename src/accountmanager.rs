@@ -318,6 +318,12 @@ impl Manifest {
 		self.entries.iter().any(|e| e.account_name.is_empty())
 	}
 
+	fn has_any_uppercase_in_account_names(&self) -> bool {
+		self.entries
+			.iter()
+			.any(|e| e.account_name != e.account_name.to_lowercase())
+	}
+
 	/// Performs auto-upgrades on the manifest. Returns true if any upgrades were performed.
 	pub fn auto_upgrade(&mut self) -> anyhow::Result<bool, ManifestAccountLoadError> {
 		debug!("Performing auto-upgrade...");
@@ -327,6 +333,14 @@ impl Manifest {
 			for i in 0..self.entries.len() {
 				let account = self.load_account_by_entry(&self.entries[i].clone())?;
 				self.entries[i].account_name = account.lock().unwrap().account_name.clone();
+			}
+			upgraded = true;
+		}
+
+		if self.has_any_uppercase_in_account_names() {
+			debug!("Lowercasing account names");
+			for i in 0..self.entries.len() {
+				self.entries[i].account_name = self.entries[i].account_name.to_lowercase();
 			}
 			upgraded = true;
 		}
