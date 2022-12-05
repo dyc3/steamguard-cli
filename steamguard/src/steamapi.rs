@@ -660,6 +660,8 @@ pub struct AddAuthenticatorResponse {
 	pub secret_1: String,
 	/// Result code
 	pub status: i32,
+	#[serde(default)]
+	pub phone_number_hint: Option<String>,
 }
 
 impl AddAuthenticatorResponse {
