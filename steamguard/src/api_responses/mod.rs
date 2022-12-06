@@ -1,10 +1,10 @@
-mod ITwoFactorService;
+mod i_two_factor_service;
 mod login;
 mod phone_ajax;
 
+pub use i_two_factor_service::*;
 pub use login::*;
 pub use phone_ajax::*;
-pub use ITwoFactorService::*;
 
 use serde::{Deserialize, Deserializer};
 

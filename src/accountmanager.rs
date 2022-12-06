@@ -257,10 +257,12 @@ impl Manifest {
 	}
 
 	/// Return all loaded accounts. Order is not guarenteed.
+	#[allow(dead_code)]
 	pub fn get_all_loaded(&self) -> Vec<Arc<Mutex<SteamGuardAccount>>> {
 		return self.accounts.values().cloned().into_iter().collect();
 	}
 
+	#[allow(dead_code)]
 	pub fn get_entry(
 		&self,
 		account_name: &String,
@@ -271,6 +273,7 @@ impl Manifest {
 			.ok_or(ManifestAccountLoadError::MissingManifestEntry)
 	}
 
+	#[allow(dead_code)]
 	pub fn get_entry_mut(
 		&mut self,
 		account_name: &String,
