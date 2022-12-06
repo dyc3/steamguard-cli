@@ -4,7 +4,6 @@ use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
 use log::*;
-use regex::Regex;
 use reqwest::{
 	cookie::CookieStore,
 	header::{COOKIE, USER_AGENT},
@@ -24,6 +23,7 @@ extern crate anyhow;
 extern crate maplit;
 
 mod accountlinker;
+mod api_responses;
 mod confirmation;
 mod secret_string;
 pub mod steamapi;
