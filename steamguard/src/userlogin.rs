@@ -1,4 +1,7 @@
-use crate::steamapi::{LoginResponse, RsaResponse, Session, SteamApiClient};
+use crate::{
+	api_responses::{LoginResponse, RsaResponse},
+	steamapi::{Session, SteamApiClient},
+};
 use log::*;
 use rsa::{PublicKey, RsaPublicKey};
 use secrecy::ExposeSecret;

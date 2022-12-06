@@ -1,7 +1,6 @@
 use crate::{
-	steamapi::{
-		AddAuthenticatorResponse, FinalizeAddAuthenticatorResponse, Session, SteamApiClient,
-	},
+	api_responses::{AddAuthenticatorResponse, FinalizeAddAuthenticatorResponse},
+	steamapi::{Session, SteamApiClient},
 	SteamGuardAccount,
 };
 use log::*;
