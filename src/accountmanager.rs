@@ -86,6 +86,11 @@ impl Manifest {
 
 	/// Tells the manifest to keep track of the encryption passkey, and use it for encryption when loading or saving accounts.
 	pub fn submit_passkey(&mut self, passkey: Option<String>) {
+		if let Some(p) = passkey.as_ref() {
+			if p.is_empty() {
+				panic!("Encryption passkey cannot be empty");
+			}
+		}
 		if passkey.is_some() {
 			debug!("passkey was submitted to manifest");
 		} else {
