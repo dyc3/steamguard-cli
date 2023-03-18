@@ -41,6 +41,7 @@ fn test_validate_captcha_text() {
 
 /// Prompt the user for text input.
 pub(crate) fn prompt() -> String {
+	stdout().flush().expect("failed to flush stdout");
 	stderr().flush().expect("failed to flush stderr");
 
 	let mut line = String::new();
