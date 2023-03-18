@@ -41,7 +41,7 @@ fn test_validate_captcha_text() {
 
 /// Prompt the user for text input.
 pub(crate) fn prompt() -> String {
-	stderr().flush().unwrap();
+	stderr().flush().expect("failed to flush stderr");
 
 	let mut line = String::new();
 	while let Event::Key(KeyEvent { code, .. }) = crossterm::event::read().unwrap() {
