@@ -103,6 +103,8 @@ impl FromStr for Verbosity {
 pub(crate) struct ArgsDebug {
 	#[clap(long, help = "Show a text prompt.")]
 	pub demo_prompt: bool,
+	#[clap(long, help = "Show a \"press any key\" prompt.")]
+	pub demo_pause: bool,
 	#[clap(long, help = "Show a character prompt.")]
 	pub demo_prompt_char: bool,
 	#[clap(long, help = "Show an example confirmation menu using dummy data.")]

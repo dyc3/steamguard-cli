@@ -8,6 +8,15 @@ pub fn demo_prompt() {
 	println!("Result: {}", result);
 }
 
+pub fn demo_pause() {
+	let mut x = 0;
+	loop {
+		tui::pause();
+		x += 1;
+		println!("looped {} times", x);
+	}
+}
+
 pub fn demo_prompt_char() {
 	println!("Showing prompt");
 	let result = tui::prompt_char("Continue?", "yn");

@@ -222,9 +222,9 @@ fn get_selected_accounts(
 
 fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	if account.account_name.len() > 0 {
-		println!("Username: {}", account.account_name);
+		info!("Username: {}", account.account_name);
 	} else {
-		print!("Username: ");
+		eprint!("Username: ");
 		account.account_name = tui::prompt();
 	}
 	let _ = std::io::stdout().flush();
@@ -339,6 +339,9 @@ fn do_subcmd_debug(args: cli::ArgsDebug) -> anyhow::Result<()> {
 	if args.demo_prompt {
 		demos::demo_prompt();
 	}
+	if args.demo_pause {
+		demos::demo_pause();
+	}
 	if args.demo_prompt_char {
 		demos::demo_prompt_char();
 	}
@@ -358,8 +361,8 @@ fn do_subcmd_setup(
 	_args: cli::ArgsSetup,
 	manifest: &mut accountmanager::Manifest,
 ) -> anyhow::Result<()> {
-	println!("Log in to the account that you want to link to steamguard-cli");
-	print!("Username: ");
+	eprintln!("Log in to the account that you want to link to steamguard-cli");
+	eprint!("Username: ");
 	let username = tui::prompt().to_lowercase();
 	let account_name = username.clone();
 	if manifest.account_exists(&username) {
