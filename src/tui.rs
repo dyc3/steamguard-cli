@@ -273,11 +273,14 @@ pub(crate) fn prompt_confirmation_menu(
 }
 
 pub(crate) fn pause() {
-	eprintln!("Press any key to continue...");
+	let _ = write!(stderr(), "Press enter to continue...");
 	let _ = stderr().flush();
 	loop {
 		match crossterm::event::read().expect("could not read terminal events") {
-			Event::Key(_) => break,
+			Event::Key(KeyEvent {
+				code: KeyCode::Enter,
+				..
+			}) => break,
 			_ => continue,
 		}
 	}
