@@ -641,6 +641,12 @@ fn do_subcmd_encrypt(
 		let mut passkey;
 		loop {
 			passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+			if let Some(p) = passkey.as_ref() {
+				if p.is_empty() {
+					error!("Passkey cannot be empty, try again.");
+					continue;
+				}
+			}
 			let passkey_confirm =
 				rpassword::prompt_password_stdout("Confirm encryption passkey: ").ok();
 			if passkey == passkey_confirm {
