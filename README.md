@@ -50,7 +50,7 @@ steamguard --help
 
 Generate and copy a new code to clipboard:
 ```bash
-steamguard-cli | xclip -selection clipboard
+steamguard | xclip -selection clipboard
 ```
 
 ## Importing 2FA Secret Into Other Applications
