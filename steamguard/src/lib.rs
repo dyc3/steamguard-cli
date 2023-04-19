@@ -163,7 +163,7 @@ impl SteamGuardAccount {
 		trace!("{:?}", resp);
 		let text = resp.text().unwrap();
 		trace!("text: {:?}", text);
-		println!("{}", text);
+		trace!("{}", text);
 		return parse_confirmations(text);
 	}
 
