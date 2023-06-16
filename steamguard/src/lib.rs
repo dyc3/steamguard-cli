@@ -25,10 +25,12 @@ extern crate maplit;
 mod accountlinker;
 mod api_responses;
 mod confirmation;
+mod jwt;
 mod protobufs;
 mod secret_string;
 pub mod steamapi;
 pub mod token;
+pub mod transport;
 mod userlogin;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";

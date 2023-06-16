@@ -198,3 +198,45 @@ fn test_encrypt_password() {
 	assert_eq!(result.len(), 344);
 	assert_eq!(result, "RUo/3IfbkVcJi1q1S5QlpKn1mEn3gNJoc/Z4VwxRV9DImV6veq/YISEuSrHB3885U5MYFLn1g94Y+cWRL6HGXoV+gOaVZe43m7O92RwiVz6OZQXMfAv3UC/jcqn/xkitnj+tNtmx55gCxmGbO2KbqQ0TQqAyqCOOw565B+Cwr2OOorpMZAViv9sKA/G3Q6yzscU6rhua179c8QjC1Hk3idUoSzpWfT4sHNBW/EREXZ3Dkjwu17xzpfwIUpnBVIlR8Vj3coHgUCpTsKVRA3T814v9BYPlvLYwmw5DW3ddx+2SyTY0P5uuog36TN2PqYS7ioF5eDe16gyfRR4Nzn/7wA==");
 }
+
+use crate::protobufs::steammessages_auth_steamclient::{
+	CAuthentication_GetPasswordRSAPublicKey_Request,
+	CAuthentication_GetPasswordRSAPublicKey_Response, EAuthTokenPlatformType,
+};
+use crate::steamapi::{ApiRequest, ApiResponse};
+use crate::transport::Transport;
+
+pub struct LoginSession {
+	platform_type: EAuthTokenPlatformType,
+}
+
+pub(crate) struct AuthenticationClient<T>
+where
+	T: Transport,
+{
+	platform_type: EAuthTokenPlatformType,
+	transport: T,
+}
+
+impl<T> AuthenticationClient<T>
+where
+	T: Transport,
+{
+	pub fn new(platform_type: EAuthTokenPlatformType, transport: T) -> Self {
+		Self {
+			platform_type,
+			transport,
+		}
+	}
+
+	pub fn fetch_rsa_key(
+		&mut self,
+		account_name: String,
+	) -> anyhow::Result<ApiResponse<CAuthentication_GetPasswordRSAPublicKey_Response>> {
+		let mut inner = CAuthentication_GetPasswordRSAPublicKey_Request::new();
+		inner.set_account_name(account_name);
+		let req = ApiRequest::new("Authentication", "GetPasswordRSAPublicKey", 1u32)
+			.with_request_data(inner);
+		return self.transport.send_request::<CAuthentication_GetPasswordRSAPublicKey_Request, CAuthentication_GetPasswordRSAPublicKey_Response>(req);
+	}
+}
