@@ -25,6 +25,7 @@ extern crate maplit;
 mod accountlinker;
 mod api_responses;
 mod confirmation;
+mod protobufs;
 mod secret_string;
 pub mod steamapi;
 pub mod token;
