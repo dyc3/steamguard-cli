@@ -235,8 +235,24 @@ where
 	) -> anyhow::Result<ApiResponse<CAuthentication_GetPasswordRSAPublicKey_Response>> {
 		let mut inner = CAuthentication_GetPasswordRSAPublicKey_Request::new();
 		inner.set_account_name(account_name);
-		let req = ApiRequest::new("Authentication", "GetPasswordRSAPublicKey", 1u32)
-			.with_request_data(inner);
+		let req = ApiRequest::new("Authentication", "GetPasswordRSAPublicKey", 1u32, inner);
 		return self.transport.send_request::<CAuthentication_GetPasswordRSAPublicKey_Request, CAuthentication_GetPasswordRSAPublicKey_Response>(req);
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::AuthenticationClient;
+
+	#[test]
+	fn foo() -> anyhow::Result<()> {
+		let mut client = AuthenticationClient::new(crate::protobufs::steammessages_auth_steamclient::EAuthTokenPlatformType::k_EAuthTokenPlatformType_MobileApp, crate::transport::webapi::WebApiTransport::new());
+		let resp = client.fetch_rsa_key(String::from("hydrastar2"));
+		eprintln!("{:?}", resp);
+		if let Err(resp) = resp {
+			eprintln!("{:?}", resp);
+		}
+
+		Ok(())
 	}
 }

@@ -3,6 +3,10 @@ use std::marker::PhantomData;
 
 use protobuf::EnumFull;
 use protobuf::EnumOrUnknown;
+use protobuf::Message;
+use protobuf::MessageField;
+use protobuf::MessageFull;
+use serde::{Deserialize, Serialize};
 
 include!(concat!(env!("OUT_DIR"), "/protobufs/mod.rs"));
 
@@ -62,3 +66,7 @@ fn deserialize_enum_or_unknown<'de, E: EnumFull, D: serde::Deserializer<'de>>(
 
 	d.deserialize_any(DeserializeEnumVisitor(PhantomData))
 }
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "MessageField")]
+pub(crate) struct MessageFieldDef<T>(pub Option<Box<T>>);

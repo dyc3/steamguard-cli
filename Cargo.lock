@@ -1294,6 +1294,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "protobuf-json-mapping"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce19fee00c35e62179f79d622f440c27466c9f8dff68ca907d8f59dfc8a88adb"
+dependencies = [
+ "protobuf",
+ "protobuf-support",
+ "thiserror",
+]
+
+[[package]]
 name = "protobuf-parse"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2014,6 +2025,7 @@ dependencies = [
  "maplit",
  "protobuf",
  "protobuf-codegen",
+ "protobuf-json-mapping",
  "rand 0.8.5",
  "regex",
  "reqwest",

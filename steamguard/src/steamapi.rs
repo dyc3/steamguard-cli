@@ -1,3 +1,5 @@
+mod authentication;
+
 use crate::api_responses::*;
 use log::*;
 use reqwest::{
@@ -476,27 +478,34 @@ impl SteamApiClient {
 	}
 }
 
+pub trait BuildableRequest {
+	fn method() -> reqwest::Method;
+
+	fn build(&self, req: reqwest::blocking::RequestBuilder) -> reqwest::blocking::RequestBuilder;
+}
+
 #[derive(Debug, Clone)]
 pub struct ApiRequest<T> {
 	api_interface: String,
 	api_method: String,
 	api_version: u32,
 	access_token: Option<String>,
-	request_data: Option<T>,
+	request_data: T,
 }
 
-impl<T> ApiRequest<T> {
+impl<T: BuildableRequest> ApiRequest<T> {
 	pub fn new(
 		api_interface: impl Into<String>,
 		api_method: impl Into<String>,
 		api_version: u32,
+		request_data: T,
 	) -> Self {
 		Self {
 			api_interface: api_interface.into(),
 			api_method: api_method.into(),
 			api_version,
 			access_token: None,
-			request_data: None,
+			request_data,
 		}
 	}
 
@@ -505,14 +514,9 @@ impl<T> ApiRequest<T> {
 		self
 	}
 
-	pub fn with_request_data(mut self, request_data: T) -> Self {
-		self.request_data = Some(request_data);
-		self
-	}
-
 	pub(crate) fn build_url(&self) -> String {
 		format!(
-			"{}/{}/{}/v{}",
+			"{}/I{}Service/{}/v{}",
 			STEAM_API_BASE.to_string(),
 			self.api_interface,
 			self.api_method,
@@ -520,8 +524,8 @@ impl<T> ApiRequest<T> {
 		)
 	}
 
-	pub(crate) fn request_data(&self) -> Option<&T> {
-		self.request_data.as_ref()
+	pub(crate) fn request_data(&self) -> &T {
+		&self.request_data
 	}
 }
 

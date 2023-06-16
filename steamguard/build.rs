@@ -21,7 +21,8 @@ fn main() {
 	}
 	codegen.cargo_out_dir("protobufs");
 
-	codegen.customize_callback(GenSerde).run_from_script();
+	// codegen.customize_callback(GenSerde);
+	codegen.run_from_script();
 	println!("cargo:rerun-if-changed=protobufs");
 	println!("cargo:rerun-if-changed=build.rs");
 }
@@ -49,10 +50,17 @@ impl CustomizeCallback for GenSerde {
 	}
 
 	fn field(&self, field: &FieldDescriptor) -> Customize {
+		if field.name() == "public_ip" {
+			eprintln!("type_name: {:?}", field.proto().type_name());
+			eprintln!("type_: {:?}", field.proto().type_());
+			eprintln!("{:?}", field.proto());
+		}
 		if field.proto().type_() == Type::TYPE_ENUM {
 			// `EnumOrUnknown` is not a part of rust-protobuf, so external serializer is needed.
 			Customize::default().before(
 				"#[serde(serialize_with = \"crate::protobufs::serialize_enum_or_unknown\", deserialize_with = \"crate::protobufs::deserialize_enum_or_unknown\")]")
+		} else if field.name() == "public_ip" {
+			Customize::default().before("#[serde(with = \"crate::protobufs::MessageFieldDef\")]")
 		} else {
 			Customize::default()
 		}
