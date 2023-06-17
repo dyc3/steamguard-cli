@@ -2,7 +2,8 @@ use crate::protobufs::steammessages_auth_steamclient::{
 	CAuthenticationSupport_RevokeToken_Request, CAuthentication_AccessToken_GenerateForApp_Request,
 	CAuthentication_BeginAuthSessionViaCredentials_Request,
 	CAuthentication_BeginAuthSessionViaQR_Request, CAuthentication_GetPasswordRSAPublicKey_Request,
-	CAuthentication_MigrateMobileSession_Request, CAuthentication_RefreshToken_Revoke_Request,
+	CAuthentication_MigrateMobileSession_Request, CAuthentication_PollAuthSessionStatus_Request,
+	CAuthentication_RefreshToken_Revoke_Request,
 	CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
 	CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
 };
@@ -43,6 +44,7 @@ impl BuildableRequest for CAuthentication_GetPasswordRSAPublicKey_Request {
 }
 
 impl_buildable_req!(CAuthentication_MigrateMobileSession_Request);
+impl_buildable_req!(CAuthentication_PollAuthSessionStatus_Request);
 impl_buildable_req!(CAuthentication_RefreshToken_Revoke_Request);
 impl_buildable_req!(CAuthenticationSupport_RevokeToken_Request);
 impl_buildable_req!(CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request);

@@ -6,7 +6,8 @@ use crate::protobufs::steammessages_auth_steamclient::{
 	CAuthentication_BeginAuthSessionViaCredentials_Response,
 	CAuthentication_BeginAuthSessionViaQR_Response,
 	CAuthentication_GetPasswordRSAPublicKey_Response,
-	CAuthentication_MigrateMobileSession_Response, CAuthentication_RefreshToken_Revoke_Response,
+	CAuthentication_MigrateMobileSession_Response, CAuthentication_PollAuthSessionStatus_Response,
+	CAuthentication_RefreshToken_Revoke_Response,
 	CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response,
 	CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthSessionGuardType,
 };
@@ -170,6 +171,38 @@ impl From<MigrateMobileSessionResponse> for CAuthentication_MigrateMobileSession
 hack_impl_deserialize!(
 	MigrateMobileSessionResponse,
 	CAuthentication_MigrateMobileSession_Response
+);
+
+#[derive(Deserialize, Debug)]
+pub struct PollAuthSessionStatusResponse {
+	pub new_client_id: u64,
+	pub new_challenge_url: String,
+	pub refresh_token: String,
+	pub access_token: String,
+	pub had_remote_interaction: bool,
+	pub account_name: String,
+	pub new_guard_data: String,
+	pub agreement_session_url: String,
+}
+
+impl From<PollAuthSessionStatusResponse> for CAuthentication_PollAuthSessionStatus_Response {
+	fn from(resp: PollAuthSessionStatusResponse) -> Self {
+		let mut inner = Self::new();
+		inner.set_new_client_id(resp.new_client_id);
+		inner.set_new_challenge_url(resp.new_challenge_url);
+		inner.set_refresh_token(resp.refresh_token);
+		inner.set_access_token(resp.access_token);
+		inner.set_had_remote_interaction(resp.had_remote_interaction);
+		inner.set_account_name(resp.account_name);
+		inner.set_new_guard_data(resp.new_guard_data);
+		inner.set_agreement_session_url(resp.agreement_session_url);
+		inner
+	}
+}
+
+hack_impl_deserialize!(
+	PollAuthSessionStatusResponse,
+	CAuthentication_PollAuthSessionStatus_Response
 );
 
 #[derive(Deserialize, Debug)]
