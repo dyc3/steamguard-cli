@@ -1,5 +1,21 @@
 use crate::{
 	api_responses::{GetPasswordRSAPublicKeyResponse, LoginResponse, RsaResponse},
+	protobufs::steammessages_auth_steamclient::{
+		CAuthenticationSupport_RevokeToken_Request, CAuthenticationSupport_RevokeToken_Response,
+		CAuthentication_AccessToken_GenerateForApp_Request,
+		CAuthentication_AccessToken_GenerateForApp_Response,
+		CAuthentication_BeginAuthSessionViaCredentials_Request,
+		CAuthentication_BeginAuthSessionViaCredentials_Response,
+		CAuthentication_BeginAuthSessionViaQR_Request,
+		CAuthentication_BeginAuthSessionViaQR_Response,
+		CAuthentication_MigrateMobileSession_Request,
+		CAuthentication_MigrateMobileSession_Response, CAuthentication_RefreshToken_Revoke_Request,
+		CAuthentication_RefreshToken_Revoke_Response,
+		CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
+		CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response,
+		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
+		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response,
+	},
 	steamapi::{Session, SteamApiClient},
 };
 use log::*;
@@ -222,11 +238,54 @@ impl<T> AuthenticationClient<T>
 where
 	T: Transport,
 {
+	#[must_use]
 	pub fn new(platform_type: EAuthTokenPlatformType, transport: T) -> Self {
 		Self {
 			platform_type,
 			transport,
 		}
+	}
+
+	pub fn begin_auth_session_via_credentials(
+		&mut self,
+		req: CAuthentication_BeginAuthSessionViaCredentials_Request,
+	) -> anyhow::Result<ApiResponse<CAuthentication_BeginAuthSessionViaCredentials_Response>> {
+		let req = ApiRequest::new(
+			"Authentication",
+			"BeginAuthSessionViaCredentials",
+			1u32,
+			req,
+		);
+		let resp = self.transport.send_request::<
+			CAuthentication_BeginAuthSessionViaCredentials_Request,
+			CAuthentication_BeginAuthSessionViaCredentials_Response>(req)?;
+		Ok(resp)
+	}
+
+	pub fn begin_auth_session_via_qr(
+		&mut self,
+		req: CAuthentication_BeginAuthSessionViaQR_Request,
+	) -> anyhow::Result<ApiResponse<CAuthentication_BeginAuthSessionViaQR_Response>> {
+		let req = ApiRequest::new("Authentication", "BeginAuthSessionViaQR", 1u32, req);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_BeginAuthSessionViaQR_Request, CAuthentication_BeginAuthSessionViaQR_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
+	pub fn generate_access_token(
+		&mut self,
+		req: CAuthentication_AccessToken_GenerateForApp_Request,
+	) -> anyhow::Result<ApiResponse<CAuthentication_AccessToken_GenerateForApp_Response>> {
+		let req = ApiRequest::new("Authentication", "GenerateAccessTokenForApp", 1u32, req);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_AccessToken_GenerateForApp_Request, CAuthentication_AccessToken_GenerateForApp_Response>(
+				req,
+			)?;
+		Ok(resp)
 	}
 
 	pub fn fetch_rsa_key(
@@ -243,6 +302,82 @@ where
 			)?;
 
 		return Ok(resp);
+	}
+
+	pub fn migrate_mobile_session(
+		&mut self,
+		req: CAuthentication_MigrateMobileSession_Request,
+	) -> anyhow::Result<ApiResponse<CAuthentication_MigrateMobileSession_Response>> {
+		let req = ApiRequest::new("Authentication", "MigrateMobileSession", 1u32, req);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_MigrateMobileSession_Request, CAuthentication_MigrateMobileSession_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
+	pub fn revoke_refresh_token(
+		&mut self,
+		req: CAuthentication_RefreshToken_Revoke_Request,
+	) -> anyhow::Result<ApiResponse<CAuthentication_RefreshToken_Revoke_Response>> {
+		let req = ApiRequest::new("Authentication", "RevokeRefreshToken", 1u32, req);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_RefreshToken_Revoke_Request, CAuthentication_RefreshToken_Revoke_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
+	pub fn revoke_access_token(
+		&mut self,
+		req: CAuthenticationSupport_RevokeToken_Request,
+	) -> anyhow::Result<ApiResponse<CAuthenticationSupport_RevokeToken_Response>> {
+		let req = ApiRequest::new("Authentication", "RevokeToken", 1u32, req);
+		let resp = self
+			.transport
+			.send_request::<CAuthenticationSupport_RevokeToken_Request, CAuthenticationSupport_RevokeToken_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
+	pub fn update_session_with_mobile_confirmation(
+		&mut self,
+		req: CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
+	) -> anyhow::Result<ApiResponse<CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response>>
+	{
+		let req = ApiRequest::new(
+			"Authentication",
+			"UpdateAuthSessionWithMobileConfirmation",
+			1u32,
+			req,
+		);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request, CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
+	pub fn update_session_with_steam_guard_code(
+		&mut self,
+		req: CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
+	) -> anyhow::Result<ApiResponse<CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response>> {
+		let req = ApiRequest::new(
+			"Authentication",
+			"UpdateAuthSessionWithSteamGuardCode",
+			1u32,
+			req,
+		);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request, CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response>(
+				req,
+			)?;
+		Ok(resp)
 	}
 }
 
