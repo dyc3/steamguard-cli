@@ -1,16 +1,15 @@
+use std::f32::consts::E;
 use std::fmt::Formatter;
 use std::marker::PhantomData;
 
 use protobuf::EnumFull;
 use protobuf::EnumOrUnknown;
-use protobuf::Message;
 use protobuf::MessageField;
-use protobuf::MessageFull;
 use serde::{Deserialize, Serialize};
 
 include!(concat!(env!("OUT_DIR"), "/protobufs/mod.rs"));
 
-fn serialize_enum_or_unknown<E: EnumFull, S: serde::Serializer>(
+pub(crate) fn serialize_enum_or_unknown<E: EnumFull, S: serde::Serializer>(
 	e: &Option<EnumOrUnknown<E>>,
 	s: S,
 ) -> Result<S::Ok, S::Error> {
@@ -24,7 +23,7 @@ fn serialize_enum_or_unknown<E: EnumFull, S: serde::Serializer>(
 	}
 }
 
-fn deserialize_enum_or_unknown<'de, E: EnumFull, D: serde::Deserializer<'de>>(
+pub(crate) fn deserialize_enum_or_unknown<'de, E: EnumFull, D: serde::Deserializer<'de>>(
 	d: D,
 ) -> Result<Option<EnumOrUnknown<E>>, D::Error> {
 	struct DeserializeEnumVisitor<E: EnumFull>(PhantomData<E>);

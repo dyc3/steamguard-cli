@@ -1,5 +1,5 @@
 use crate::{
-	api_responses::{LoginResponse, RsaResponse},
+	api_responses::{GetPasswordRSAPublicKeyResponse, LoginResponse, RsaResponse},
 	steamapi::{Session, SteamApiClient},
 };
 use log::*;
@@ -236,7 +236,13 @@ where
 		let mut inner = CAuthentication_GetPasswordRSAPublicKey_Request::new();
 		inner.set_account_name(account_name);
 		let req = ApiRequest::new("Authentication", "GetPasswordRSAPublicKey", 1u32, inner);
-		return self.transport.send_request::<CAuthentication_GetPasswordRSAPublicKey_Request, CAuthentication_GetPasswordRSAPublicKey_Response>(req);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_GetPasswordRSAPublicKey_Request, CAuthentication_GetPasswordRSAPublicKey_Response>(
+				req,
+			)?;
+
+		return Ok(resp);
 	}
 }
 
