@@ -26,7 +26,7 @@ mod accountlinker;
 mod api_responses;
 mod confirmation;
 mod jwt;
-mod protobufs;
+pub mod protobufs;
 mod secret_string;
 pub mod steamapi;
 pub mod token;
