@@ -16,15 +16,6 @@ macro_rules! impl_buildable_req {
 			fn method() -> reqwest::Method {
 				reqwest::Method::POST
 			}
-
-			fn build(
-				&self,
-				req: reqwest::blocking::RequestBuilder,
-			) -> reqwest::blocking::RequestBuilder {
-				let s = protobuf_json_mapping::print_to_string(self)
-					.expect("Failed to serialize request");
-				req.body(s)
-			}
 		}
 	};
 }
@@ -36,10 +27,6 @@ impl_buildable_req!(CAuthentication_AccessToken_GenerateForApp_Request);
 impl BuildableRequest for CAuthentication_GetPasswordRSAPublicKey_Request {
 	fn method() -> reqwest::Method {
 		reqwest::Method::GET
-	}
-
-	fn build(&self, req: reqwest::blocking::RequestBuilder) -> reqwest::blocking::RequestBuilder {
-		req.query(&[("account_name", self.account_name())])
 	}
 }
 

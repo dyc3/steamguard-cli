@@ -480,9 +480,6 @@ impl SteamApiClient {
 
 pub trait BuildableRequest {
 	fn method() -> reqwest::Method;
-
-	#[deprecated]
-	fn build(&self, req: reqwest::blocking::RequestBuilder) -> reqwest::blocking::RequestBuilder;
 }
 
 #[derive(Debug, Clone)]
