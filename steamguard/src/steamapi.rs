@@ -531,42 +531,31 @@ impl<T: BuildableRequest> ApiRequest<T> {
 
 #[derive(Debug, Clone)]
 pub struct ApiResponse<T> {
-	result: Option<EResult>,
+	result: EResult,
 	error_message: Option<String>,
-	response_data: Option<T>,
+	response_data: T,
 }
 
 impl<T> ApiResponse<T> {
-	pub fn new() -> Self {
-		Self {
-			result: None,
-			error_message: None,
-			response_data: None,
-		}
+	pub fn result(&self) -> EResult {
+		self.result
 	}
 
-	pub(crate) fn set_result(&mut self, result: impl Into<EResult>) {
-		self.result = Some(result.into());
-	}
-
-	pub fn result(&self) -> Option<&EResult> {
-		self.result.as_ref()
-	}
-
-	pub(crate) fn set_error_message(&mut self, error_message: String) {
-		self.error_message = Some(error_message);
+	pub(crate) fn with_error_message(mut self, error_message: Option<String>) -> Self {
+		self.error_message = error_message;
+		self
 	}
 
 	pub fn error_message(&self) -> Option<&String> {
 		self.error_message.as_ref()
 	}
 
-	pub(crate) fn set_response_data(&mut self, response_data: T) {
-		self.response_data = Some(response_data);
+	pub fn response_data(&self) -> &T {
+		&self.response_data
 	}
 
-	pub fn response_data(&self) -> Option<&T> {
-		self.response_data.as_ref()
+	pub fn into_response_data(self) -> T {
+		self.response_data
 	}
 }
 
