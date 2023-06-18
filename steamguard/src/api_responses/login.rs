@@ -22,6 +22,7 @@ pub struct OAuthData {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[deprecated]
 pub struct RsaResponse {
 	pub success: bool,
 	pub publickey_exp: String,
