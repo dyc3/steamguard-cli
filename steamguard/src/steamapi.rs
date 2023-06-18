@@ -481,6 +481,7 @@ impl SteamApiClient {
 pub trait BuildableRequest {
 	fn method() -> reqwest::Method;
 
+	#[deprecated]
 	fn build(&self, req: reqwest::blocking::RequestBuilder) -> reqwest::blocking::RequestBuilder;
 }
 
@@ -531,9 +532,9 @@ impl<T: BuildableRequest> ApiRequest<T> {
 
 #[derive(Debug, Clone)]
 pub struct ApiResponse<T> {
-	result: EResult,
-	error_message: Option<String>,
-	response_data: T,
+	pub(crate) result: EResult,
+	pub(crate) error_message: Option<String>,
+	pub(crate) response_data: T,
 }
 
 impl<T> ApiResponse<T> {
@@ -560,7 +561,7 @@ impl<T> ApiResponse<T> {
 }
 
 // TODO: generate from protobufs
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 pub enum EResult {
 	Invalid = 0,
 	OK = 1,
