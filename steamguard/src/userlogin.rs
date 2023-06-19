@@ -3,7 +3,7 @@ use crate::protobufs::steammessages_auth_steamclient::{
 	CAuthentication_AllowedConfirmation, CAuthentication_PollAuthSessionStatus_Request,
 	CAuthentication_PollAuthSessionStatus_Response, EAuthSessionGuardType,
 };
-use crate::steamapi::{ApiRequest, ApiResponse};
+use crate::steamapi::{ApiRequest, ApiResponse, EResult};
 use crate::transport::Transport;
 use crate::{
 	api_responses::{LoginResponse, RsaResponse},
@@ -31,7 +31,7 @@ use crate::{
 use log::*;
 use rsa::{PublicKey, RsaPublicKey};
 use secrecy::ExposeSecret;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
 pub enum LoginError {
@@ -164,25 +164,39 @@ impl UserLogin {
 		Ok(())
 	}
 
-	pub fn poll(&mut self) -> anyhow::Result<()> {
+	pub fn poll_until_info(
+		&mut self,
+	) -> anyhow::Result<CAuthentication_PollAuthSessionStatus_Response> {
 		let Some(started_auth) = self.started_auth.as_ref() else {
 			return Err(anyhow::anyhow!("no auth session started"));
 		};
 
-		let mut req = CAuthentication_PollAuthSessionStatus_Request::new();
-		req.set_client_id(started_auth.client_id());
-		req.set_request_id(started_auth.request_id().to_vec());
+		loop {
+			let mut req = CAuthentication_PollAuthSessionStatus_Request::new();
+			req.set_client_id(started_auth.client_id());
+			req.set_request_id(started_auth.request_id().to_vec());
 
-		let mut resp = self.client.poll_auth_session(req)?.into_response_data();
+			let resp = self.client.poll_auth_session(req)?;
+			if resp.result != EResult::OK {
+				return Err(anyhow::anyhow!("poll failed: {:?}", resp.result));
+			}
 
-		if resp.has_refresh_token() {
-			self.refresh_token = Some(resp.take_refresh_token());
+			let data = resp.response_data();
+			let has_data = data.has_access_token()
+				|| data.has_account_name()
+				|| data.has_agreement_session_url()
+				|| data.has_had_remote_interaction()
+				|| data.has_new_challenge_url()
+				|| data.has_new_client_id()
+				|| data.has_new_guard_data()
+				|| data.has_refresh_token();
+
+			if has_data {
+				return Ok(resp.into_response_data());
+			}
+
+			std::thread::sleep(Duration::from_secs_f32(started_auth.interval()));
 		}
-		if resp.has_access_token() {
-			self.access_token = Some(resp.take_access_token());
-		}
-
-		Ok(())
 	}
 
 	pub fn submit_steam_guard_code(

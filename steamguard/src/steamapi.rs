@@ -558,7 +558,7 @@ impl<T> ApiResponse<T> {
 }
 
 // TODO: generate from protobufs
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum EResult {
 	Invalid = 0,
 	OK = 1,
