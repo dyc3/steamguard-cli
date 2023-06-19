@@ -35,9 +35,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
 pub enum LoginError {
-	/// More action is required to complete the login process.
-	LoginGuards(Vec<AllowedConfirmation>),
+	BadCredentials,
 	TooManyAttempts,
+	UnknownEResult(EResult),
+	AuthAlreadyStarted,
 	NetworkFailure(reqwest::Error),
 	OtherFailure(anyhow::Error),
 }
@@ -103,9 +104,9 @@ impl UserLogin {
 		&mut self,
 		account_name: String,
 		password: String,
-	) -> anyhow::Result<()> {
+	) -> anyhow::Result<Vec<AllowedConfirmation>, LoginError> {
 		if self.started_auth.is_some() {
-			return Err(anyhow::anyhow!("already started auth"));
+			return Err(LoginError::AuthAlreadyStarted);
 		}
 
 		let rsa = self.client.fetch_rsa_key(account_name.clone())?;
@@ -120,15 +121,26 @@ impl UserLogin {
 		);
 		req.set_remember_login(true);
 
-		let resp = self
-			.client
-			.begin_auth_session_via_credentials(req)?
-			.into_response_data();
+		let resp = self.client.begin_auth_session_via_credentials(req)?;
+
+		match resp.result {
+			EResult::OK => {}
+			EResult::InvalidPassword => return Err(LoginError::BadCredentials),
+			EResult::RateLimitExceeded => return Err(LoginError::TooManyAttempts),
+			r => return Err(LoginError::UnknownEResult(r)),
+		}
 
 		debug!("auth session started");
-		self.started_auth = Some(resp.into());
+		self.started_auth = Some(resp.into_response_data().into());
 
-		Ok(())
+		Ok(self
+			.started_auth
+			.as_ref()
+			.unwrap()
+			.allowed_confirmations()
+			.iter()
+			.map(|c| c.clone().into())
+			.collect())
 	}
 
 	pub fn begin_auth_via_qr(&mut self) -> anyhow::Result<()> {

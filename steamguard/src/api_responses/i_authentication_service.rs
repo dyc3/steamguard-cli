@@ -77,6 +77,15 @@ impl From<AllowedConfirmation> for CAuthentication_AllowedConfirmation {
 	}
 }
 
+impl From<CAuthentication_AllowedConfirmation> for AllowedConfirmation {
+	fn from(mut resp: CAuthentication_AllowedConfirmation) -> Self {
+		Self {
+			confirmation_type: resp.confirmation_type(),
+			associated_messsage: resp.take_associated_message(),
+		}
+	}
+}
+
 hack_impl_deserialize!(AllowedConfirmation, CAuthentication_AllowedConfirmation);
 
 #[derive(Deserialize, Debug)]
