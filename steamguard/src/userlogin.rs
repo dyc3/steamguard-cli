@@ -174,7 +174,8 @@ impl UserLogin {
 		loop {
 			let mut req = CAuthentication_PollAuthSessionStatus_Request::new();
 			req.set_client_id(started_auth.client_id());
-			req.set_request_id(started_auth.request_id().to_vec());
+			let request_id = base64::encode(started_auth.request_id());
+			req.set_request_id(request_id.into());
 
 			let resp = self.client.poll_auth_session(req)?;
 			if resp.result != EResult::OK {
