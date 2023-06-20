@@ -1,7 +1,8 @@
 use crate::api_responses::AllowedConfirmation;
 use crate::protobufs::steammessages_auth_steamclient::{
-	CAuthentication_AllowedConfirmation, CAuthentication_PollAuthSessionStatus_Request,
-	CAuthentication_PollAuthSessionStatus_Response, EAuthSessionGuardType,
+	CAuthentication_AllowedConfirmation, CAuthentication_DeviceDetails,
+	CAuthentication_PollAuthSessionStatus_Request, CAuthentication_PollAuthSessionStatus_Response,
+	EAuthSessionGuardType,
 };
 use crate::steamapi::{ApiRequest, ApiResponse, EResult};
 use crate::transport::Transport;
@@ -68,58 +69,43 @@ impl From<anyhow::Error> for LoginError {
 pub struct UserLogin {
 	platform_type: EAuthTokenPlatformType,
 	client: AuthenticationClient<WebApiTransport>,
+	device_details: DeviceDetails,
 
 	started_auth: Option<StartAuth>,
-
-	refresh_token: Option<String>,
-	access_token: Option<String>,
 }
 
 impl UserLogin {
-	pub fn from_beginning(platform_type: EAuthTokenPlatformType) -> Self {
+	pub fn new(platform_type: EAuthTokenPlatformType, device_details: DeviceDetails) -> Self {
 		return Self {
 			platform_type,
 			client: AuthenticationClient::new(WebApiTransport::new()),
+			device_details,
 			started_auth: None,
-			refresh_token: None,
-			access_token: None,
-		};
-	}
-
-	pub fn from_tokens(
-		platform_type: EAuthTokenPlatformType,
-		refresh_token: String,
-		access_token: Option<String>,
-	) -> Self {
-		return Self {
-			platform_type,
-			client: AuthenticationClient::new(WebApiTransport::new()),
-			started_auth: None,
-			refresh_token: Some(refresh_token),
-			access_token,
 		};
 	}
 
 	pub fn begin_auth_via_credentials(
 		&mut self,
-		account_name: String,
-		password: String,
+		account_name: &String,
+		password: &String,
 	) -> anyhow::Result<Vec<AllowedConfirmation>, LoginError> {
 		if self.started_auth.is_some() {
 			return Err(LoginError::AuthAlreadyStarted);
 		}
+		trace!("UserLogin::begin_auth_via_credentials");
 
 		let rsa = self.client.fetch_rsa_key(account_name.clone())?;
 
 		let mut req = CAuthentication_BeginAuthSessionViaCredentials_Request::new();
-		req.set_platform_type(self.platform_type);
-		req.set_account_name(account_name);
-		let encrypted_password = encrypt_password(rsa.into_response_data(), &password);
+		req.set_account_name(account_name.clone());
+		let rsa_resp = rsa.into_response_data();
+		req.set_encryption_timestamp(rsa_resp.timestamp());
+		let encrypted_password = encrypt_password(rsa_resp, &password);
 		req.set_encrypted_password(encrypted_password);
 		req.set_persistence(
 			crate::protobufs::enums::ESessionPersistence::k_ESessionPersistence_Persistent,
 		);
-		req.set_remember_login(true);
+		req.device_details = self.device_details.clone().into_message_field();
 
 		let resp = self.client.begin_auth_session_via_credentials(req)?;
 
@@ -161,20 +147,20 @@ impl UserLogin {
 		Ok(())
 	}
 
-	pub fn fetch_new_access_token(&mut self) -> anyhow::Result<()> {
-		let Some(refresh_token) = self.refresh_token.as_ref() else {
-			return Err(anyhow::anyhow!("no refresh token"));
-		};
+	// pub fn fetch_new_access_token(&mut self) -> anyhow::Result<()> {
+	// 	let Some(refresh_token) = self.refresh_token.as_ref() else {
+	// 		return Err(anyhow::anyhow!("no refresh token"));
+	// 	};
 
-		let mut req = CAuthentication_AccessToken_GenerateForApp_Request::new();
-		req.set_refresh_token(refresh_token.clone());
+	// 	let mut req = CAuthentication_AccessToken_GenerateForApp_Request::new();
+	// 	req.set_refresh_token(refresh_token.clone());
 
-		let mut resp = self.client.generate_access_token(req)?.into_response_data();
-		trace!("resp: {:?}", resp);
-		self.access_token = Some(resp.take_access_token());
+	// 	let mut resp = self.client.generate_access_token(req)?.into_response_data();
+	// 	trace!("resp: {:?}", resp);
+	// 	self.access_token = Some(resp.take_access_token());
 
-		Ok(())
-	}
+	// 	Ok(())
+	// }
 
 	pub fn poll_until_info(
 		&mut self,
@@ -231,12 +217,11 @@ impl UserLogin {
 		req.set_code_type(guard_type);
 		req.set_code(code);
 
-		let resp = self
-			.client
-			.update_session_with_steam_guard_code(req)?
-			.into_response_data();
+		let resp = self.client.update_session_with_steam_guard_code(req)?;
 
-		trace!("resp: {:?}", resp);
+		if resp.result != EResult::OK {
+			return Err(anyhow::anyhow!("update failed: {:?}", resp.result));
+		}
 
 		Ok(())
 	}
@@ -361,14 +346,6 @@ fn encrypt_password(
 	return encrypted_password;
 }
 
-pub struct LoginSession {
-	platform_type: EAuthTokenPlatformType,
-
-	start_auth: Option<StartAuth>,
-	access_token: String,
-	refresh_token: String,
-}
-
 #[derive(Debug)]
 enum StartAuth {
 	BeginAuthSessionViaCredentials(CAuthentication_BeginAuthSessionViaCredentials_Response),
@@ -414,6 +391,34 @@ impl From<CAuthentication_BeginAuthSessionViaCredentials_Response> for StartAuth
 impl From<CAuthentication_BeginAuthSessionViaQR_Response> for StartAuth {
 	fn from(resp: CAuthentication_BeginAuthSessionViaQR_Response) -> Self {
 		Self::BeginAuthSessionViaQR(resp)
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeviceDetails {
+	/// The name to display for this device. You should make this unique, identifiable, and human readable. Used when managing account sessions.
+	pub friendly_name: String,
+	pub platform_type: EAuthTokenPlatformType,
+	/// Corresponds to the EOSType enum.
+	pub os_type: i32,
+	/// Corresponds to the EGamingDeviceType enum.
+	pub gaming_device_type: u32,
+}
+
+impl DeviceDetails {
+	fn into_message_field(self) -> protobuf::MessageField<CAuthentication_DeviceDetails> {
+		Some(self.into()).into()
+	}
+}
+
+impl From<DeviceDetails> for CAuthentication_DeviceDetails {
+	fn from(details: DeviceDetails) -> Self {
+		let mut inner = CAuthentication_DeviceDetails::new();
+		inner.set_device_friendly_name(details.friendly_name);
+		inner.set_platform_type(details.platform_type);
+		inner.set_os_type(details.os_type);
+		inner.set_gaming_device_type(details.gaming_device_type);
+		inner
 	}
 }
 
@@ -600,5 +605,15 @@ mod tests {
 		let result = encrypt_password(rsa_resp, &String::from("kelwleofpsm3n4ofc"));
 		assert_eq!(result.len(), 344);
 		assert_eq!(result, "RUo/3IfbkVcJi1q1S5QlpKn1mEn3gNJoc/Z4VwxRV9DImV6veq/YISEuSrHB3885U5MYFLn1g94Y+cWRL6HGXoV+gOaVZe43m7O92RwiVz6OZQXMfAv3UC/jcqn/xkitnj+tNtmx55gCxmGbO2KbqQ0TQqAyqCOOw565B+Cwr2OOorpMZAViv9sKA/G3Q6yzscU6rhua179c8QjC1Hk3idUoSzpWfT4sHNBW/EREXZ3Dkjwu17xzpfwIUpnBVIlR8Vj3coHgUCpTsKVRA3T814v9BYPlvLYwmw5DW3ddx+2SyTY0P5uuog36TN2PqYS7ioF5eDe16gyfRR4Nzn/7wA==");
+	}
+
+	#[test]
+	fn test_encrypt_password_2() {
+		let mut rsa_resp = CAuthentication_GetPasswordRSAPublicKey_Response::new();
+		rsa_resp.set_publickey_exp(String::from("010001"));
+		rsa_resp.set_publickey_mod(String::from("ca6a8dc290279b25c38a282b9a7b01306c5978bd7a2f60dcfd52134ac58faf121568ebd85ca6a2128413b76ec70fb3150b3181bbe2a1a8349b68da9c303960bdf4e34296b27bd4ea29b4d1a695168ddfc974bb6ba427206fdcdb088bf27261a52f343a51e19759fe4072b7a2047a6bc31361950d9e87d7977b31b71696572babe45ea6a7d132547984462fd5787607e0d9ff1c637e04d593e7538c880c3cdd252b75bcb703a7b8bb01cd8898b04980f40b76235d50fc1544c39ccbe763892322fc6d0a5acaf8be09efbc20fcfebcd3b02a1eb95d9d0c338e96674c17edbb0257cd43d04974423f1f995a28b9e159322d9db2708826804c0eccafffc94dd2a3d5"));
+		rsa_resp.set_timestamp(104444850000);
+		let result = encrypt_password(rsa_resp, &String::from("foo"));
+		assert_eq!(result, "jmlMXmhbweWn+wJnnf96W3Lsh0dRmzrBfMxREUuEW11rRYcfXWupBIT3eK1fmQHMZmyJeMhZiRpgIaZ7DafojQT6djJr+RKeREJs0ys9hKwxD5FGlqsTLXXEeuyopyd2smHBbmmF47voe59KEoiZZapP+eYnpJy3O2k7e1P9BH9LsKIN/nWF1ogM2jjJ328AejUpM64tPl/kInFJ1CHrLiAAKDPk42fLAAKs97xIi0JkosG6yp+8HhFqQxxZ8/bNI1IVkQC1Hdc2AN0QlNKxbDXquAn6ARgw/4b5DwUpnOb9de+Q6iX3v1/M07Se7JV8/4tuz8Thy2Chbxsf9E1TuQ==");
 	}
 }

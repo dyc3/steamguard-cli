@@ -14,7 +14,7 @@ pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, convert::TryInto, io::Read};
 use steamapi::SteamApiClient;
-pub use userlogin::{LoginError, UserLogin};
+pub use userlogin::{DeviceDetails, LoginError, UserLogin};
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
