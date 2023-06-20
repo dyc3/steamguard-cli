@@ -65,6 +65,16 @@ impl From<anyhow::Error> for LoginError {
 	}
 }
 
+impl From<EResult> for LoginError {
+	fn from(err: EResult) -> Self {
+		match err {
+			EResult::InvalidPassword => LoginError::BadCredentials,
+			EResult::RateLimitExceeded => LoginError::TooManyAttempts,
+			err => LoginError::UnknownEResult(err),
+		}
+	}
+}
+
 /// Handles the user login flow.
 #[derive(Debug)]
 pub struct UserLogin {
@@ -112,11 +122,8 @@ impl UserLogin {
 
 		let resp = self.client.begin_auth_session_via_credentials(req)?;
 
-		match resp.result {
-			EResult::OK => {}
-			EResult::InvalidPassword => return Err(LoginError::BadCredentials),
-			EResult::RateLimitExceeded => return Err(LoginError::TooManyAttempts),
-			r => return Err(LoginError::UnknownEResult(r)),
+		if resp.result != EResult::OK {
+			return Err(resp.result.into());
 		}
 
 		debug!("auth session started");
@@ -132,22 +139,30 @@ impl UserLogin {
 			.collect())
 	}
 
-	pub fn begin_auth_via_qr(&mut self) -> anyhow::Result<()> {
+	pub fn begin_auth_via_qr(&mut self) -> anyhow::Result<Vec<AllowedConfirmation>, LoginError> {
 		if self.started_auth.is_some() {
-			return Err(anyhow::anyhow!("already started auth"));
+			return Err(LoginError::AuthAlreadyStarted);
 		}
 
 		let mut req = CAuthentication_BeginAuthSessionViaQR_Request::new();
 		req.set_platform_type(self.platform_type);
-		let resp = self
-			.client
-			.begin_auth_session_via_qr(req)?
-			.into_response_data();
+		let resp = self.client.begin_auth_session_via_qr(req)?;
+
+		if resp.result != EResult::OK {
+			return Err(resp.result.into());
+		}
 
 		debug!("auth session started");
-		self.started_auth = Some(resp.into());
+		self.started_auth = Some(resp.into_response_data().into());
 
-		Ok(())
+		Ok(self
+			.started_auth
+			.as_ref()
+			.unwrap()
+			.allowed_confirmations()
+			.iter()
+			.map(|c| c.clone().into())
+			.collect())
 	}
 
 	// pub fn fetch_new_access_token(&mut self) -> anyhow::Result<()> {
