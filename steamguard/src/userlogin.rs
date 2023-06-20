@@ -483,11 +483,6 @@ where
 		Ok(resp)
 	}
 
-	/// ```no_run
-	/// let mut client =
-	/// 		AuthenticationClient::new(crate::transport::webapi::WebApiTransport::new());
-	/// let resp = client.fetch_rsa_key(String::from("hydrastar2"));
-	/// ```
 	pub fn fetch_rsa_key(
 		&mut self,
 		account_name: String,
