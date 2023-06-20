@@ -51,7 +51,8 @@ impl Transport for WebApiTransport {
 		};
 
 		let resp = req.send()?;
-		debug!("Response HTTP status: {}", resp.status());
+		let status = resp.status();
+		debug!("Response HTTP status: {}", status);
 
 		let eresult = if let Some(eresult) = resp.headers().get("x-eresult") {
 			debug!("HTTP Header x-eresult: {}", eresult.to_str()?);
@@ -66,9 +67,12 @@ impl Transport for WebApiTransport {
 			None
 		};
 
-		let b64 = resp.bytes()?;
-		trace!("Response body (raw): {:?}", b64);
-		let res = decode_msg::<Res>(b64.as_ref())?;
+		let bytes = resp.bytes()?;
+		if !status.is_success() {
+			trace!("Response body (raw): {:?}", bytes);
+		}
+
+		let res = decode_msg::<Res>(bytes.as_ref())?;
 		trace!("Response body (decoded): {:?}", res);
 		let api_resp = ApiResponse {
 			result: eresult,
