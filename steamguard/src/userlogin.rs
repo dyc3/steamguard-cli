@@ -106,6 +106,8 @@ impl UserLogin {
 			crate::protobufs::enums::ESessionPersistence::k_ESessionPersistence_Persistent,
 		);
 		req.device_details = self.device_details.clone().into_message_field();
+		req.set_language(0); // english, probably
+		req.set_qos_level(2); // value from observed traffic
 
 		let resp = self.client.begin_auth_session_via_credentials(req)?;
 
