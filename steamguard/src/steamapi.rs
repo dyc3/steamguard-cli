@@ -1,4 +1,4 @@
-mod authentication;
+pub mod authentication;
 
 use crate::api_responses::*;
 use log::*;
