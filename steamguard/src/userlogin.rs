@@ -1,4 +1,5 @@
 use crate::api_responses::AllowedConfirmation;
+use crate::protobufs::enums::ESessionPersistence;
 use crate::protobufs::steammessages_auth_steamclient::{
 	CAuthentication_AllowedConfirmation, CAuthentication_DeviceDetails,
 	CAuthentication_PollAuthSessionStatus_Request, CAuthentication_PollAuthSessionStatus_Response,
@@ -113,9 +114,7 @@ impl UserLogin {
 		req.set_encryption_timestamp(rsa_resp.timestamp());
 		let encrypted_password = encrypt_password(rsa_resp, &password);
 		req.set_encrypted_password(encrypted_password);
-		req.set_persistence(
-			crate::protobufs::enums::ESessionPersistence::k_ESessionPersistence_Persistent,
-		);
+		req.set_persistence(ESessionPersistence::k_ESessionPersistence_Persistent);
 		req.device_details = self.device_details.clone().into_message_field();
 		req.set_language(0); // english, probably
 		req.set_qos_level(2); // value from observed traffic
