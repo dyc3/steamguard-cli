@@ -201,6 +201,7 @@ impl UserLogin {
 		}
 	}
 
+	/// Submit a 2fa code generated from a device, or received in an email.
 	pub fn submit_steam_guard_code(
 		&mut self,
 		guard_type: EAuthSessionGuardType,
