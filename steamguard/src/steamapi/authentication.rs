@@ -1,23 +1,28 @@
 use crate::{
-	protobufs::steammessages_auth_steamclient::{
-		CAuthenticationSupport_RevokeToken_Request, CAuthenticationSupport_RevokeToken_Response,
-		CAuthentication_AccessToken_GenerateForApp_Request,
-		CAuthentication_AccessToken_GenerateForApp_Response,
-		CAuthentication_BeginAuthSessionViaCredentials_Request,
-		CAuthentication_BeginAuthSessionViaCredentials_Response,
-		CAuthentication_BeginAuthSessionViaQR_Request,
-		CAuthentication_BeginAuthSessionViaQR_Response,
-		CAuthentication_GetPasswordRSAPublicKey_Request,
-		CAuthentication_GetPasswordRSAPublicKey_Response,
-		CAuthentication_MigrateMobileSession_Request,
-		CAuthentication_MigrateMobileSession_Response,
-		CAuthentication_PollAuthSessionStatus_Request,
-		CAuthentication_PollAuthSessionStatus_Response,
-		CAuthentication_RefreshToken_Revoke_Request, CAuthentication_RefreshToken_Revoke_Response,
-		CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
-		CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response,
-		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
-		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthSessionGuardType,
+	protobufs::{
+		custom::CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
+		steammessages_auth_steamclient::{
+			CAuthenticationSupport_RevokeToken_Request,
+			CAuthenticationSupport_RevokeToken_Response,
+			CAuthentication_AccessToken_GenerateForApp_Request,
+			CAuthentication_AccessToken_GenerateForApp_Response,
+			CAuthentication_BeginAuthSessionViaCredentials_Request,
+			CAuthentication_BeginAuthSessionViaCredentials_Response,
+			CAuthentication_BeginAuthSessionViaQR_Request,
+			CAuthentication_BeginAuthSessionViaQR_Response,
+			CAuthentication_GetPasswordRSAPublicKey_Request,
+			CAuthentication_GetPasswordRSAPublicKey_Response,
+			CAuthentication_MigrateMobileSession_Request,
+			CAuthentication_MigrateMobileSession_Response,
+			CAuthentication_PollAuthSessionStatus_Request,
+			CAuthentication_PollAuthSessionStatus_Response,
+			CAuthentication_RefreshToken_Revoke_Request,
+			CAuthentication_RefreshToken_Revoke_Response,
+			CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
+			CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response,
+			CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
+			CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthSessionGuardType,
+		},
 	},
 	transport::Transport,
 };
@@ -43,7 +48,7 @@ where
 
 	pub fn begin_auth_session_via_credentials(
 		&mut self,
-		req: CAuthentication_BeginAuthSessionViaCredentials_Request,
+		req: CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
 	) -> anyhow::Result<ApiResponse<CAuthentication_BeginAuthSessionViaCredentials_Response>> {
 		let req = ApiRequest::new(
 			"Authentication",
@@ -52,7 +57,7 @@ where
 			req,
 		);
 		let resp = self.transport.send_request::<
-			CAuthentication_BeginAuthSessionViaCredentials_Request,
+			CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
 			CAuthentication_BeginAuthSessionViaCredentials_Response>(req)?;
 		Ok(resp)
 	}
@@ -200,6 +205,7 @@ macro_rules! impl_buildable_req {
 }
 
 impl_buildable_req!(CAuthentication_BeginAuthSessionViaCredentials_Request);
+impl_buildable_req!(CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData);
 impl_buildable_req!(CAuthentication_BeginAuthSessionViaQR_Request);
 impl_buildable_req!(CAuthentication_AccessToken_GenerateForApp_Request);
 

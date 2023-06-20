@@ -1,4 +1,5 @@
 use crate::api_responses::AllowedConfirmation;
+use crate::protobufs::custom::CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData;
 use crate::protobufs::enums::ESessionPersistence;
 use crate::protobufs::steammessages_auth_steamclient::{
 	CAuthentication_AllowedConfirmation, CAuthentication_DeviceDetails,
@@ -108,7 +109,7 @@ impl UserLogin {
 
 		let rsa = self.client.fetch_rsa_key(account_name.clone())?;
 
-		let mut req = CAuthentication_BeginAuthSessionViaCredentials_Request::new();
+		let mut req = CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData::new();
 		req.set_account_name(account_name.clone());
 		let rsa_resp = rsa.into_response_data();
 		req.set_encryption_timestamp(rsa_resp.timestamp());
