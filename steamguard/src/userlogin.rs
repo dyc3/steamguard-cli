@@ -204,29 +204,40 @@ impl UserLogin {
 		&mut self,
 		guard_type: EAuthSessionGuardType,
 		code: String,
-	) -> anyhow::Result<()> {
+	) -> anyhow::Result<
+		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response,
+		UpdateAuthSessionError,
+	> {
 		let Some(started_auth) = self.started_auth.as_ref() else {
-			return Err(anyhow::anyhow!("no auth session started"));
+			return Err(UpdateAuthSessionError::SessionNotStarted);
 		};
 
-		ensure!(
-			guard_type == EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode
-				|| guard_type == EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode,
-			"invalid guard type"
-		);
+		if guard_type != EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode
+			&& guard_type != EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode
+		{
+			return Err(UpdateAuthSessionError::InvalidGuardType);
+		}
 
 		let mut req = CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request::new();
 		req.set_client_id(started_auth.client_id());
 		req.set_code_type(guard_type);
 		req.set_code(code);
+		match started_auth {
+			StartAuth::BeginAuthSessionViaCredentials(ref resp) => {
+				req.set_steamid(resp.steamid());
+			}
+			StartAuth::BeginAuthSessionViaQR(_) => {
+				return Err(anyhow::anyhow!("qr auth not supported").into());
+			}
+		}
 
 		let resp = self.client.update_session_with_steam_guard_code(req)?;
 
 		if resp.result != EResult::OK {
-			return Err(anyhow::anyhow!("update failed: {:?}", resp.result));
+			return Err(resp.result.into());
 		}
 
-		Ok(())
+		Ok(resp.into_response_data())
 	}
 
 	pub fn login(&mut self) -> anyhow::Result<Session, LoginError> {
@@ -422,6 +433,49 @@ impl From<DeviceDetails> for CAuthentication_DeviceDetails {
 		inner.set_os_type(details.os_type);
 		inner.set_gaming_device_type(details.gaming_device_type);
 		inner
+	}
+}
+
+#[derive(Debug)]
+pub enum UpdateAuthSessionError {
+	SessionNotStarted,
+	InvalidGuardType,
+	TooManyAttempts,
+	SessionExpired,
+	IncorrectSteamGuardCode,
+	UnknownEResult(EResult),
+	NetworkFailure(reqwest::Error),
+	OtherFailure(anyhow::Error),
+}
+
+impl std::fmt::Display for UpdateAuthSessionError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+		write!(f, "{:?}", self)
+	}
+}
+
+impl std::error::Error for UpdateAuthSessionError {}
+
+impl From<EResult> for UpdateAuthSessionError {
+	fn from(err: EResult) -> Self {
+		match err {
+			EResult::RateLimitExceeded => UpdateAuthSessionError::TooManyAttempts,
+			EResult::Expired => UpdateAuthSessionError::SessionExpired,
+			EResult::TwoFactorCodeMismatch => UpdateAuthSessionError::IncorrectSteamGuardCode,
+			_ => UpdateAuthSessionError::UnknownEResult(err),
+		}
+	}
+}
+
+impl From<reqwest::Error> for UpdateAuthSessionError {
+	fn from(err: reqwest::Error) -> Self {
+		UpdateAuthSessionError::NetworkFailure(err)
+	}
+}
+
+impl From<anyhow::Error> for UpdateAuthSessionError {
+	fn from(err: anyhow::Error) -> Self {
+		UpdateAuthSessionError::OtherFailure(err)
 	}
 }
 
