@@ -17,7 +17,7 @@ use crate::{
 		CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
 		CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response,
 		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
-		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response,
+		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthSessionGuardType,
 	},
 	transport::Transport,
 };
@@ -215,3 +215,15 @@ impl_buildable_req!(CAuthentication_RefreshToken_Revoke_Request);
 impl_buildable_req!(CAuthenticationSupport_RevokeToken_Request);
 impl_buildable_req!(CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request);
 impl_buildable_req!(CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request);
+
+impl EAuthSessionGuardType {
+	pub fn requires_prompt(self) -> bool {
+		match self {
+			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => true,
+			EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode => true,
+			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation => false,
+			EAuthSessionGuardType::k_EAuthSessionGuardType_EmailConfirmation => false,
+			_ => false,
+		}
+	}
+}
