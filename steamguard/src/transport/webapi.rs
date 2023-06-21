@@ -40,18 +40,18 @@ impl Transport for WebApiTransport {
 		// - GET: query string, with the key `input_protobuf_encoded` or `input_json`
 		// - POST: multipart form body, with the key `input_protobuf_encoded` or `input_json`, however url encoded form data seems to also be accepted
 
-		// input protobuf data is always encoded in base64, most likely the URL-safe variant
+		// input protobuf data is always encoded in base64
 
 		let url = apireq.build_url();
 		debug!("HTTP Request: {} {}", Req::method(), url);
 		trace!("Request body: {:#?}", apireq.request_data());
 		let mut req = self.client.request(Req::method(), &url);
 
-		let encoded = encode_msg(apireq.request_data())?;
-
 		req = if Req::method() == reqwest::Method::GET {
+			let encoded = encode_msg(apireq.request_data(), base64::URL_SAFE)?;
 			req.query(&[("input_protobuf_encoded", encoded)])
 		} else {
+			let encoded = encode_msg(apireq.request_data(), base64::STANDARD)?;
 			let form = Form::new().text("input_protobuf_encoded", encoded);
 			req.multipart(form)
 		};
@@ -92,9 +92,9 @@ impl Transport for WebApiTransport {
 	fn close(&mut self) {}
 }
 
-fn encode_msg<T: MessageFull>(msg: &T) -> anyhow::Result<String> {
+fn encode_msg<T: MessageFull>(msg: &T, config: base64::Config) -> anyhow::Result<String> {
 	let bytes = msg.write_to_bytes()?;
-	let b64 = base64::encode_config(bytes, base64::URL_SAFE);
+	let b64 = base64::encode_config(bytes, config);
 	Ok(b64)
 }
 
@@ -138,14 +138,14 @@ mod tests {
 
 	#[test]
 	fn test_decode_encode_roundtrip() {
-		let sample = b"EgpoeWRyYXN0YXIyGtgCTVI3Vmk5a1hRaEsrUkVXTnRHNnUrTzI5Q2dvZTZ5VVNkZkRkQkJVdzRyM244SXk0SjdqSEJtZGFNTHFyRTE0MHd6VHlhT0x3bm9qS3VKNDJpUnBHblMzanZ2RjlJQmhPMGVES0dMNUJBOW5oalNHVkgvSndnWWhrb1Y2aW1kc1JaQk5NSDF4d2tFWE1JWFFjakhrcjlJOG9QNGNjNUNhK3YrdUN3U3hReFpBaFFXV3ZROUlXa1I3Mm1Qazl6dll5d1BVN1l6VzArM0JTSitCdmVYa0k2eGZCaytUUFRGMkFxRmVUV0p2OTZORDM3ZU0rUXJmdzVqUE55bGM2U1dTNXFWa0U2VDQ5V2ordGVpQ3k0aWNrRXhFNlJNUkhyTDVHYzN1NURTT2VCWkYvVkEvSVVNL0x3VjRxNGI2STEzaWJaT1ZYSHp6ZTZJZnpZTjRXTjZGUGxnPT0ggM7tuq4BKAE4AUIFU3RvcmVKUgpOTW96aWxsYS81LjAgKFgxMTsgVWJ1bnR1OyBMaW51eCB4ODZfNjQ7IHJ2OjEwOS4wKSBHZWNrby8yMDEwMDEwMSBGaXJlZm94LzExMy4wEAJYAA==";
+		let sample = b"EgpoeWRyYXN0YXIyGtgCRUxaNTBXdHM2Z0kxWlZaVjl6bzRJNFBEcEhTMGRZR3RSNzJPbytqZkR5QmRBUitrbnBUcUVGcGF4NDd1UVdqdUQ1R2hpRC9JanA2cEtGQzlrdUZDdzBFT0RMSFpINERZUG5hci9IMktOZGoxSFNjWEhyemZjNmk1OWpsRE5OTTI0RVllNUEyUjVSdzBoa2lodU14Z1A4NDJESFUxMkgwNWFyYmdRUWp3NFJmVHh6cDBQQlRjdTk4VUViUjJnak1RajlVK3RsYStPdTN6WTQ5K1BKc0szTkpMTVdxWm4vaFZ1dTR3NFprZGhXNVBqNWphb2Flb3J6MG8zbWIvUXo2M0NlNFdwWmUra1lFYUlSa29oUXBaZkliaW4rTWdQcVpNelg4cW4vNDcyNFp5N05mblpETlVBV3RoTkowTkUxSDVESXZ4N0IwRFJHZVBwdk5FbVdqWEJ3PT0g4MCW2tYBOAFCBk1vYmlsZUocCgpHYWxheHkgUzIyEAMYjPz/////////ASCQBA==";
 
 		let bytes = base64::decode_config(sample, base64::STANDARD).unwrap();
 		let decoded: CAuthentication_BeginAuthSessionViaCredentials_Request =
-			decode_msg(&bytes).unwrap();
+			decode_msg(&bytes).expect("Failed to decode");
 
-		let encoded = encode_msg(&decoded).unwrap();
+		let encoded = encode_msg(&decoded).expect("Failed to encode");
 
-		assert_eq!(encoded.as_bytes(), sample);
+		assert_eq!(encoded, String::from_utf8(sample.to_vec()).unwrap());
 	}
 }
