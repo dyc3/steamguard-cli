@@ -185,21 +185,6 @@ impl UserLogin {
 		Ok(return_resp)
 	}
 
-	// pub fn fetch_new_access_token(&mut self) -> anyhow::Result<()> {
-	// 	let Some(refresh_token) = self.refresh_token.as_ref() else {
-	// 		return Err(anyhow::anyhow!("no refresh token"));
-	// 	};
-
-	// 	let mut req = CAuthentication_AccessToken_GenerateForApp_Request::new();
-	// 	req.set_refresh_token(refresh_token.clone());
-
-	// 	let mut resp = self.client.generate_access_token(req)?.into_response_data();
-	// 	trace!("resp: {:?}", resp);
-	// 	self.access_token = Some(resp.take_access_token());
-
-	// 	Ok(())
-	// }
-
 	pub fn poll_until_info(
 		&mut self,
 	) -> anyhow::Result<CAuthentication_PollAuthSessionStatus_Response> {
