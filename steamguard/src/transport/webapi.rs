@@ -101,6 +101,7 @@ fn decode_msg<T: MessageFull>(bytes: &[u8]) -> anyhow::Result<T> {
 #[cfg(test)]
 mod tests {
 	use crate::protobufs::steammessages_auth_steamclient::{
+		CAuthentication_BeginAuthSessionViaCredentials_Request,
 		CAuthentication_GetPasswordRSAPublicKey_Response,
 		CAuthentication_PollAuthSessionStatus_Response,
 	};
@@ -127,5 +128,18 @@ mod tests {
 		let resp: CAuthentication_GetPasswordRSAPublicKey_Response = decode_msg(&bytes).unwrap();
 
 		println!("{:#?}", resp);
+	}
+
+	#[test]
+	fn test_decode_encode_roundtrip() {
+		let sample = b"EgpoeWRyYXN0YXIyGtgCTVI3Vmk5a1hRaEsrUkVXTnRHNnUrTzI5Q2dvZTZ5VVNkZkRkQkJVdzRyM244SXk0SjdqSEJtZGFNTHFyRTE0MHd6VHlhT0x3bm9qS3VKNDJpUnBHblMzanZ2RjlJQmhPMGVES0dMNUJBOW5oalNHVkgvSndnWWhrb1Y2aW1kc1JaQk5NSDF4d2tFWE1JWFFjakhrcjlJOG9QNGNjNUNhK3YrdUN3U3hReFpBaFFXV3ZROUlXa1I3Mm1Qazl6dll5d1BVN1l6VzArM0JTSitCdmVYa0k2eGZCaytUUFRGMkFxRmVUV0p2OTZORDM3ZU0rUXJmdzVqUE55bGM2U1dTNXFWa0U2VDQ5V2ordGVpQ3k0aWNrRXhFNlJNUkhyTDVHYzN1NURTT2VCWkYvVkEvSVVNL0x3VjRxNGI2STEzaWJaT1ZYSHp6ZTZJZnpZTjRXTjZGUGxnPT0ggM7tuq4BKAE4AUIFU3RvcmVKUgpOTW96aWxsYS81LjAgKFgxMTsgVWJ1bnR1OyBMaW51eCB4ODZfNjQ7IHJ2OjEwOS4wKSBHZWNrby8yMDEwMDEwMSBGaXJlZm94LzExMy4wEAJYAA==";
+
+		let bytes = base64::decode_config(sample, base64::STANDARD).unwrap();
+		let decoded: CAuthentication_BeginAuthSessionViaCredentials_Request =
+			decode_msg(&bytes).unwrap();
+
+		let encoded = encode_msg(&decoded).unwrap();
+
+		assert_eq!(encoded.as_bytes(), sample);
 	}
 }
