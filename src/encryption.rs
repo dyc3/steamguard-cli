@@ -11,11 +11,8 @@ const IV_LENGTH: usize = 16;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntryEncryptionParams {
-	#[serde(rename = "encryption_iv")]
 	pub iv: String,
-	#[serde(rename = "encryption_salt")]
 	pub salt: String,
-	#[serde(default, rename = "encryption_scheme")]
 	pub scheme: EncryptionScheme,
 }
 

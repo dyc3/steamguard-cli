@@ -8,17 +8,12 @@ use steamguard::SteamGuardAccount;
 
 use super::EntryEncryptionParams;
 
+pub const CURRENT_MANIFEST_VERSION: u32 = 1;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
 	pub version: u32,
 	pub entries: Vec<ManifestEntry>,
-
-	#[serde(skip)]
-	accounts: HashMap<String, Arc<Mutex<SteamGuardAccount>>>,
-	#[serde(skip)]
-	folder: String, // I wanted to use a Path here, but it was too hard to make it work...
-	#[serde(skip)]
-	passkey: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,12 +27,8 @@ pub struct ManifestEntry {
 impl Default for Manifest {
 	fn default() -> Self {
 		Self {
-			version: 1,
+			version: CURRENT_MANIFEST_VERSION,
 			entries: vec![],
-
-			accounts: HashMap::new(),
-			folder: "".into(),
-			passkey: None,
 		}
 	}
 }

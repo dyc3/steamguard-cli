@@ -1,3 +1,4 @@
+use crate::accountmanager::legacy::SdaManifest;
 pub use crate::encryption::EntryEncryptionParams;
 use crate::encryption::EntryEncryptor;
 use log::*;
@@ -31,11 +32,22 @@ impl AccountManager {
 		}
 	}
 
-	pub fn load(path: &Path) -> anyhow::Result<Self> {
+	pub fn load(path: &Path) -> anyhow::Result<Self, ManifestLoadError> {
 		debug!("loading manifest: {:?}", &path);
 		let file = File::open(path)?;
-		let reader = BufReader::new(file);
-		let manifest: Manifest = serde_json::from_reader(reader)?;
+		let mut reader = BufReader::new(file);
+		let mut buffer = String::new();
+		reader.read_to_string(&mut buffer)?;
+		let manifest: Manifest = match serde_json::from_str(&buffer) {
+			Ok(m) => m,
+			Err(orig_err) => match serde_json::from_str::<SdaManifest>(&buffer) {
+				Ok(_) => return Err(ManifestLoadError::MigrationNeeded)?,
+				Err(_) => return Err(orig_err)?,
+			},
+		};
+		if manifest.version != CURRENT_MANIFEST_VERSION {
+			return Err(ManifestLoadError::MigrationNeeded)?;
+		}
 		let accountmanager = Self {
 			manifest,
 			folder: String::from(path.parent().unwrap().to_str().unwrap()),
@@ -331,6 +343,18 @@ impl AccountManager {
 	pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ManifestEntry> {
 		self.manifest.entries.iter_mut()
 	}
+}
+
+#[derive(Debug, Error)]
+pub enum ManifestLoadError {
+	#[error("Could not find manifest.json in the specified directory.")]
+	Missing(#[from] std::io::Error),
+	#[error("Manifest needs to be migrated to the latest format.")]
+	MigrationNeeded,
+	#[error("Failed to deserialize the manifest.")]
+	DeserializationFailed(#[from] serde_json::Error),
+	#[error(transparent)]
+	Unknown(#[from] anyhow::Error),
 }
 
 #[derive(Debug, Error)]

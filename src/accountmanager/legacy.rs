@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[deprecated]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SdaManifest {
 	pub entries: Vec<SdaManifestEntry>,
@@ -20,7 +19,6 @@ pub struct SdaManifest {
 	pub auto_confirm_trades: bool,
 }
 
-#[deprecated]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SdaManifestEntry {
 	pub filename: String,
@@ -32,7 +30,6 @@ pub struct SdaManifestEntry {
 	pub encryption: Option<SdaEntryEncryptionParams>,
 }
 
-#[deprecated]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SdaEntryEncryptionParams {
 	#[serde(rename = "encryption_iv")]
