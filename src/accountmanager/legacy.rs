@@ -67,17 +67,17 @@ impl From<SdaManifestEntry> for ManifestEntry {
 	}
 }
 
-impl EntryLoader<SteamGuardAccount> for SdaManifestEntry {
+impl EntryLoader<SdaAccount> for SdaManifestEntry {
 	fn load(
 		&self,
 		path: &Path,
 		passkey: Option<&String>,
 		encryption_params: Option<&EntryEncryptionParams>,
-	) -> anyhow::Result<SteamGuardAccount, ManifestAccountLoadError> {
+	) -> anyhow::Result<SdaAccount, ManifestAccountLoadError> {
 		debug!("loading entry: {:?}", path);
 		let file = File::open(path)?;
 		let mut reader = BufReader::new(file);
-		let account: SteamGuardAccount;
+		let account: SdaAccount;
 		match (&passkey, encryption_params.as_ref()) {
 			(Some(passkey), Some(params)) => {
 				let mut ciphertext: Vec<u8> = vec![];

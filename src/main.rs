@@ -98,7 +98,7 @@ fn run() -> anyhow::Result<()> {
 			Ok(m) => m,
 			Err(ManifestLoadError::MigrationNeeded) => {
 				info!("Migrating manifest");
-				let manifest = load_and_migrate(path.as_path())?;
+				let manifest = load_and_migrate(path.as_path(), args.passkey.as_ref())?;
 				let manager = AccountManager::from_manifest(manifest, mafiles_dir);
 				// manager.save()?;
 				manager
