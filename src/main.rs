@@ -17,7 +17,8 @@ use steamguard::{
 	FinalizeLinkError, LoginError, SteamGuardAccount, UserLogin,
 };
 
-use crate::accountmanager::ManifestAccountLoadError;
+use crate::accountmanager::migrate::load_and_migrate;
+use crate::accountmanager::{AccountManager, ManifestAccountLoadError, ManifestLoadError};
 
 #[macro_use]
 extern crate lazy_static;
@@ -33,6 +34,7 @@ mod cli;
 mod demos;
 mod encryption;
 mod errors;
+mod secret_string;
 mod test_login;
 pub(crate) mod tui;
 
@@ -74,7 +76,7 @@ fn run() -> anyhow::Result<()> {
 	};
 	info!("reading manifest from {}", mafiles_dir);
 	let path = Path::new(&mafiles_dir).join("manifest.json");
-	let mut manifest: accountmanager::AccountManager;
+	let mut manager: accountmanager::AccountManager;
 	if !path.exists() {
 		error!("Did not find manifest in {}", mafiles_dir);
 		match tui::prompt_char(
@@ -89,21 +91,34 @@ fn run() -> anyhow::Result<()> {
 		}
 		std::fs::create_dir_all(mafiles_dir)?;
 
-		manifest = accountmanager::AccountManager::new(path.as_path());
-		manifest.save()?;
+		manager = accountmanager::AccountManager::new(path.as_path());
+		manager.save()?;
 	} else {
-		manifest = accountmanager::AccountManager::load(path.as_path())?;
+		manager = match accountmanager::AccountManager::load(path.as_path()) {
+			Ok(m) => m,
+			Err(ManifestLoadError::MigrationNeeded) => {
+				info!("Migrating manifest");
+				let manifest = load_and_migrate(path.as_path())?;
+				let manager = AccountManager::from_manifest(manifest, mafiles_dir);
+				// manager.save()?;
+				manager
+			}
+			Err(err) => {
+				error!("Failed to load manifest: {}", err);
+				return Err(err.into());
+			}
+		}
 	}
 
 	let mut passkey: Option<String> = args.passkey.clone();
-	manifest.submit_passkey(passkey);
+	manager.submit_passkey(passkey);
 
 	loop {
-		match manifest.auto_upgrade() {
+		match manager.auto_upgrade() {
 			Ok(upgraded) => {
 				if upgraded {
 					info!("Manifest auto-upgraded");
-					manifest.save()?;
+					manager.save()?;
 				} else {
 					debug!("Manifest is up to date");
 				}
@@ -113,11 +128,11 @@ fn run() -> anyhow::Result<()> {
 				accountmanager::ManifestAccountLoadError::MissingPasskey
 				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
 			) => {
-				if manifest.has_passkey() {
+				if manager.has_passkey() {
 					error!("Incorrect passkey");
 				}
 				passkey = rpassword::prompt_password_stderr("Enter encryption passkey: ").ok();
-				manifest.submit_passkey(passkey);
+				manager.submit_passkey(passkey);
 			}
 			Err(e) => {
 				error!("Could not load accounts: {}", e);
@@ -128,23 +143,23 @@ fn run() -> anyhow::Result<()> {
 
 	match args.sub {
 		Some(cli::Subcommands::Setup(args)) => {
-			return do_subcmd_setup(args, &mut manifest);
+			return do_subcmd_setup(args, &mut manager);
 		}
 		Some(cli::Subcommands::Import(args)) => {
-			return do_subcmd_import(args, &mut manifest);
+			return do_subcmd_import(args, &mut manager);
 		}
 		Some(cli::Subcommands::Encrypt(args)) => {
-			return do_subcmd_encrypt(args, &mut manifest);
+			return do_subcmd_encrypt(args, &mut manager);
 		}
 		Some(cli::Subcommands::Decrypt(args)) => {
-			return do_subcmd_decrypt(args, &mut manifest);
+			return do_subcmd_decrypt(args, &mut manager);
 		}
 		_ => {}
 	}
 
 	let selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
 	loop {
-		match get_selected_accounts(&args, &mut manifest) {
+		match get_selected_accounts(&args, &mut manager) {
 			Ok(accounts) => {
 				selected_accounts = accounts;
 				break;
@@ -153,11 +168,11 @@ fn run() -> anyhow::Result<()> {
 				accountmanager::ManifestAccountLoadError::MissingPasskey
 				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
 			) => {
-				if manifest.has_passkey() {
+				if manager.has_passkey() {
 					error!("Incorrect passkey");
 				}
 				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
-				manifest.submit_passkey(passkey);
+				manager.submit_passkey(passkey);
 			}
 			Err(e) => {
 				error!("Could not load accounts: {}", e);
@@ -176,10 +191,10 @@ fn run() -> anyhow::Result<()> {
 
 	match args.sub.unwrap_or(cli::Subcommands::Code(args.code)) {
 		cli::Subcommands::Trade(args) => {
-			return do_subcmd_trade(args, &mut manifest, selected_accounts);
+			return do_subcmd_trade(args, &mut manager, selected_accounts);
 		}
 		cli::Subcommands::Remove(args) => {
-			return do_subcmd_remove(args, &mut manifest, selected_accounts);
+			return do_subcmd_remove(args, &mut manager, selected_accounts);
 		}
 		cli::Subcommands::Code(args) => {
 			return do_subcmd_code(args, selected_accounts);

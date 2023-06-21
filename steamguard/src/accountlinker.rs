@@ -111,7 +111,6 @@ impl AccountLinker {
 		}
 
 		self.finalized = true;
-		account.fully_enrolled = true;
 		return Ok(());
 	}
 }

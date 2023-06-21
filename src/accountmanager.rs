@@ -12,6 +12,7 @@ use thiserror::Error;
 
 mod legacy;
 pub mod manifest;
+pub mod migrate;
 
 pub use manifest::*;
 
@@ -28,6 +29,14 @@ impl AccountManager {
 	pub fn new(path: &Path) -> Self {
 		Self {
 			folder: String::from(path.parent().unwrap().to_str().unwrap()),
+			..Default::default()
+		}
+	}
+
+	pub fn from_manifest(manifest: Manifest, folder: String) -> Self {
+		Self {
+			manifest,
+			folder,
 			..Default::default()
 		}
 	}
@@ -101,29 +110,11 @@ impl AccountManager {
 		entry: &ManifestEntry,
 	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
 		let path = Path::new(&self.folder).join(&entry.filename);
-		debug!("loading account: {:?}", path);
-		let file = File::open(path)?;
-		let mut reader = BufReader::new(file);
-		let account: SteamGuardAccount;
-		match (&self.passkey, entry.encryption.as_ref()) {
-			(Some(passkey), Some(params)) => {
-				let mut ciphertext: Vec<u8> = vec![];
-				reader.read_to_end(&mut ciphertext)?;
-				let plaintext =
-					crate::encryption::LegacySdaCompatible::decrypt(&passkey, params, ciphertext)?;
-				if plaintext[0] != '{' as u8 && plaintext[plaintext.len() - 1] != '}' as u8 {
-					return Err(ManifestAccountLoadError::IncorrectPasskey);
-				}
-				let s = std::str::from_utf8(&plaintext).unwrap();
-				account = serde_json::from_str(&s)?;
-			}
-			(None, Some(_)) => {
-				return Err(ManifestAccountLoadError::MissingPasskey);
-			}
-			(_, None) => {
-				account = serde_json::from_reader(reader)?;
-			}
-		};
+		let account = entry.load(
+			path.as_path(),
+			self.passkey.as_ref(),
+			entry.encryption.as_ref(),
+		)?;
 		let account = Arc::new(Mutex::new(account));
 		Ok(account)
 	}
@@ -342,6 +333,49 @@ impl AccountManager {
 
 	pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ManifestEntry> {
 		self.manifest.entries.iter_mut()
+	}
+}
+
+trait EntryLoader<T> {
+	fn load(
+		&self,
+		path: &Path,
+		passkey: Option<&String>,
+		encryption_params: Option<&EntryEncryptionParams>,
+	) -> anyhow::Result<T, ManifestAccountLoadError>;
+}
+
+impl EntryLoader<SteamGuardAccount> for ManifestEntry {
+	fn load(
+		&self,
+		path: &Path,
+		passkey: Option<&String>,
+		encryption_params: Option<&EntryEncryptionParams>,
+	) -> anyhow::Result<SteamGuardAccount, ManifestAccountLoadError> {
+		debug!("loading entry: {:?}", path);
+		let file = File::open(path)?;
+		let mut reader = BufReader::new(file);
+		let account: SteamGuardAccount;
+		match (&passkey, encryption_params.as_ref()) {
+			(Some(passkey), Some(params)) => {
+				let mut ciphertext: Vec<u8> = vec![];
+				reader.read_to_end(&mut ciphertext)?;
+				let plaintext =
+					crate::encryption::LegacySdaCompatible::decrypt(&passkey, params, ciphertext)?;
+				if plaintext[0] != '{' as u8 && plaintext[plaintext.len() - 1] != '}' as u8 {
+					return Err(ManifestAccountLoadError::IncorrectPasskey);
+				}
+				let s = std::str::from_utf8(&plaintext).unwrap();
+				account = serde_json::from_str(&s)?;
+			}
+			(None, Some(_)) => {
+				return Err(ManifestAccountLoadError::MissingPasskey);
+			}
+			(_, None) => {
+				account = serde_json::from_reader(reader)?;
+			}
+		};
+		Ok(account)
 	}
 }
 

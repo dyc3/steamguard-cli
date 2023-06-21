@@ -35,6 +35,7 @@ use crate::{
 use log::*;
 use rsa::{PublicKey, RsaPublicKey};
 use secrecy::ExposeSecret;
+use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
@@ -514,6 +515,7 @@ impl From<anyhow::Error> for UpdateAuthSessionError {
 	}
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Tokens {
 	access_token: String,
 	refresh_token: String,

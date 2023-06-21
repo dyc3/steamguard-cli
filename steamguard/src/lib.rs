@@ -54,14 +54,11 @@ pub struct SteamGuardAccount {
 	pub token_gid: String,
 	#[serde(with = "secret_string")]
 	pub identity_secret: SecretString,
-	pub server_time: u64,
 	#[serde(with = "secret_string")]
 	pub uri: SecretString,
-	pub fully_enrolled: bool,
 	pub device_id: String,
 	#[serde(with = "secret_string")]
 	pub secret_1: SecretString,
-	#[serde(default, rename = "Session")]
 	pub session: Option<secrecy::Secret<steamapi::Session>>,
 }
 
@@ -88,9 +85,7 @@ impl SteamGuardAccount {
 			shared_secret: TwoFactorSecret::new(),
 			token_gid: String::from(""),
 			identity_secret: String::from("").into(),
-			server_time: 0,
 			uri: String::from("").into(),
-			fully_enrolled: false,
 			device_id: String::from(""),
 			secret_1: String::from("").into(),
 			session: Option::None,

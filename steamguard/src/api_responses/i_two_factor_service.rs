@@ -60,15 +60,13 @@ impl AddAuthenticatorResponse {
 	pub fn to_steam_guard_account(self) -> SteamGuardAccount {
 		SteamGuardAccount {
 			shared_secret: TwoFactorSecret::parse_shared_secret(self.shared_secret).unwrap(),
-			serial_number: self.serial_number.clone(),
+			serial_number: self.serial_number,
 			revocation_code: self.revocation_code.into(),
 			uri: self.uri.into(),
-			server_time: self.server_time,
-			account_name: self.account_name.clone(),
-			token_gid: self.token_gid.clone(),
+			account_name: self.account_name,
+			token_gid: self.token_gid,
 			identity_secret: self.identity_secret.into(),
 			secret_1: self.secret_1.into(),
-			fully_enrolled: false,
 			device_id: "".into(),
 			session: None,
 		}

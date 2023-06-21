@@ -3,31 +3,34 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use steamguard::SteamGuardAccount;
+use steamguard::{token::TwoFactorSecret, userlogin::Tokens, SteamGuardAccount};
 
 use super::EntryEncryptionParams;
 
 pub const CURRENT_MANIFEST_VERSION: u32 = 1;
+pub type Manifest = ManifestV1;
+pub type ManifestEntry = ManifestEntryV1;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Manifest {
+pub struct ManifestV1 {
 	pub version: u32,
 	pub entries: Vec<ManifestEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ManifestEntry {
+pub struct ManifestEntryV1 {
 	pub filename: String,
 	pub steam_id: u64,
 	pub account_name: String,
 	pub encryption: Option<EntryEncryptionParams>,
 }
 
-impl Default for Manifest {
+impl Default for ManifestV1 {
 	fn default() -> Self {
 		Self {
-			version: CURRENT_MANIFEST_VERSION,
+			version: 1,
 			entries: vec![],
 		}
 	}

@@ -2086,6 +2086,7 @@ dependencies = [
  "ring",
  "rpassword",
  "rsa",
+ "secrecy",
  "serde",
  "serde_json",
  "standback",
