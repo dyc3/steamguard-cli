@@ -185,7 +185,7 @@ impl UserLogin {
 		Ok(return_resp)
 	}
 
-	pub fn poll_until_info(
+	fn poll_until_info(
 		&mut self,
 	) -> anyhow::Result<CAuthentication_PollAuthSessionStatus_Response> {
 		let Some(started_auth) = self.started_auth.as_ref() else {
@@ -195,11 +195,11 @@ impl UserLogin {
 		loop {
 			let mut req = CAuthentication_PollAuthSessionStatus_Request::new();
 			req.set_client_id(started_auth.client_id());
-			let request_id = base64::encode(started_auth.request_id());
-			req.set_request_id(request_id.into());
+			req.set_request_id(started_auth.request_id().to_vec());
 
 			let resp = self.client.poll_auth_session(req)?;
 			if resp.result != EResult::OK {
+				// EResult::FileNotFound is returned when the server couldn't find the auth session
 				return Err(anyhow::anyhow!("poll failed: {:?}", resp.result));
 			}
 
@@ -218,6 +218,19 @@ impl UserLogin {
 			}
 
 			std::thread::sleep(Duration::from_secs_f32(started_auth.interval()));
+		}
+	}
+
+	pub fn poll_until_tokens(&mut self) -> anyhow::Result<Tokens> {
+		loop {
+			let mut next_poll = self.poll_until_info()?;
+
+			if next_poll.has_access_token() {
+				return Ok(Tokens {
+					access_token: next_poll.take_access_token(),
+					refresh_token: next_poll.take_refresh_token(),
+				});
+			}
 		}
 	}
 
@@ -498,6 +511,21 @@ impl From<reqwest::Error> for UpdateAuthSessionError {
 impl From<anyhow::Error> for UpdateAuthSessionError {
 	fn from(err: anyhow::Error) -> Self {
 		UpdateAuthSessionError::OtherFailure(err)
+	}
+}
+
+pub struct Tokens {
+	access_token: String,
+	refresh_token: String,
+}
+
+impl Tokens {
+	pub fn access_token(&self) -> &String {
+		&self.access_token
+	}
+
+	pub fn refresh_token(&self) -> &String {
+		&self.refresh_token
 	}
 }
 

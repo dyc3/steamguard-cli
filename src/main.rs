@@ -10,9 +10,11 @@ use std::{
 	path::Path,
 	sync::{Arc, Mutex},
 };
+use steamguard::protobufs::steammessages_auth_steamclient::EAuthTokenPlatformType;
+use steamguard::userlogin::Tokens;
 use steamguard::{
-	steamapi, AccountLinkError, AccountLinker, Confirmation, ExposeSecret, FinalizeLinkError,
-	LoginError, SteamGuardAccount, UserLogin,
+	steamapi, AccountLinkError, AccountLinker, Confirmation, DeviceDetails, ExposeSecret,
+	FinalizeLinkError, LoginError, SteamGuardAccount, UserLogin,
 };
 
 use crate::accountmanager::ManifestAccountLoadError;
@@ -31,6 +33,7 @@ mod cli;
 mod demos;
 mod encryption;
 mod errors;
+mod test_login;
 pub(crate) mod tui;
 
 fn main() {
@@ -71,7 +74,7 @@ fn run() -> anyhow::Result<()> {
 	};
 	info!("reading manifest from {}", mafiles_dir);
 	let path = Path::new(&mafiles_dir).join("manifest.json");
-	let mut manifest: accountmanager::Manifest;
+	let mut manifest: accountmanager::AccountManager;
 	if !path.exists() {
 		error!("Did not find manifest in {}", mafiles_dir);
 		match tui::prompt_char(
@@ -86,10 +89,10 @@ fn run() -> anyhow::Result<()> {
 		}
 		std::fs::create_dir_all(mafiles_dir)?;
 
-		manifest = accountmanager::Manifest::new(path.as_path());
+		manifest = accountmanager::AccountManager::new(path.as_path());
 		manifest.save()?;
 	} else {
-		manifest = accountmanager::Manifest::load(path.as_path())?;
+		manifest = accountmanager::AccountManager::load(path.as_path())?;
 	}
 
 	let mut passkey: Option<String> = args.passkey.clone();
@@ -185,6 +188,9 @@ fn run() -> anyhow::Result<()> {
 		cli::Subcommands::Qr(args) => {
 			return do_subcmd_qr(args, selected_accounts);
 		}
+		cli::Subcommands::TestLogin => {
+			return test_login::do_subcmd_test_login(selected_accounts);
+		}
 		s => {
 			error!("Unknown subcommand: {:?}", s);
 			return Err(errors::UserError::UnknownSubcommand.into());
@@ -194,13 +200,13 @@ fn run() -> anyhow::Result<()> {
 
 fn get_selected_accounts(
 	args: &cli::Args,
-	manifest: &mut accountmanager::Manifest,
+	manifest: &mut accountmanager::AccountManager,
 ) -> anyhow::Result<Vec<Arc<Mutex<SteamGuardAccount>>>, ManifestAccountLoadError> {
 	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
 
 	if args.all {
 		manifest.load_accounts()?;
-		for entry in &manifest.entries {
+		for entry in manifest.iter() {
 			selected_accounts.push(manifest.get_account(&entry.account_name).unwrap().clone());
 		}
 	} else {
@@ -208,8 +214,8 @@ fn get_selected_accounts(
 			manifest.get_entry(&username)
 		} else {
 			manifest
-				.entries
-				.first()
+				.iter()
+				.next()
 				.ok_or(ManifestAccountLoadError::MissingManifestEntry)
 		}?;
 
@@ -234,15 +240,15 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	} else {
 		debug!("password is empty");
 	}
-	account.set_session(do_login_impl(
-		account.account_name.clone(),
-		password,
-		Some(account),
-	)?);
+	// account.set_session(do_login_impl(
+	// 	account.account_name.clone(),
+	// 	password,
+	// 	Some(account),
+	// )?);
 	return Ok(());
 }
 
-fn do_login_raw(username: String) -> anyhow::Result<steamapi::Session> {
+fn do_login_raw(username: String) -> anyhow::Result<Tokens> {
 	let _ = std::io::stdout().flush();
 	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
 	if password.len() > 0 {
@@ -257,44 +263,90 @@ fn do_login_impl(
 	username: String,
 	password: String,
 	account: Option<&SteamGuardAccount>,
-) -> anyhow::Result<steamapi::Session> {
-	// TODO: reprompt if password is empty
-	let mut login = UserLogin::new(username, password);
-	let mut loops = 0;
+) -> anyhow::Result<Tokens> {
+	let mut login = UserLogin::new(
+		EAuthTokenPlatformType::k_EAuthTokenPlatformType_MobileApp,
+		build_device_details(),
+	);
+
+	let mut password = password;
+	let confirmation_methods;
 	loop {
-		match login.login() {
-			Ok(s) => {
-				return Ok(s);
+		match login.begin_auth_via_credentials(&username, &password) {
+			Ok(methods) => {
+				confirmation_methods = methods;
+				break;
 			}
-			Err(LoginError::Need2FA) => match account {
-				Some(a) => {
-					let server_time = steamapi::get_server_time()?.server_time;
-					login.twofactor_code = a.generate_code(server_time);
-				}
-				None => {
-					print!("Enter 2fa code: ");
-					login.twofactor_code = tui::prompt();
-				}
-			},
-			Err(LoginError::NeedCaptcha { captcha_gid }) => {
-				debug!("need captcha to log in");
-				login.captcha_text = tui::prompt_captcha_text(&captcha_gid);
+			Err(LoginError::TooManyAttempts) => {
+				error!("Too many login attempts. Steam is rate limiting you. Please wait a while and try again later.");
+				return Err(LoginError::TooManyAttempts.into());
 			}
-			Err(LoginError::NeedEmail) => {
-				println!("You should have received an email with a code. If you did not, check your spam folder, or abort and try again.");
-				print!("Enter code: ");
-				login.email_code = tui::prompt();
+			Err(LoginError::BadCredentials) => {
+				error!("Incorrect password.");
+				password = rpassword::prompt_password_stdout("Password: ")
+					.unwrap()
+					.trim()
+					.to_owned();
+				continue;
 			}
-			Err(r) => {
-				error!("Fatal login result: {:?}", r);
-				bail!(r);
+			Err(err) => {
+				error!("Unexpected error when trying to log in. If you report this as a bug, please rerun with `-v debug` or `-v trace` and include all output in your issue. {:?}", err);
+				return Err(err.into());
 			}
 		}
-		loops += 1;
-		if loops > 2 {
-			error!("Too many loops. Aborting login process, to avoid getting rate limited.");
-			bail!("Too many loops. Login process aborted to avoid getting rate limited.");
+	}
+
+	eprintln!("Select one of these methods to confirm this login:");
+	for (idx, method) in confirmation_methods.iter().enumerate() {
+		eprint!("{}: {:?}", idx, method.confirmation_type);
+		if !method.associated_messsage.is_empty() {
+			eprint!(" ({})", method.associated_messsage);
 		}
+		eprintln!();
+	}
+
+	let selected;
+	loop {
+		eprint!("> ");
+		selected = match tui::prompt().parse::<usize>() {
+			Ok(idx) if idx < confirmation_methods.len() => idx,
+			_ => {
+				error!("Invalid input, try again.");
+				continue;
+			}
+		};
+		break;
+	}
+
+	let selected_method = &confirmation_methods[selected];
+	info!("Selected method: {:?}", selected_method);
+
+	if let Some(account) = account {
+		let time = steamapi::get_server_time()?.server_time;
+		login.submit_steam_guard_code(
+			selected_method.confirmation_type,
+			account.generate_code(time),
+		)?;
+	}
+
+	info!("Polling for tokens... -- If this takes a long time, try logging in again.");
+	let tokens = login.poll_until_tokens()?;
+
+	info!("Logged in successfully!");
+	return Ok(tokens);
+}
+
+fn build_device_details() -> DeviceDetails {
+	DeviceDetails {
+		friendly_name: format!(
+			"{} (steamguard-cli)",
+			gethostname::gethostname()
+				.into_string()
+				.expect("failed to get hostname")
+		),
+		platform_type: EAuthTokenPlatformType::k_EAuthTokenPlatformType_MobileApp.into(),
+		os_type: -500,
+		gaming_device_type: 528,
 	}
 }
 
@@ -313,7 +365,7 @@ fn get_mafiles_dir() -> String {
 	return paths[0].to_str().unwrap().into();
 }
 
-fn load_accounts_with_prompts(manifest: &mut accountmanager::Manifest) -> anyhow::Result<()> {
+fn load_accounts_with_prompts(manifest: &mut accountmanager::AccountManager) -> anyhow::Result<()> {
 	loop {
 		match manifest.load_accounts() {
 			Ok(_) => return Ok(()),
@@ -359,7 +411,7 @@ fn do_subcmd_completion(args: cli::ArgsCompletions) -> Result<(), anyhow::Error>
 
 fn do_subcmd_setup(
 	_args: cli::ArgsSetup,
-	manifest: &mut accountmanager::Manifest,
+	manifest: &mut accountmanager::AccountManager,
 ) -> anyhow::Result<()> {
 	eprintln!("Log in to the account that you want to link to steamguard-cli");
 	eprint!("Username: ");
@@ -472,7 +524,7 @@ fn do_subcmd_setup(
 
 fn do_subcmd_import(
 	args: cli::ArgsImport,
-	manifest: &mut accountmanager::Manifest,
+	manifest: &mut accountmanager::AccountManager,
 ) -> anyhow::Result<()> {
 	for file_path in args.files {
 		match manifest.import_account(&file_path) {
@@ -491,7 +543,7 @@ fn do_subcmd_import(
 
 fn do_subcmd_trade(
 	args: cli::ArgsTrade,
-	manifest: &mut accountmanager::Manifest,
+	manifest: &mut accountmanager::AccountManager,
 	mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 ) -> anyhow::Result<()> {
 	for a in selected_accounts.iter_mut() {
@@ -574,7 +626,7 @@ fn do_subcmd_trade(
 
 fn do_subcmd_remove(
 	_args: cli::ArgsRemove,
-	manifest: &mut accountmanager::Manifest,
+	manifest: &mut accountmanager::AccountManager,
 	selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 ) -> anyhow::Result<()> {
 	println!(
@@ -638,7 +690,7 @@ fn do_subcmd_remove(
 
 fn do_subcmd_encrypt(
 	_args: cli::ArgsEncrypt,
-	manifest: &mut accountmanager::Manifest,
+	manifest: &mut accountmanager::AccountManager,
 ) -> anyhow::Result<()> {
 	if !manifest.has_passkey() {
 		let mut passkey;
@@ -660,7 +712,7 @@ fn do_subcmd_encrypt(
 		manifest.submit_passkey(passkey);
 	}
 	manifest.load_accounts()?;
-	for entry in &mut manifest.entries {
+	for entry in manifest.iter_mut() {
 		entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
 	}
 	manifest.save()?;
@@ -669,10 +721,10 @@ fn do_subcmd_encrypt(
 
 fn do_subcmd_decrypt(
 	_args: cli::ArgsDecrypt,
-	manifest: &mut accountmanager::Manifest,
+	manifest: &mut accountmanager::AccountManager,
 ) -> anyhow::Result<()> {
 	load_accounts_with_prompts(manifest)?;
-	for entry in &mut manifest.entries {
+	for mut entry in manifest.iter_mut() {
 		entry.encryption = None;
 	}
 	manifest.submit_passkey(None);

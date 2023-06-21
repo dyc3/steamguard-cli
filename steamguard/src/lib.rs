@@ -31,7 +31,7 @@ mod secret_string;
 pub mod steamapi;
 pub mod token;
 pub mod transport;
-mod userlogin;
+pub mod userlogin;
 
 // const STEAMAPI_BASE: String = "https://api.steampowered.com";
 // const COMMUNITY_BASE: String = "https://steamcommunity.com";

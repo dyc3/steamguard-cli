@@ -1,6 +1,7 @@
 use crate::{
 	api_responses::{AddAuthenticatorResponse, FinalizeAddAuthenticatorResponse},
 	steamapi::{Session, SteamApiClient},
+	userlogin::Tokens,
 	SteamGuardAccount,
 };
 use log::*;
@@ -18,16 +19,17 @@ pub struct AccountLinker {
 }
 
 impl AccountLinker {
-	pub fn new(session: Session) -> AccountLinker {
-		return AccountLinker {
-			device_id: generate_device_id(),
-			phone_number: "".into(),
-			account: None,
-			finalized: false,
-			sent_confirmation_email: false,
-			session: session.clone(),
-			client: SteamApiClient::new(Some(secrecy::Secret::new(session))),
-		};
+	pub fn new(session: Tokens) -> AccountLinker {
+		todo!("finish refactor");
+		// return AccountLinker {
+		// 	device_id: generate_device_id(),
+		// 	phone_number: "".into(),
+		// 	account: None,
+		// 	finalized: false,
+		// 	sent_confirmation_email: false,
+		// 	session: session.clone(),
+		// 	client: SteamApiClient::new(Some(secrecy::Secret::new(session))),
+		// };
 	}
 
 	pub fn link(&mut self) -> anyhow::Result<SteamGuardAccount, AccountLinkError> {
