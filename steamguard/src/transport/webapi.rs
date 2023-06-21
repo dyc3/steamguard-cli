@@ -39,7 +39,7 @@ impl Transport for WebApiTransport {
 
 		let url = apireq.build_url();
 		debug!("HTTP Request: {} {}", Req::method(), url);
-		trace!("Request body: {:?}", apireq.request_data());
+		trace!("Request body: {:#?}", apireq.request_data());
 		let mut req = self.client.request(Req::method(), &url);
 
 		let encoded = encode_msg(apireq.request_data())?;
@@ -73,7 +73,7 @@ impl Transport for WebApiTransport {
 		}
 
 		let res = decode_msg::<Res>(bytes.as_ref())?;
-		trace!("Response body (decoded): {:?}", res);
+		trace!("Response body (decoded): {:#?}", res);
 		let api_resp = ApiResponse {
 			result: eresult,
 			error_message: error_msg,
