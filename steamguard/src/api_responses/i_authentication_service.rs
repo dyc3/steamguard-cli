@@ -62,7 +62,7 @@ hack_impl_deserialize!(
 	CAuthentication_BeginAuthSessionViaCredentials_Response
 );
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct AllowedConfirmation {
 	pub confirmation_type: EAuthSessionGuardType,
 	pub associated_messsage: String,

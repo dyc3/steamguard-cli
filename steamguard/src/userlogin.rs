@@ -77,6 +77,22 @@ impl From<EResult> for LoginError {
 	}
 }
 
+#[derive(Debug, Clone)]
+pub struct BeginQrLoginResponse {
+	challenge_url: String,
+	confirmation_methonds: Vec<AllowedConfirmation>,
+}
+
+impl BeginQrLoginResponse {
+	pub fn challenge_url(&self) -> &String {
+		&self.challenge_url
+	}
+
+	pub fn confirmation_methods(&self) -> &Vec<AllowedConfirmation> {
+		&self.confirmation_methonds
+	}
+}
+
 /// Handles the user login flow.
 #[derive(Debug)]
 pub struct UserLogin {
@@ -139,30 +155,34 @@ impl UserLogin {
 			.collect())
 	}
 
-	pub fn begin_auth_via_qr(&mut self) -> anyhow::Result<Vec<AllowedConfirmation>, LoginError> {
+	pub fn begin_auth_via_qr(&mut self) -> anyhow::Result<BeginQrLoginResponse, LoginError> {
 		if self.started_auth.is_some() {
 			return Err(LoginError::AuthAlreadyStarted);
 		}
 
 		let mut req = CAuthentication_BeginAuthSessionViaQR_Request::new();
-		req.set_platform_type(self.platform_type);
+		req.set_platform_type(self.device_details.platform_type);
+		req.set_device_friendly_name(self.device_details.friendly_name.clone());
 		let resp = self.client.begin_auth_session_via_qr(req)?;
 
 		if resp.result != EResult::OK {
 			return Err(resp.result.into());
 		}
 
+		let data = resp.response_data();
+		let return_resp = BeginQrLoginResponse {
+			challenge_url: data.challenge_url().into(),
+			confirmation_methonds: data
+				.allowed_confirmations
+				.iter()
+				.map(|c| c.clone().into())
+				.collect(),
+		};
+
 		debug!("auth session started");
 		self.started_auth = Some(resp.into_response_data().into());
 
-		Ok(self
-			.started_auth
-			.as_ref()
-			.unwrap()
-			.allowed_confirmations()
-			.iter()
-			.map(|c| c.clone().into())
-			.collect())
+		Ok(return_resp)
 	}
 
 	// pub fn fetch_new_access_token(&mut self) -> anyhow::Result<()> {
