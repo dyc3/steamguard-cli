@@ -1,6 +1,6 @@
 use log::{debug, trace};
 use protobuf::MessageFull;
-use reqwest::Url;
+use reqwest::{blocking::multipart::Form, Url};
 
 use super::Transport;
 use crate::steamapi::{ApiRequest, ApiResponse, BuildableRequest, EResult};
@@ -21,6 +21,11 @@ impl WebApiTransport {
 		return WebApiTransport {
 			cookies: reqwest::cookie::Jar::default(),
 			client: reqwest::blocking::Client::new(),
+			// client: reqwest::blocking::Client::builder()
+			// 	.danger_accept_invalid_certs(true)
+			// 	.proxy(reqwest::Proxy::all("http://localhost:8080").unwrap())
+			// 	.build()
+			// 	.unwrap(),
 		};
 	}
 }
@@ -33,7 +38,7 @@ impl Transport for WebApiTransport {
 		// All the API endpoints accept 2 data formats: json and protobuf.
 		// Depending on the http method for the request, the data can go in 2 places:
 		// - GET: query string, with the key `input_protobuf_encoded` or `input_json`
-		// - POST: multipart form body, with the key `input_protobuf_encoded` or `input_json`
+		// - POST: multipart form body, with the key `input_protobuf_encoded` or `input_json`, however url encoded form data seems to also be accepted
 
 		// input protobuf data is always encoded in base64, most likely the URL-safe variant
 
@@ -47,7 +52,8 @@ impl Transport for WebApiTransport {
 		req = if Req::method() == reqwest::Method::GET {
 			req.query(&[("input_protobuf_encoded", encoded)])
 		} else {
-			req.form(&[("input_protobuf_encoded", encoded)])
+			let form = Form::new().text("input_protobuf_encoded", encoded);
+			req.multipart(form)
 		};
 
 		let resp = req.send()?;
