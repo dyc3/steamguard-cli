@@ -30,7 +30,7 @@ use crate::{
 use super::{ApiRequest, ApiResponse, BuildableRequest};
 
 #[derive(Debug)]
-pub(crate) struct AuthenticationClient<T>
+pub struct AuthenticationClient<T>
 where
 	T: Transport,
 {
