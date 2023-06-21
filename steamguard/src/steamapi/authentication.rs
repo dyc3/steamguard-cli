@@ -10,6 +10,7 @@ use crate::{
 			CAuthentication_BeginAuthSessionViaCredentials_Response,
 			CAuthentication_BeginAuthSessionViaQR_Request,
 			CAuthentication_BeginAuthSessionViaQR_Response,
+			CAuthentication_GetAuthSessionInfo_Request,
 			CAuthentication_GetPasswordRSAPublicKey_Request,
 			CAuthentication_GetPasswordRSAPublicKey_Response,
 			CAuthentication_MigrateMobileSession_Request,
@@ -195,32 +196,53 @@ where
 }
 
 macro_rules! impl_buildable_req {
-	($type:ty) => {
+	($type:ty, $needs_auth:literal) => {
 		impl BuildableRequest for $type {
 			fn method() -> reqwest::Method {
 				reqwest::Method::POST
+			}
+
+			fn requires_access_token() -> bool {
+				$needs_auth
 			}
 		}
 	};
 }
 
-impl_buildable_req!(CAuthentication_BeginAuthSessionViaCredentials_Request);
-impl_buildable_req!(CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData);
-impl_buildable_req!(CAuthentication_BeginAuthSessionViaQR_Request);
-impl_buildable_req!(CAuthentication_AccessToken_GenerateForApp_Request);
+impl_buildable_req!(
+	CAuthentication_BeginAuthSessionViaCredentials_Request,
+	false
+);
+impl_buildable_req!(
+	CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
+	false
+);
+impl_buildable_req!(CAuthentication_BeginAuthSessionViaQR_Request, false);
+impl_buildable_req!(CAuthentication_AccessToken_GenerateForApp_Request, true);
 
 impl BuildableRequest for CAuthentication_GetPasswordRSAPublicKey_Request {
 	fn method() -> reqwest::Method {
 		reqwest::Method::GET
 	}
+
+	fn requires_access_token() -> bool {
+		false
+	}
 }
 
-impl_buildable_req!(CAuthentication_MigrateMobileSession_Request);
-impl_buildable_req!(CAuthentication_PollAuthSessionStatus_Request);
-impl_buildable_req!(CAuthentication_RefreshToken_Revoke_Request);
-impl_buildable_req!(CAuthenticationSupport_RevokeToken_Request);
-impl_buildable_req!(CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request);
-impl_buildable_req!(CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request);
+impl_buildable_req!(CAuthentication_GetAuthSessionInfo_Request, true);
+impl_buildable_req!(CAuthentication_MigrateMobileSession_Request, false);
+impl_buildable_req!(CAuthentication_PollAuthSessionStatus_Request, false);
+impl_buildable_req!(CAuthentication_RefreshToken_Revoke_Request, true);
+impl_buildable_req!(CAuthenticationSupport_RevokeToken_Request, true);
+impl_buildable_req!(
+	CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
+	false
+);
+impl_buildable_req!(
+	CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
+	false
+);
 
 impl EAuthSessionGuardType {
 	pub fn requires_prompt(self) -> bool {

@@ -480,6 +480,8 @@ impl SteamApiClient {
 
 pub trait BuildableRequest {
 	fn method() -> reqwest::Method;
+
+	fn requires_access_token() -> bool;
 }
 
 #[derive(Debug, Clone)]
