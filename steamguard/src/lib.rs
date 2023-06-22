@@ -14,6 +14,7 @@ pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, convert::TryInto, io::Read};
 use steamapi::SteamApiClient;
+use token::Tokens;
 pub use userlogin::{DeviceDetails, LoginError, UserLogin};
 #[macro_use]
 extern crate lazy_static;
@@ -51,6 +52,7 @@ pub struct SteamGuardAccount {
 	pub device_id: String,
 	#[serde(with = "secret_string")]
 	pub secret_1: SecretString,
+	pub tokens: Option<Tokens>,
 	pub session: Option<secrecy::Secret<steamapi::Session>>,
 }
 
@@ -80,7 +82,8 @@ impl SteamGuardAccount {
 			uri: String::from("").into(),
 			device_id: String::from(""),
 			secret_1: String::from("").into(),
-			session: Option::None,
+			tokens: None,
+			session: None,
 		};
 	}
 
@@ -89,6 +92,10 @@ impl SteamGuardAccount {
 		T: Read,
 	{
 		Ok(serde_json::from_reader(r)?)
+	}
+
+	pub fn set_tokens(&mut self, tokens: Tokens) {
+		self.tokens = Some(tokens);
 	}
 
 	pub fn set_session(&mut self, session: steamapi::Session) {

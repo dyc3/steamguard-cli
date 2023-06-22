@@ -75,7 +75,7 @@ fn build_time_bytes(time: u64) -> [u8; 8] {
 	return time.to_be_bytes();
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tokens {
 	access_token: Jwt,
 	refresh_token: Jwt,
@@ -98,7 +98,7 @@ impl Tokens {
 	}
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Jwt(SecretString);
 
 impl Serialize for Jwt {

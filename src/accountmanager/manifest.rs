@@ -5,7 +5,7 @@ use std::{
 
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use steamguard::{token::TwoFactorSecret, userlogin::Tokens, SteamGuardAccount};
+use steamguard::{token::Tokens, token::TwoFactorSecret, SteamGuardAccount};
 
 use super::EntryEncryptionParams;
 

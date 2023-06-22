@@ -11,7 +11,7 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use steamguard::protobufs::steammessages_auth_steamclient::EAuthTokenPlatformType;
-use steamguard::userlogin::Tokens;
+use steamguard::token::Tokens;
 use steamguard::{
 	steamapi, AccountLinkError, AccountLinker, Confirmation, DeviceDetails, ExposeSecret,
 	FinalizeLinkError, LoginError, SteamGuardAccount, UserLogin,
@@ -257,7 +257,7 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 		debug!("password is empty");
 	}
 	let tokens = do_login_impl(account.account_name.clone(), password, Some(account))?;
-	// account.set_session(session);
+	account.set_tokens(tokens);
 	return Ok(());
 }
 

@@ -68,6 +68,7 @@ impl AddAuthenticatorResponse {
 			identity_secret: self.identity_secret.into(),
 			secret_1: self.secret_1.into(),
 			device_id: "".into(),
+			tokens: None,
 			session: None,
 		}
 	}

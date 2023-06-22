@@ -149,6 +149,7 @@ impl From<SdaAccount> for SteamGuardAccount {
 			uri: value.uri,
 			device_id: value.device_id,
 			secret_1: value.secret_1,
+			tokens: None,
 			session: value.session,
 		}
 	}
