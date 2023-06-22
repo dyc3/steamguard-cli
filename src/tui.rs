@@ -18,7 +18,7 @@ lazy_static! {
 }
 
 pub fn validate_captcha_text(text: &String) -> bool {
-	return CAPTCHA_VALID_CHARS.is_match(text);
+	CAPTCHA_VALID_CHARS.is_match(text)
 }
 
 #[test]
@@ -66,12 +66,12 @@ pub(crate) fn prompt_captcha_text(captcha_gid: &String) -> String {
 	loop {
 		eprint!("Enter captcha text: ");
 		captcha_text = prompt();
-		if captcha_text.len() > 0 && validate_captcha_text(&captcha_text) {
+		if !captcha_text.is_empty() && validate_captcha_text(&captcha_text) {
 			break;
 		}
 		warn!("Invalid chars for captcha text found in user's input. Prompting again...");
 	}
-	return captcha_text;
+	captcha_text
 }
 
 /// Prompt the user for a single character response. Useful for asking yes or no questions.
@@ -104,7 +104,7 @@ where
 
 	let answer: String = input.into().to_ascii_lowercase();
 
-	if answer.len() == 0 {
+	if answer.is_empty() {
 		if let Some(a) = default_answer {
 			return Ok(a);
 		} else {
@@ -126,7 +126,7 @@ where
 pub(crate) fn prompt_confirmation_menu(
 	confirmations: Vec<Confirmation>,
 ) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
-	if confirmations.len() == 0 {
+	if confirmations.is_empty() {
 		bail!("no confirmations")
 	}
 

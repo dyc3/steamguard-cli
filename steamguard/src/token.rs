@@ -1,6 +1,8 @@
-use secrecy::{ExposeSecret, Secret};
+use regex::bytes;
+use secrecy::{ExposeSecret, Secret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryInto;
+use zeroize::Zeroize;
 
 #[derive(Debug, Clone)]
 pub struct TwoFactorSecret(Secret<[u8; 20]>);
@@ -9,6 +11,11 @@ pub struct TwoFactorSecret(Secret<[u8; 20]>);
 impl TwoFactorSecret {
 	pub fn new() -> Self {
 		return Self([0u8; 20].into());
+	}
+
+	pub fn from_bytes(bytes: Vec<u8>) -> Self {
+		let bytes: [u8; 20] = bytes[..].try_into().unwrap();
+		return Self(bytes.into());
 	}
 
 	pub fn parse_shared_secret(secret: String) -> anyhow::Result<Self> {
@@ -74,11 +81,91 @@ fn build_time_bytes(time: u64) -> [u8; 8] {
 	return time.to_be_bytes();
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Tokens {
+	access_token: Jwt,
+	refresh_token: Jwt,
+}
+
+impl Tokens {
+	pub fn new(access_token: impl Into<Jwt>, refresh_token: impl Into<Jwt>) -> Self {
+		Self {
+			access_token: access_token.into(),
+			refresh_token: refresh_token.into(),
+		}
+	}
+
+	pub fn access_token(&self) -> &Jwt {
+		&self.access_token
+	}
+
+	pub fn refresh_token(&self) -> &Jwt {
+		&self.refresh_token
+	}
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Jwt(SecretString);
+
+impl Serialize for Jwt {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		serializer.serialize_str(&self.0.expose_secret())
+	}
+}
+
+impl Jwt {
+	pub fn decode(&self) -> anyhow::Result<SteamJwtData> {
+		decode_jwt(self.0.expose_secret())
+	}
+
+	pub fn expose_secret(&self) -> &str {
+		self.0.expose_secret()
+	}
+}
+
+impl From<String> for Jwt {
+	fn from(s: String) -> Self {
+		Self(SecretString::new(s))
+	}
+}
+
+fn decode_jwt(jwt: &String) -> anyhow::Result<SteamJwtData> {
+	let parts = jwt.split(".").collect::<Vec<&str>>();
+	ensure!(parts.len() == 3, "Invalid JWT");
+
+	let data = parts[1];
+	let bytes = base64::decode_config(data, base64::URL_SAFE)?;
+	let json = String::from_utf8(bytes)?;
+	let jwt_data: SteamJwtData = serde_json::from_str(&json)?;
+	Ok(jwt_data)
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SteamJwtData {
+	pub exp: u64,
+	pub iat: u64,
+	pub iss: String,
+	/// Audience
+	pub aud: Vec<String>,
+	/// Subject (steam id)
+	pub sub: String,
+	pub jti: String,
+}
+
+impl SteamJwtData {
+	pub fn steam_id(&self) -> u64 {
+		self.sub.parse::<u64>().unwrap()
+	}
+}
+
 mod tests {
 	use super::*;
 
 	#[test]
-	fn test_serialize() -> anyhow::Result<()> {
+	fn test_serialize_2fa_secret() -> anyhow::Result<()> {
 		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 		struct FooBar {
 			secret: TwoFactorSecret,
@@ -95,7 +182,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_deserialize() -> anyhow::Result<()> {
+	fn test_deserialize_2fa_secret() -> anyhow::Result<()> {
 		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 		struct FooBar {
 			secret: TwoFactorSecret,
@@ -111,7 +198,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_serialize_and_deserialize() -> anyhow::Result<()> {
+	fn test_serialize_and_deserialize_2fa_secret() -> anyhow::Result<()> {
 		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 		struct FooBar {
 			secret: TwoFactorSecret,
@@ -146,5 +233,18 @@ mod tests {
 		let code = secret.generate_code(1616374841u64);
 		assert_eq!(code, "2F9J5");
 		return Ok(());
+	}
+
+	#[test]
+	fn test_decode_jwt() {
+		let sample: Jwt = "eyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInN0ZWFtIiwgInN1YiI6ICI3NjU2MTE5OTE1NTcwNjg5MiIsICJhdWQiOiBbICJ3ZWIiLCAicmVuZXciLCAiZGVyaXZlIiBdLCAiZXhwIjogMTcwNTAxMTk1NSwgIm5iZiI6IDE2Nzg0NjQ4MzcsICJpYXQiOiAxNjg3MTA0ODM3LCAianRpIjogIjE4QzVfMjJCM0Y0MzFfQ0RGNkEiLCAib2F0IjogMTY4NzEwNDgzNywgInBlciI6IDEsICJpcF9zdWJqZWN0IjogIjY5LjEyMC4xMzYuMTI0IiwgImlwX2NvbmZpcm1lciI6ICI2OS4xMjAuMTM2LjEyNCIgfQ.7p5TPj9pGQbxIzWDDNCSP9OkKYSeDnWBE8E-M8hUrxOEPCW0XwrbDUrh199RzjPDw".to_owned().into();
+		let data = sample.decode().expect("Failed to decode JWT");
+
+		assert_eq!(data.exp, 1705011955);
+		assert_eq!(data.iat, 1687104837);
+		assert_eq!(data.iss, "steam");
+		assert_eq!(data.aud, vec!["web", "renew", "derive"]);
+		assert_eq!(data.sub, "76561199155706892");
+		assert_eq!(data.jti, "18C5_22B3F431_CDF6A");
 	}
 }

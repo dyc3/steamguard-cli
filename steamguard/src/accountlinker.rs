@@ -1,6 +1,12 @@
+use crate::protobufs::service_twofactor::{
+	CTwoFactor_AddAuthenticator_Request, CTwoFactor_FinalizeAddAuthenticator_Request,
+};
+use crate::steamapi::twofactor::TwoFactorClient;
+use crate::token::TwoFactorSecret;
+use crate::transport::WebApiTransport;
 use crate::{
-	api_responses::{AddAuthenticatorResponse, FinalizeAddAuthenticatorResponse},
-	steamapi::{Session, SteamApiClient},
+	steamapi::{EResult, Session, SteamApiClient},
+	token::Tokens,
 	SteamGuardAccount,
 };
 use log::*;
@@ -12,25 +18,23 @@ pub struct AccountLinker {
 	pub phone_number: String,
 	pub account: Option<SteamGuardAccount>,
 	pub finalized: bool,
-	sent_confirmation_email: bool,
-	session: Session,
-	client: SteamApiClient,
+	tokens: Tokens,
+	client: TwoFactorClient<WebApiTransport>,
 }
 
 impl AccountLinker {
-	pub fn new(session: Session) -> AccountLinker {
-		return AccountLinker {
+	pub fn new(tokens: Tokens) -> AccountLinker {
+		Self {
 			device_id: generate_device_id(),
 			phone_number: "".into(),
 			account: None,
 			finalized: false,
-			sent_confirmation_email: false,
-			session: session.clone(),
-			client: SteamApiClient::new(Some(secrecy::Secret::new(session))),
-		};
+			tokens,
+			client: TwoFactorClient::new(WebApiTransport::new()),
+		}
 	}
 
-	pub fn link(&mut self) -> anyhow::Result<SteamGuardAccount, AccountLinkError> {
+	pub fn link(&mut self) -> anyhow::Result<AccountLinkSuccess, AccountLinkError> {
 		// let has_phone = self.client.has_phone()?;
 
 		// if has_phone && !self.phone_number.is_empty() {
@@ -53,64 +57,103 @@ impl AccountLinker {
 		// 	}
 		// }
 
-		let resp: AddAuthenticatorResponse =
-			self.client.add_authenticator(self.device_id.clone())?;
+		let access_token = self.tokens.access_token();
+		let steam_id = access_token.decode()?.steam_id();
 
-		match resp.status {
-			29 => {
-				return Err(AccountLinkError::AuthenticatorPresent);
-			}
-			2 => {
-				// If the user has no phone number on their account, it will always return this status code.
-				// However, this does not mean that this status just means "no phone number". It can also
-				// be literally anything else, so that's why we return GenericFailure here.
-				return Err(AccountLinkError::GenericFailure);
-			}
-			1 => {
-				let mut account = resp.to_steam_guard_account();
-				account.device_id = self.device_id.clone();
-				account.session = self.client.session.clone();
-				return Ok(account);
-			}
-			status => {
-				return Err(anyhow!("Unknown add authenticator status code: {}", status))?;
-			}
+		let mut req = CTwoFactor_AddAuthenticator_Request::new();
+		req.set_authenticator_type(1);
+		req.set_steamid(steam_id);
+		req.set_sms_phone_id("1".to_owned());
+		req.set_device_identifier(self.device_id.clone());
+
+		let resp = self.client.add_authenticator(req, access_token)?;
+
+		if resp.result != EResult::OK {
+			return Err(resp.result.into());
 		}
+
+		let mut resp = resp.into_response_data();
+
+		let account = SteamGuardAccount {
+			account_name: resp.take_account_name(),
+			steam_id,
+			serial_number: resp.serial_number().to_string(),
+			revocation_code: resp.take_revocation_code().into(),
+			uri: resp.take_uri().into(),
+			shared_secret: TwoFactorSecret::from_bytes(resp.take_shared_secret()),
+			token_gid: resp.take_token_gid().into(),
+			identity_secret: base64::encode(&resp.take_identity_secret()).into(),
+			device_id: self.device_id.clone(),
+			secret_1: base64::encode(&resp.take_secret_1()).into(),
+			tokens: Some(self.tokens.clone()),
+		};
+		let success = AccountLinkSuccess {
+			account: account,
+			server_time: resp.server_time(),
+			phone_number_hint: resp.take_phone_number_hint(),
+		};
+		Ok(success)
 	}
 
 	/// You may have to call this multiple times. If you have to call it a bunch of times, then you can assume that you are unable to generate correct 2fa codes.
 	pub fn finalize(
 		&mut self,
+		time: u64,
 		account: &mut SteamGuardAccount,
 		sms_code: String,
 	) -> anyhow::Result<(), FinalizeLinkError> {
-		let time = crate::steamapi::get_server_time()?.server_time;
 		let code = account.generate_code(time);
-		let resp: FinalizeAddAuthenticatorResponse =
-			self.client
-				.finalize_authenticator(sms_code.clone(), code, time)?;
-		info!("finalize response status: {}", resp.status);
 
-		match resp.status {
-			89 => {
-				return Err(FinalizeLinkError::BadSmsCode);
-			}
-			_ => {}
+		let token = self.tokens.access_token();
+		let steam_id = account.steam_id;
+
+		let mut req = CTwoFactor_FinalizeAddAuthenticator_Request::new();
+		req.set_steamid(steam_id);
+		req.set_authenticator_code(code);
+		req.set_authenticator_time(time);
+		req.set_activation_code(sms_code);
+
+		let resp = self.client.finalize_authenticator(req, token)?;
+
+		if resp.result != EResult::OK {
+			return Err(resp.result.into());
 		}
 
-		if !resp.success {
-			return Err(FinalizeLinkError::Failure {
-				status: resp.status,
-			})?;
-		}
+		let resp = resp.into_response_data();
 
-		if resp.want_more {
-			return Err(FinalizeLinkError::WantMore);
+		if resp.want_more() {
+			return Err(FinalizeLinkError::WantMore {
+				server_time: resp.server_time(),
+			});
 		}
 
 		self.finalized = true;
-		account.fully_enrolled = true;
 		return Ok(());
+	}
+}
+
+#[derive(Debug)]
+pub struct AccountLinkSuccess {
+	account: SteamGuardAccount,
+	server_time: u64,
+	phone_number_hint: String,
+}
+
+impl AccountLinkSuccess {
+	pub fn account(&self) -> &SteamGuardAccount {
+		&self.account
+	}
+
+	pub fn into_account(self) -> SteamGuardAccount {
+		self.account
+	}
+
+	pub fn server_time(&self) -> u64 {
+		self.server_time
+	}
+
+	pub fn phone_number_hint(&self) -> &str {
+		&self.phone_number_hint
 	}
 }
 
@@ -133,8 +176,23 @@ pub enum AccountLinkError {
 	AuthenticatorPresent,
 	#[error("Steam was unable to link the authenticator to the account. No additional information about this error is available. This is a Steam error, not a steamguard-cli error. Try adding a phone number to your Steam account (which you can do here: https://store.steampowered.com/phone/add), or try again later.")]
 	GenericFailure,
+	#[error("Steam returned an unexpected error code: {0:?}")]
+	UnknownEResult(EResult),
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
+}
+
+impl From<EResult> for AccountLinkError {
+	fn from(result: EResult) -> Self {
+		match result {
+			EResult::DuplicateRequest => AccountLinkError::AuthenticatorPresent,
+			// If the user has no phone number on their account, it will always return this status code.
+			// However, this does not mean that this status just means "no phone number". It can also
+			// be literally anything else, so that's why we return GenericFailure here.
+			EResult::Fail => AccountLinkError::GenericFailure,
+			r => AccountLinkError::UnknownEResult(r),
+		}
+	}
 }
 
 #[derive(Error, Debug)]
@@ -143,9 +201,18 @@ pub enum FinalizeLinkError {
 	BadSmsCode,
 	/// Steam wants more 2fa codes to verify that we can generate valid codes. Call finalize again.
 	#[error("Steam wants more 2fa codes for verification.")]
-	WantMore,
-	#[error("Finalization was not successful. Status code {status:?}")]
-	Failure { status: i32 },
+	WantMore { server_time: u64 },
+	#[error("Steam returned an unexpected error code: {0:?}")]
+	UnknownEResult(EResult),
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
+}
+
+impl From<EResult> for FinalizeLinkError {
+	fn from(result: EResult) -> Self {
+		match result {
+			EResult::TwoFactorActivationCodeMismatch => FinalizeLinkError::BadSmsCode,
+			r => FinalizeLinkError::UnknownEResult(r),
+		}
+	}
 }

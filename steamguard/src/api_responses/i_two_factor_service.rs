@@ -4,6 +4,7 @@ use super::parse_json_string_as_number;
 use serde::{Deserialize, Serialize};
 
 /// Represents the response from `/ITwoFactorService/QueryTime/v0001`
+#[deprecated]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryTimeResponse {
 	/// The time that the server will use to check your two factor code.
@@ -21,6 +22,7 @@ pub struct QueryTimeResponse {
 	pub max_attempts: u64,
 }
 
+#[deprecated]
 #[derive(Debug, Clone, Deserialize)]
 pub struct AddAuthenticatorResponse {
 	/// Shared secret between server and authenticator
@@ -56,25 +58,7 @@ pub struct AddAuthenticatorResponse {
 	pub phone_number_hint: Option<String>,
 }
 
-impl AddAuthenticatorResponse {
-	pub fn to_steam_guard_account(self) -> SteamGuardAccount {
-		SteamGuardAccount {
-			shared_secret: TwoFactorSecret::parse_shared_secret(self.shared_secret).unwrap(),
-			serial_number: self.serial_number.clone(),
-			revocation_code: self.revocation_code.into(),
-			uri: self.uri.into(),
-			server_time: self.server_time,
-			account_name: self.account_name.clone(),
-			token_gid: self.token_gid.clone(),
-			identity_secret: self.identity_secret.into(),
-			secret_1: self.secret_1.into(),
-			fully_enrolled: false,
-			device_id: "".into(),
-			session: None,
-		}
-	}
-}
-
+#[deprecated]
 #[derive(Debug, Clone, Deserialize)]
 pub struct FinalizeAddAuthenticatorResponse {
 	pub status: i32,
@@ -84,6 +68,7 @@ pub struct FinalizeAddAuthenticatorResponse {
 	pub success: bool,
 }
 
+#[deprecated]
 #[derive(Debug, Clone, Deserialize)]
 pub struct RemoveAuthenticatorResponse {
 	pub success: bool,
