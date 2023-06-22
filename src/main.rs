@@ -192,24 +192,24 @@ fn run() -> anyhow::Result<()> {
 
 	match args.sub.unwrap_or(cli::Subcommands::Code(args.code)) {
 		cli::Subcommands::Trade(args) => {
-			return do_subcmd_trade(args, &mut manager, selected_accounts);
+			do_subcmd_trade(args, &mut manager, selected_accounts)
 		}
 		cli::Subcommands::Remove(args) => {
-			return do_subcmd_remove(args, &mut manager, selected_accounts);
+			do_subcmd_remove(args, &mut manager, selected_accounts)
 		}
 		cli::Subcommands::Code(args) => {
-			return do_subcmd_code(args, selected_accounts);
+			do_subcmd_code(args, selected_accounts)
 		}
 		#[cfg(feature = "qr")]
 		cli::Subcommands::Qr(args) => {
-			return do_subcmd_qr(args, selected_accounts);
+			do_subcmd_qr(args, selected_accounts)
 		}
 		cli::Subcommands::TestLogin => {
-			return test_login::do_subcmd_test_login(selected_accounts);
+			test_login::do_subcmd_test_login(selected_accounts)
 		}
 		s => {
 			error!("Unknown subcommand: {:?}", s);
-			return Err(errors::UserError::UnknownSubcommand.into());
+			Err(errors::UserError::UnknownSubcommand.into())
 		}
 	}
 }
@@ -227,7 +227,7 @@ fn get_selected_accounts(
 		}
 	} else {
 		let entry = if let Some(username) = &args.username {
-			manifest.get_entry(&username)
+			manifest.get_entry(username)
 		} else {
 			manifest
 				.iter()
@@ -239,11 +239,11 @@ fn get_selected_accounts(
 		let account = manifest.get_or_load_account(&account_name)?;
 		selected_accounts.push(account);
 	}
-	return Ok(selected_accounts);
+	Ok(selected_accounts)
 }
 
 fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
-	if account.account_name.len() > 0 {
+	if !account.account_name.is_empty() {
 		info!("Username: {}", account.account_name);
 	} else {
 		eprint!("Username: ");
@@ -251,25 +251,25 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	}
 	let _ = std::io::stdout().flush();
 	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
-	if password.len() > 0 {
+	if !password.is_empty() {
 		debug!("password is present");
 	} else {
 		debug!("password is empty");
 	}
 	let tokens = do_login_impl(account.account_name.clone(), password, Some(account))?;
 	account.set_tokens(tokens);
-	return Ok(());
+	Ok(())
 }
 
 fn do_login_raw(username: String) -> anyhow::Result<Tokens> {
 	let _ = std::io::stdout().flush();
 	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
-	if password.len() > 0 {
+	if !password.is_empty() {
 		debug!("password is present");
 	} else {
 		debug!("password is empty");
 	}
-	return do_login_impl(username, password, None);
+	do_login_impl(username, password, None)
 }
 
 fn do_login_impl(
@@ -346,7 +346,7 @@ fn do_login_impl(
 	let tokens = login.poll_until_tokens()?;
 
 	info!("Logged in successfully!");
-	return Ok(tokens);
+	Ok(tokens)
 }
 
 fn build_device_details() -> DeviceDetails {
@@ -357,7 +357,7 @@ fn build_device_details() -> DeviceDetails {
 				.into_string()
 				.expect("failed to get hostname")
 		),
-		platform_type: EAuthTokenPlatformType::k_EAuthTokenPlatformType_MobileApp.into(),
+		platform_type: EAuthTokenPlatformType::k_EAuthTokenPlatformType_MobileApp,
 		os_type: -500,
 		gaming_device_type: 528,
 	}
@@ -413,13 +413,13 @@ fn do_subcmd_debug(args: cli::ArgsDebug) -> anyhow::Result<()> {
 	if args.demo_conf_menu {
 		demos::demo_confirmation_menu();
 	}
-	return Ok(());
+	Ok(())
 }
 
 fn do_subcmd_completion(args: cli::ArgsCompletions) -> Result<(), anyhow::Error> {
 	let mut app = cli::Args::command_for_update();
 	clap_complete::generate(args.shell, &mut app, "steamguard", &mut std::io::stdout());
-	return Ok(());
+	Ok(())
 }
 
 fn do_subcmd_setup(
@@ -483,7 +483,7 @@ fn do_subcmd_setup(
 				"Just in case, here is the account info. Save it somewhere just in case!\n{:?}",
 				manifest.get_account(&account_name).unwrap().lock().unwrap()
 			);
-			return Err(err.into());
+			return Err(err);
 		}
 	}
 
@@ -532,7 +532,7 @@ fn do_subcmd_setup(
 		account.revocation_code.expose_secret()
 	);
 
-	return Ok(());
+	Ok(())
 }
 
 fn do_subcmd_import(
@@ -551,7 +551,7 @@ fn do_subcmd_import(
 	}
 
 	manifest.save()?;
-	return Ok(());
+	Ok(())
 }
 
 fn do_subcmd_trade(
@@ -592,41 +592,39 @@ fn do_subcmd_trade(
 					debug!("accept confirmation result: {:?}", result);
 				}
 			}
-		} else {
-			if stdout().is_tty() {
-				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
-				for conf in &accept {
-					let result = account.accept_confirmation(conf);
-					if result.is_err() {
-						warn!("accept confirmation result: {:?}", result);
-						any_failed = true;
-						if args.fail_fast {
-							return result;
-						}
-					} else {
-						debug!("accept confirmation result: {:?}", result);
-					}
-				}
-				for conf in &deny {
-					let result = account.deny_confirmation(conf);
-					debug!("deny confirmation result: {:?}", result);
-					if result.is_err() {
-						warn!("deny confirmation result: {:?}", result);
-						any_failed = true;
-						if args.fail_fast {
-							return result;
-						}
-					} else {
-						debug!("deny confirmation result: {:?}", result);
-					}
-				}
-			} else {
-				warn!("not a tty, not showing menu");
-				for conf in &confirmations {
-					println!("{}", conf.description());
-				}
-			}
-		}
+		} else if stdout().is_tty() {
+  				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
+  				for conf in &accept {
+  					let result = account.accept_confirmation(conf);
+  					if result.is_err() {
+  						warn!("accept confirmation result: {:?}", result);
+  						any_failed = true;
+  						if args.fail_fast {
+  							return result;
+  						}
+  					} else {
+  						debug!("accept confirmation result: {:?}", result);
+  					}
+  				}
+  				for conf in &deny {
+  					let result = account.deny_confirmation(conf);
+  					debug!("deny confirmation result: {:?}", result);
+  					if result.is_err() {
+  						warn!("deny confirmation result: {:?}", result);
+  						any_failed = true;
+  						if args.fail_fast {
+  							return result;
+  						}
+  					} else {
+  						debug!("deny confirmation result: {:?}", result);
+  					}
+  				}
+  			} else {
+  				warn!("not a tty, not showing menu");
+  				for conf in &confirmations {
+  					println!("{}", conf.description());
+  				}
+  			}
 
 		if any_failed {
 			error!("Failed to respond to some confirmations.");
@@ -634,7 +632,7 @@ fn do_subcmd_trade(
 	}
 
 	manifest.save()?;
-	return Ok(());
+	Ok(())
 }
 
 fn do_subcmd_remove(
@@ -698,7 +696,7 @@ fn do_subcmd_remove(
 	}
 
 	manifest.save()?;
-	return Ok(());
+	Ok(())
 }
 
 fn do_subcmd_encrypt(
@@ -729,7 +727,7 @@ fn do_subcmd_encrypt(
 		entry.encryption = Some(accountmanager::EntryEncryptionParams::generate());
 	}
 	manifest.save()?;
-	return Ok(());
+	Ok(())
 }
 
 fn do_subcmd_decrypt(
@@ -742,7 +740,7 @@ fn do_subcmd_decrypt(
 	}
 	manifest.submit_passkey(None);
 	manifest.save()?;
-	return Ok(());
+	Ok(())
 }
 
 fn do_subcmd_code(
@@ -764,7 +762,7 @@ fn do_subcmd_code(
 		let code = account.lock().unwrap().generate_code(server_time);
 		println!("{}", code);
 	}
-	return Ok(());
+	Ok(())
 }
 
 #[cfg(feature = "qr")]
@@ -801,5 +799,5 @@ fn do_subcmd_qr(
 
 		println!("{}", qr_string);
 	}
-	return Ok(());
+	Ok(())
 }

@@ -123,10 +123,7 @@ impl MigratingManifest {
 						errors
 					));
 				}
-				accounts
-					.into_iter()
-					.map(|a| MigratingAccount::SDA(a))
-					.collect()
+				accounts.into_iter().map(MigratingAccount::Sda).collect()
 			}
 			Self::ManifestV1(manifest) => {
 				let (accounts, errors) = manifest
@@ -150,7 +147,7 @@ impl MigratingManifest {
 				}
 				accounts
 					.into_iter()
-					.map(|a| MigratingAccount::ManifestV1(a))
+					.map(MigratingAccount::ManifestV1)
 					.collect()
 			}
 		};
@@ -161,7 +158,7 @@ impl MigratingManifest {
 impl From<MigratingManifest> for Manifest {
 	fn from(migrating: MigratingManifest) -> Self {
 		match migrating {
-			MigratingManifest::ManifestV1(manifest) => manifest.into(),
+			MigratingManifest::ManifestV1(manifest) => manifest,
 			_ => panic!("Manifest is not at the latest version!"),
 		}
 	}
@@ -181,14 +178,14 @@ fn deserialize_manifest(text: String) -> anyhow::Result<MigratingManifest> {
 
 #[derive(Debug, Clone)]
 enum MigratingAccount {
-	SDA(SdaAccount),
+	Sda(SdaAccount),
 	ManifestV1(SteamGuardAccount),
 }
 
 impl MigratingAccount {
 	pub fn upgrade(self) -> Self {
 		match self {
-			Self::SDA(sda) => Self::ManifestV1(sda.into()),
+			Self::Sda(sda) => Self::ManifestV1(sda.into()),
 			Self::ManifestV1(_) => self,
 		}
 	}

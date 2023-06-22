@@ -77,7 +77,7 @@ impl LegacySdaCompatible {
 			password_bytes,
 			&mut full_key,
 		);
-		return Ok(full_key);
+		Ok(full_key)
 	}
 }
 
@@ -101,7 +101,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 			let chunksize = chunk.len();
 			let buffersize = (chunksize / 16 + (if chunksize % 16 == 0 { 0 } else { 1 })) * 16;
 			let mut chunkbuffer = vec![0xffu8; buffersize];
-			chunkbuffer[..chunksize].copy_from_slice(&chunk);
+			chunkbuffer[..chunksize].copy_from_slice(chunk);
 			if buffersize != chunksize {
 				// pad the last chunk
 				chunkbuffer = Pkcs7::pad(&mut chunkbuffer, chunksize, buffersize)
@@ -111,7 +111,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 			buffer.append(&mut chunkbuffer);
 		}
 		let ciphertext = cipher.encrypt(&mut buffer, buffersize)?;
-		let final_buffer = base64::encode(&ciphertext);
+		let final_buffer = base64::encode(ciphertext);
 		return Ok(final_buffer.as_bytes().to_vec());
 	}
 
@@ -128,9 +128,9 @@ impl EntryEncryptor for LegacySdaCompatible {
 		let size: usize = decoded.len() / 16 + (if decoded.len() % 16 == 0 { 0 } else { 1 });
 		let mut buffer = vec![0xffu8; 16 * size];
 		buffer[..decoded.len()].copy_from_slice(&decoded);
-		let mut decrypted = cipher.decrypt(&mut buffer)?;
-		let unpadded = Pkcs7::unpad(&mut decrypted)?;
-		return Ok(unpadded.to_vec());
+		let decrypted = cipher.decrypt(&mut buffer)?;
+		let unpadded = Pkcs7::unpad(decrypted)?;
+		Ok(unpadded.to_vec())
 	}
 }
 
@@ -143,32 +143,32 @@ pub enum EntryEncryptionError {
 /// For some reason, these errors do not get converted to `ManifestAccountLoadError`s, even though they get converted into `anyhow::Error` just fine. I am too lazy to figure out why right now.
 impl From<block_modes::BlockModeError> for EntryEncryptionError {
 	fn from(error: block_modes::BlockModeError) -> Self {
-		return Self::Unknown(anyhow::Error::from(error));
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
 impl From<block_modes::InvalidKeyIvLength> for EntryEncryptionError {
 	fn from(error: block_modes::InvalidKeyIvLength) -> Self {
-		return Self::Unknown(anyhow::Error::from(error));
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
 impl From<block_modes::block_padding::PadError> for EntryEncryptionError {
-	fn from(error: block_modes::block_padding::PadError) -> Self {
-		return Self::Unknown(anyhow!("PadError"));
+	fn from(_error: block_modes::block_padding::PadError) -> Self {
+		Self::Unknown(anyhow!("PadError"))
 	}
 }
 impl From<block_modes::block_padding::UnpadError> for EntryEncryptionError {
-	fn from(error: block_modes::block_padding::UnpadError) -> Self {
-		return Self::Unknown(anyhow!("UnpadError"));
+	fn from(_error: block_modes::block_padding::UnpadError) -> Self {
+		Self::Unknown(anyhow!("UnpadError"))
 	}
 }
 impl From<base64::DecodeError> for EntryEncryptionError {
 	fn from(error: base64::DecodeError) -> Self {
-		return Self::Unknown(anyhow::Error::from(error));
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
 impl From<std::io::Error> for EntryEncryptionError {
 	fn from(error: std::io::Error) -> Self {
-		return Self::Unknown(anyhow::Error::from(error));
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
 
@@ -206,15 +206,15 @@ mod tests {
 			LegacySdaCompatible::encrypt(&passkey.clone().into(), &params, orig.clone()).unwrap();
 		let result = LegacySdaCompatible::decrypt(&passkey.into(), &params, encrypted).unwrap();
 		assert_eq!(orig, result.to_vec());
-		return Ok(());
+		Ok(())
 	}
 
 	prop_compose! {
 		/// An insecure but reproducible strategy for generating encryption params.
 		fn encryption_params()(salt in any::<[u8; SALT_LENGTH]>(), iv in any::<[u8; IV_LENGTH]>()) -> EntryEncryptionParams {
 			EntryEncryptionParams {
-				salt: base64::encode(&salt),
-				iv: base64::encode(&iv),
+				salt: base64::encode(salt),
+				iv: base64::encode(iv),
 				scheme: EncryptionScheme::LegacySdaCompatible,
 			}
 		}

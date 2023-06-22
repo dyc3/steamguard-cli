@@ -80,12 +80,12 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 				let mut ciphertext: Vec<u8> = vec![];
 				reader.read_to_end(&mut ciphertext)?;
 				let plaintext =
-					crate::encryption::LegacySdaCompatible::decrypt(&passkey, params, ciphertext)?;
-				if plaintext[0] != '{' as u8 && plaintext[plaintext.len() - 1] != '}' as u8 {
+					crate::encryption::LegacySdaCompatible::decrypt(passkey, params, ciphertext)?;
+				if plaintext[0] != b'{' && plaintext[plaintext.len() - 1] != b'}' {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
 				let s = std::str::from_utf8(&plaintext).unwrap();
-				account = serde_json::from_str(&s)?;
+				account = serde_json::from_str(s)?;
 			}
 			(None, Some(_)) => {
 				return Err(ManifestAccountLoadError::MissingPasskey);

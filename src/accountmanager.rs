@@ -68,7 +68,7 @@ impl AccountManager {
 			folder: String::from(path.parent().unwrap().to_str().unwrap()),
 			..Default::default()
 		};
-		return Ok(accountmanager);
+		Ok(accountmanager)
 	}
 
 	/// Tells the manager to keep track of the encryption passkey, and use it for encryption when loading or saving accounts.
@@ -90,7 +90,7 @@ impl AccountManager {
 	pub fn load_accounts(&mut self) -> anyhow::Result<(), ManifestAccountLoadError> {
 		let mut accounts = vec![];
 		for entry in &self.manifest.entries {
-			let account = self.load_account_by_entry(&entry)?;
+			let account = self.load_account_by_entry(entry)?;
 			accounts.push(account);
 		}
 		for account in accounts {
@@ -106,7 +106,7 @@ impl AccountManager {
 		account_name: &String,
 	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
 		let entry = self.get_entry(account_name)?;
-		self.load_account_by_entry(&entry)
+		self.load_account_by_entry(entry)
 	}
 
 	/// Loads an account from a manifest entry.
@@ -137,7 +137,7 @@ impl AccountManager {
 				return true;
 			}
 		}
-		return false;
+		false
 	}
 
 	pub fn add_account(&mut self, account: SteamGuardAccount) {
@@ -170,7 +170,7 @@ impl AccountManager {
 		);
 		self.add_account(account);
 
-		return Ok(());
+		Ok(())
 	}
 
 	pub fn remove_account(&mut self, account_name: String) {
@@ -190,7 +190,6 @@ impl AccountManager {
 		for account in self
 			.accounts
 			.values()
-			.into_iter()
 			.map(|a| a.clone().lock().unwrap().clone())
 		{
 			let entry = self.get_entry(&account.account_name)?.clone();
@@ -201,19 +200,14 @@ impl AccountManager {
 				"Something extra weird happened and the account was serialized into nothing."
 			);
 
-			let final_buffer: Vec<u8>;
-			match (&self.passkey, entry.encryption.as_ref()) {
+			let final_buffer: Vec<u8> = match (&self.passkey, entry.encryption.as_ref()) {
 				(Some(passkey), Some(params)) => {
-					final_buffer = crate::encryption::LegacySdaCompatible::encrypt(
-						&passkey, params, serialized,
-					)?;
+					crate::encryption::LegacySdaCompatible::encrypt(passkey, params, serialized)?
 				}
 				(None, Some(_)) => {
 					bail!("maFiles are encrypted, but no passkey was provided.");
 				}
-				(_, None) => {
-					final_buffer = serialized;
-				}
+				(_, None) => serialized,
 			};
 
 			let path = Path::new(&self.folder).join(&entry.filename);
@@ -233,7 +227,7 @@ impl AccountManager {
 	/// Return all loaded accounts. Order is not guarenteed.
 	#[allow(dead_code)]
 	pub fn get_all_loaded(&self) -> Vec<Arc<Mutex<SteamGuardAccount>>> {
-		return self.accounts.values().cloned().into_iter().collect();
+		return self.accounts.values().cloned().collect();
 	}
 
 	#[allow(dead_code)]
@@ -273,9 +267,9 @@ impl AccountManager {
 		let account = self
 			.accounts
 			.get(account_name)
-			.map(|a| a.clone())
+			.cloned()
 			.ok_or(anyhow!("Account not loaded"));
-		return account;
+		account
 	}
 
 	/// Get or load the spcified account.
@@ -284,12 +278,12 @@ impl AccountManager {
 		account_name: &String,
 	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
 		let account = self.get_account(account_name);
-		if account.is_ok() {
-			return Ok(account.unwrap());
+		if let Ok(account) = account {
+			return Ok(account);
 		}
-		let account = self.load_account(&account_name)?;
+		let account = self.load_account(account_name)?;
 		self.register_loaded_account(account.clone());
-		return Ok(account);
+		Ok(account)
 	}
 
 	/// Determine if any manifest entries are missing `account_name`.
@@ -361,25 +355,22 @@ impl EntryLoader<SteamGuardAccount> for ManifestEntry {
 		debug!("loading entry: {:?}", path);
 		let file = File::open(path)?;
 		let mut reader = BufReader::new(file);
-		let account: SteamGuardAccount;
-		match (&passkey, encryption_params.as_ref()) {
+		let account: SteamGuardAccount = match (&passkey, encryption_params.as_ref()) {
 			(Some(passkey), Some(params)) => {
 				let mut ciphertext: Vec<u8> = vec![];
 				reader.read_to_end(&mut ciphertext)?;
 				let plaintext =
-					crate::encryption::LegacySdaCompatible::decrypt(&passkey, params, ciphertext)?;
-				if plaintext[0] != '{' as u8 && plaintext[plaintext.len() - 1] != '}' as u8 {
+					crate::encryption::LegacySdaCompatible::decrypt(passkey, params, ciphertext)?;
+				if plaintext[0] != b'{' && plaintext[plaintext.len() - 1] != b'}' {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
 				let s = std::str::from_utf8(&plaintext).unwrap();
-				account = serde_json::from_str(&s)?;
+				serde_json::from_str(s)?
 			}
 			(None, Some(_)) => {
 				return Err(ManifestAccountLoadError::MissingPasskey);
 			}
-			(_, None) => {
-				account = serde_json::from_reader(reader)?;
-			}
+			(_, None) => serde_json::from_reader(reader)?,
 		};
 		Ok(account)
 	}
@@ -415,22 +406,22 @@ pub enum ManifestAccountLoadError {
 
 impl From<block_modes::BlockModeError> for ManifestAccountLoadError {
 	fn from(error: block_modes::BlockModeError) -> Self {
-		return Self::Unknown(anyhow::Error::from(error));
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
 impl From<base64::DecodeError> for ManifestAccountLoadError {
 	fn from(error: base64::DecodeError) -> Self {
-		return Self::Unknown(anyhow::Error::from(error));
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
 impl From<block_modes::InvalidKeyIvLength> for ManifestAccountLoadError {
 	fn from(error: block_modes::InvalidKeyIvLength) -> Self {
-		return Self::Unknown(anyhow::Error::from(error));
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
 impl From<std::io::Error> for ManifestAccountLoadError {
 	fn from(error: std::io::Error) -> Self {
-		return Self::Unknown(anyhow::Error::from(error));
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
 
@@ -496,7 +487,7 @@ mod tests {
 				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
 			)?,
 		);
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]
@@ -585,7 +576,7 @@ mod tests {
 		manager.save()?;
 
 		let mut loaded_manager = AccountManager::load(manifest_path.as_path())?;
-		loaded_manager.submit_passkey(passkey.clone());
+		loaded_manager.submit_passkey(passkey);
 		assert_eq!(loaded_manager.manifest.entries.len(), 1);
 		assert_eq!(
 			loaded_manager.manifest.entries[0].filename,
@@ -626,7 +617,7 @@ mod tests {
 			.unwrap(),
 		);
 
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]

@@ -1,8 +1,8 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use protobuf::descriptor::field_descriptor_proto::Type;
-use protobuf::reflect::FieldDescriptor;
+
+
 use protobuf::reflect::MessageDescriptor;
 use protobuf_codegen::Codegen;
 use protobuf_codegen::Customize;

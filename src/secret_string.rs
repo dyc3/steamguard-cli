@@ -1,5 +1,5 @@
 use secrecy::{ExposeSecret, SecretString};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serializer};
 
 /// Helper to allow serializing a [secrecy::SecretString] as a [String]
 pub(crate) fn serialize<S>(secret_string: &SecretString, serializer: S) -> Result<S::Ok, S::Error>

@@ -1,17 +1,12 @@
 use std::sync::{Arc, Mutex};
 
 use log::info;
-use qrcode::QrCode;
+
 use steamguard::{
-	protobufs::steammessages_auth_steamclient::{
-		CAuthentication_AccessToken_GenerateForApp_Request, EAuthTokenPlatformType,
-	},
-	steamapi::authentication::AuthenticationClient,
-	transport::WebApiTransport,
-	SteamGuardAccount, UserLogin,
+	SteamGuardAccount,
 };
 
-use crate::{build_device_details, do_login};
+use crate::{do_login};
 
 pub fn do_subcmd_test_login(
 	selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
