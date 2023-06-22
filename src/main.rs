@@ -279,7 +279,7 @@ fn do_login_impl(
 	);
 
 	let mut password = password;
-	let confirmation_methods;
+	let mut confirmation_methods;
 	loop {
 		match login.begin_auth_via_credentials(&username, &password) {
 			Ok(methods) => {
@@ -305,55 +305,44 @@ fn do_login_impl(
 		}
 	}
 
-	eprintln!("Select one of these methods to confirm this login:");
-	for (idx, method) in confirmation_methods.iter().enumerate() {
-		eprint!("{}: {:?}", idx, method.confirmation_type);
-		if !method.associated_messsage.is_empty() {
-			eprint!(" ({})", method.associated_messsage);
-		}
-		eprintln!();
-	}
-
-	let selected;
-	loop {
-		eprint!("> ");
-		selected = match tui::prompt().parse::<usize>() {
-			Ok(idx) if idx < confirmation_methods.len() => idx,
+	for (method) in confirmation_methods {
+		match method.confirmation_type {
+			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation => {
+				eprintln!("Please confirm this login on your other device.");
+				eprintln!("Press enter when you have confirmed.");
+				tui::pause();
+			}
+			EAuthSessionGuardType::k_EAuthSessionGuardType_EmailConfirmation => {
+				eprint!("Please confirm this login by clicking the link in your email.");
+				if !method.associated_messsage.is_empty() {
+					eprint!(" ({})", method.associated_messsage);
+				}
+				eprintln!();
+				eprintln!("Press enter when you have confirmed.");
+				tui::pause();
+			}
+			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => {
+				let code = if let Some(account) = account {
+					debug!("Generating 2fa code...");
+					let time = steamapi::get_server_time()?.server_time;
+					account.generate_code(time)
+				} else {
+					eprint!("Enter the 2fa code from your device: ");
+					tui::prompt().trim().to_owned()
+				};
+				login.submit_steam_guard_code(method.confirmation_type, code)?;
+			}
+			EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode => {
+				eprint!("Enter the 2fa code sent to your email: ");
+				let code = tui::prompt().trim().to_owned();
+				login.submit_steam_guard_code(method.confirmation_type, code)?;
+			}
 			_ => {
-				error!("Invalid input, try again.");
+				warn!("Unknown confirmation method: {:?}", method);
 				continue;
 			}
-		};
+		}
 		break;
-	}
-
-	let selected_method = &confirmation_methods[selected];
-	info!("Selected method: {:?}", selected_method);
-
-	match selected_method.confirmation_type {
-		EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => {
-			let code = if let Some(account) = account {
-				info!("Generating 2fa code...");
-				let time = steamapi::get_server_time()?.server_time;
-				account.generate_code(time)
-			} else {
-				eprint!("Enter the 2fa code from your device: ");
-				tui::prompt().trim().to_owned()
-			};
-			login.submit_steam_guard_code(selected_method.confirmation_type, code)?;
-		}
-		EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode => {
-			eprint!("Enter the 2fa code sent to your email: ");
-			let code = tui::prompt().trim().to_owned();
-			login.submit_steam_guard_code(selected_method.confirmation_type, code)?;
-		}
-		_ => {
-			error!(
-				"Unsupported confirmation method: {:?}",
-				selected_method.confirmation_type
-			);
-			bail!("Unsupported confirmation method");
-		}
 	}
 
 	info!("Polling for tokens... -- If this takes a long time, try logging in again.");
