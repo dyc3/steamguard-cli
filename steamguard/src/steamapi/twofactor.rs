@@ -25,8 +25,10 @@ where
 	pub fn add_authenticator(
 		&mut self,
 		req: CTwoFactor_AddAuthenticator_Request,
+		access_token: String,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_AddAuthenticator_Response>> {
-		let req = ApiRequest::new("TwoFactor", "AddAuthenticator", 1, req);
+		let req = ApiRequest::new("TwoFactor", "AddAuthenticator", 1, req)
+			.with_access_token(access_token);
 		let resp = self
 			.transport
 			.send_request::<CTwoFactor_AddAuthenticator_Request, CTwoFactor_AddAuthenticator_Response>(
@@ -38,8 +40,10 @@ where
 	pub fn finalize_authenticator(
 		&mut self,
 		req: CTwoFactor_FinalizeAddAuthenticator_Request,
+		access_token: String,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_FinalizeAddAuthenticator_Response>> {
-		let req = ApiRequest::new("TwoFactor", "FinalizeAddAuthenticator", 1, req);
+		let req = ApiRequest::new("TwoFactor", "FinalizeAddAuthenticator", 1, req)
+			.with_access_token(access_token);
 		let resp = self
 			.transport
 			.send_request::<CTwoFactor_FinalizeAddAuthenticator_Request, CTwoFactor_FinalizeAddAuthenticator_Response>(
@@ -51,8 +55,10 @@ where
 	pub fn remove_authenticator(
 		&mut self,
 		req: CTwoFactor_RemoveAuthenticator_Request,
+		access_token: String,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_RemoveAuthenticator_Response>> {
-		let req = ApiRequest::new("TwoFactor", "RemoveAuthenticator", 1, req);
+		let req = ApiRequest::new("TwoFactor", "RemoveAuthenticator", 1, req)
+			.with_access_token(access_token);
 		let resp = self
 			.transport
 			.send_request::<CTwoFactor_RemoveAuthenticator_Request, CTwoFactor_RemoveAuthenticator_Response>(
@@ -64,8 +70,10 @@ where
 	pub fn query_status(
 		&mut self,
 		req: CTwoFactor_Status_Request,
+		access_token: String,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_Status_Response>> {
-		let req = ApiRequest::new("TwoFactor", "QueryStatus", 1, req);
+		let req =
+			ApiRequest::new("TwoFactor", "QueryStatus", 1, req).with_access_token(access_token);
 		let resp = self
 			.transport
 			.send_request::<CTwoFactor_Status_Request, CTwoFactor_Status_Response>(req)?;

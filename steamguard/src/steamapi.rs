@@ -515,6 +515,10 @@ impl<T: BuildableRequest> ApiRequest<T> {
 		self
 	}
 
+	pub fn access_token(&self) -> Option<&String> {
+		self.access_token.as_ref()
+	}
+
 	pub(crate) fn build_url(&self) -> String {
 		format!(
 			"{}/I{}Service/{}/v{}",

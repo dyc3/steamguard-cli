@@ -12,14 +12,12 @@ lazy_static! {
 
 #[derive(Debug)]
 pub struct WebApiTransport {
-	cookies: reqwest::cookie::Jar,
 	client: reqwest::blocking::Client,
 }
 
 impl WebApiTransport {
 	pub fn new() -> WebApiTransport {
 		return WebApiTransport {
-			cookies: reqwest::cookie::Jar::default(),
 			client: reqwest::blocking::Client::new(),
 			// client: reqwest::blocking::Client::builder()
 			// 	.danger_accept_invalid_certs(true)
@@ -42,6 +40,10 @@ impl Transport for WebApiTransport {
 
 		// input protobuf data is always encoded in base64
 
+		if Req::requires_access_token() && apireq.access_token().is_none() {
+			return Err(anyhow::anyhow!("Access token required for this request"));
+		}
+
 		let url = apireq.build_url();
 		debug!("HTTP Request: {} {}", Req::method(), url);
 		trace!("Request body: {:#?}", apireq.request_data());
@@ -49,8 +51,15 @@ impl Transport for WebApiTransport {
 
 		req = if Req::method() == reqwest::Method::GET {
 			let encoded = encode_msg(apireq.request_data(), base64::URL_SAFE)?;
-			req.query(&[("input_protobuf_encoded", encoded)])
+			let mut params = vec![("input_protobuf_encoded", &encoded)];
+			if let Some(access_token) = apireq.access_token() {
+				params.push(("access_token", access_token));
+			}
+			req.query(&params)
 		} else {
+			if let Some(access_token) = apireq.access_token() {
+				req = req.query(&[("access_token", access_token)]);
+			}
 			let encoded = encode_msg(apireq.request_data(), base64::STANDARD)?;
 			let form = Form::new().text("input_protobuf_encoded", encoded);
 			req.multipart(form)

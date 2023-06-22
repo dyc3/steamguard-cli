@@ -79,8 +79,10 @@ where
 	pub fn generate_access_token(
 		&mut self,
 		req: CAuthentication_AccessToken_GenerateForApp_Request,
+		access_token: String,
 	) -> anyhow::Result<ApiResponse<CAuthentication_AccessToken_GenerateForApp_Response>> {
-		let req = ApiRequest::new("Authentication", "GenerateAccessTokenForApp", 1u32, req);
+		let req = ApiRequest::new("Authentication", "GenerateAccessTokenForApp", 1u32, req)
+			.with_access_token(access_token);
 		let resp = self
 			.transport
 			.send_request::<CAuthentication_AccessToken_GenerateForApp_Request, CAuthentication_AccessToken_GenerateForApp_Response>(

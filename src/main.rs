@@ -256,11 +256,8 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	} else {
 		debug!("password is empty");
 	}
-	// account.set_session(do_login_impl(
-	// 	account.account_name.clone(),
-	// 	password,
-	// 	Some(account),
-	// )?);
+	let tokens = do_login_impl(account.account_name.clone(), password, Some(account))?;
+	// account.set_session(session);
 	return Ok(());
 }
 
