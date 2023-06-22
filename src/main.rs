@@ -534,6 +534,8 @@ fn do_subcmd_setup(
 			}
 		}
 	}
+	let revocation_code = account.revocation_code.clone();
+	drop(account); // explicitly drop the lock so we don't hang on the mutex
 
 	println!("Authenticator finalized.");
 	match manifest.save() {
@@ -549,7 +551,7 @@ fn do_subcmd_setup(
 
 	println!(
 		"Authenticator has been finalized. Please actually write down your revocation code: {}",
-		account.revocation_code.expose_secret()
+		revocation_code.expose_secret()
 	);
 
 	Ok(())
