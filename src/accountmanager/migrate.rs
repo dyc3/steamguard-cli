@@ -240,7 +240,9 @@ mod tests {
 			let (manifest, accounts) = do_migrate(Path::new(case.manifest), case.passkey.as_ref())?;
 			assert_eq!(manifest.version, CURRENT_MANIFEST_VERSION);
 			assert_eq!(manifest.entries[0].account_name, "example");
+			assert_eq!(manifest.entries[0].steam_id, 1234);
 			assert_eq!(accounts[0].account_name, "example");
+			assert_eq!(accounts[0].steam_id, 1234);
 		}
 		Ok(())
 	}
