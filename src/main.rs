@@ -586,6 +586,11 @@ fn do_subcmd_trade(
 	for a in selected_accounts.iter_mut() {
 		let mut account = a.lock().unwrap();
 
+		if !account.is_logged_in() {
+			info!("Account does not have tokens, logging in");
+			do_login(&mut account)?;
+		}
+
 		info!("Checking for trade confirmations");
 		let confirmations: Vec<Confirmation>;
 		loop {
