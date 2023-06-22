@@ -1,4 +1,10 @@
-use crate::token::TwoFactorSecret;
+use crate::protobufs::service_twofactor::{
+	CTwoFactor_RemoveAuthenticator_Request, CTwoFactor_RemoveAuthenticator_Response,
+};
+use crate::steamapi::EResult;
+use crate::{
+	steamapi::twofactor::TwoFactorClient, token::TwoFactorSecret, transport::WebApiTransport,
+};
 pub use accountlinker::{AccountLinkError, AccountLinker, FinalizeLinkError};
 use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
@@ -16,6 +22,7 @@ use std::{collections::HashMap, convert::TryInto, io::Read};
 use steamapi::SteamApiClient;
 use token::Tokens;
 pub use userlogin::{DeviceDetails, LoginError, UserLogin};
+
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -257,11 +264,20 @@ impl SteamGuardAccount {
 			matches!(revocation_code, Some(_)) || !self.revocation_code.expose_secret().is_empty(),
 			"Revocation code not provided."
 		);
-		let client: SteamApiClient = SteamApiClient::new(self.session.clone());
-		let resp = client.remove_authenticator(
+		let Some(tokens) = &self.tokens else {
+			return Err(anyhow!("Tokens not set, login required"));
+		};
+		let mut client = TwoFactorClient::new(WebApiTransport::new());
+		let mut req = CTwoFactor_RemoveAuthenticator_Request::new();
+		req.set_revocation_code(
 			revocation_code.unwrap_or(self.revocation_code.expose_secret().to_owned()),
-		)?;
-		Ok(resp.success)
+		);
+		let resp = client.remove_authenticator(req, tokens.access_token())?;
+		if resp.result != EResult::OK {
+			Err(anyhow!("Failed to remove authenticator: {:?}", resp.result))
+		} else {
+			Ok(true)
+		}
 	}
 }
 
