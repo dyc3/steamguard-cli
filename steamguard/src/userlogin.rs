@@ -8,6 +8,7 @@ use crate::protobufs::steammessages_auth_steamclient::{
 };
 use crate::steamapi::authentication::AuthenticationClient;
 use crate::steamapi::{ApiRequest, ApiResponse, EResult};
+use crate::token::Tokens;
 use crate::transport::Transport;
 use crate::{
 	api_responses::{LoginResponse, RsaResponse},
@@ -227,10 +228,10 @@ impl UserLogin {
 			let mut next_poll = self.poll_until_info()?;
 
 			if next_poll.has_access_token() {
-				return Ok(Tokens {
-					access_token: next_poll.take_access_token(),
-					refresh_token: next_poll.take_refresh_token(),
-				});
+				return Ok(Tokens::new(
+					next_poll.take_access_token(),
+					next_poll.take_refresh_token(),
+				));
 			}
 		}
 	}
@@ -413,22 +414,6 @@ impl From<reqwest::Error> for UpdateAuthSessionError {
 impl From<anyhow::Error> for UpdateAuthSessionError {
 	fn from(err: anyhow::Error) -> Self {
 		UpdateAuthSessionError::OtherFailure(err)
-	}
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Tokens {
-	access_token: String,
-	refresh_token: String,
-}
-
-impl Tokens {
-	pub fn access_token(&self) -> &String {
-		&self.access_token
-	}
-
-	pub fn refresh_token(&self) -> &String {
-		&self.refresh_token
 	}
 }
 

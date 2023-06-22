@@ -153,7 +153,7 @@ mod tests {
 		let decoded: CAuthentication_BeginAuthSessionViaCredentials_Request =
 			decode_msg(&bytes).expect("Failed to decode");
 
-		let encoded = encode_msg(&decoded).expect("Failed to encode");
+		let encoded = encode_msg(&decoded, base64::STANDARD).expect("Failed to encode");
 
 		assert_eq!(encoded, String::from_utf8(sample.to_vec()).unwrap());
 	}

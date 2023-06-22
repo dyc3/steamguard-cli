@@ -1,6 +1,7 @@
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, Secret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryInto;
+use zeroize::Zeroize;
 
 #[derive(Debug, Clone)]
 pub struct TwoFactorSecret(Secret<[u8; 20]>);
@@ -74,11 +75,82 @@ fn build_time_bytes(time: u64) -> [u8; 8] {
 	return time.to_be_bytes();
 }
 
+#[derive(Debug, Serialize, Deserialize, Zeroize)]
+#[zeroize(drop)]
+pub struct Tokens {
+	access_token: String,
+	refresh_token: String,
+}
+
+impl Tokens {
+	pub fn new(access_token: String, refresh_token: String) -> Self {
+		Self {
+			access_token,
+			refresh_token,
+		}
+	}
+
+	pub fn access_token(&self) -> &String {
+		&self.access_token
+	}
+
+	pub fn refresh_token(&self) -> &String {
+		&self.refresh_token
+	}
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Jwt(SecretString);
+
+impl Serialize for Jwt {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		serializer.serialize_str(&self.0.expose_secret())
+	}
+}
+
+impl Jwt {
+	fn decode(&self) -> anyhow::Result<SteamJwtData> {
+		decode_jwt(self.0.expose_secret())
+	}
+}
+
+impl From<String> for Jwt {
+	fn from(s: String) -> Self {
+		Self(SecretString::new(s))
+	}
+}
+
+fn decode_jwt(jwt: &String) -> anyhow::Result<SteamJwtData> {
+	let parts = jwt.split(".").collect::<Vec<&str>>();
+	ensure!(parts.len() == 3, "Invalid JWT");
+
+	let data = parts[1];
+	let bytes = base64::decode_config(data, base64::URL_SAFE)?;
+	let json = String::from_utf8(bytes)?;
+	let jwt_data: SteamJwtData = serde_json::from_str(&json)?;
+	Ok(jwt_data)
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct SteamJwtData {
+	exp: u64,
+	iat: u64,
+	iss: String,
+	// Audience
+	aud: Vec<String>,
+	// Subject (steam id)
+	sub: String,
+	jti: String,
+}
+
 mod tests {
 	use super::*;
 
 	#[test]
-	fn test_serialize() -> anyhow::Result<()> {
+	fn test_serialize_2fa_secret() -> anyhow::Result<()> {
 		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 		struct FooBar {
 			secret: TwoFactorSecret,
@@ -95,7 +167,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_deserialize() -> anyhow::Result<()> {
+	fn test_deserialize_2fa_secret() -> anyhow::Result<()> {
 		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 		struct FooBar {
 			secret: TwoFactorSecret,
@@ -111,7 +183,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_serialize_and_deserialize() -> anyhow::Result<()> {
+	fn test_serialize_and_deserialize_2fa_secret() -> anyhow::Result<()> {
 		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 		struct FooBar {
 			secret: TwoFactorSecret,
@@ -146,5 +218,17 @@ mod tests {
 		let code = secret.generate_code(1616374841u64);
 		assert_eq!(code, "2F9J5");
 		return Ok(());
+	}
+
+	fn test_decode_jwt() {
+		let sample: Jwt = "eyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInN0ZWFtIiwgInN1YiI6ICI3NjU2MTE5OTE1NTcwNjg5MiIsICJhdWQiOiBbICJ3ZWIiLCAicmVuZXciLCAiZGVyaXZlIiBdLCAiZXhwIjogMTcwNTAxMTk1NSwgIm5iZiI6IDE2Nzg0NjQ4MzcsICJpYXQiOiAxNjg3MTA0ODM3LCAianRpIjogIjE4QzVfMjJCM0Y0MzFfQ0RGNkEiLCAib2F0IjogMTY4NzEwNDgzNywgInBlciI6IDEsICJpcF9zdWJqZWN0IjogIjY5LjEyMC4xMzYuMTI0IiwgImlwX2NvbmZpcm1lciI6ICI2OS4xMjAuMTM2LjEyNCIgfQ.7p5TPj9pGQbxIzWDDNCSP9OkKYSeDnWBE8E-M8hUrxOEPCW0XwrbDUrh199RzjPDw".to_owned().into();
+		let data = sample.decode().expect("Failed to decode JWT");
+
+		assert_eq!(data.exp, 1705011955);
+		assert_eq!(data.iat, 1687104837);
+		assert_eq!(data.iss, "steam");
+		assert_eq!(data.aud, vec!["web", "renew", "derive"]);
+		assert_eq!(data.sub, "76561199155706892");
+		assert_eq!(data.jti, "18C5_22B3F431_CDF6A");
 	}
 }
