@@ -77,11 +77,14 @@ if ! which cross; then
 fi
 
 BUILD_TARGET="x86_64-unknown-linux-musl"
+BUILD_TARGET2="x86_64-pc-windows-gnu"
 cross build --release "--target=$BUILD_TARGET"
+cross build --release "--target=$BUILD_TARGET2"
 
 ./scripts/package-deb.sh
 
 BIN_PATH="target/$BUILD_TARGET/release/steamguard-cli"
+BIN_PATH2="target/$BUILD_TARGET2/release/steamguard-cli.exe"
 RAW_VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
 TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
 if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
@@ -93,5 +96,5 @@ if [[ $DRY_RUN == false ]]; then
   if [[ $(gh release list | grep -i "Draft" | grep -i "$VERSION" && echo "true" || echo "false") == "true" ]]; then
     gh release delete --yes "$VERSION"
   fi
-	gh release create "$VERSION" --title "$VERSION" --draft "$BIN_PATH" "./steamguard-cli_$RAW_VERSION-0.deb"
+	gh release create "$VERSION" --title "$VERSION" --draft "$BIN_PATH" "$BIN_PATH2" "./steamguard-cli_$RAW_VERSION-0.deb"
 fi

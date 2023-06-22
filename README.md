@@ -32,8 +32,12 @@ cargo build --release
 
 # Usage
 `steamguard-cli` looks for your `maFiles/manifest.json` in at these paths, in this order:
+Linux:
 - `~/.config/steamguard-cli/maFiles/`
 - `~/maFiles/`
+Windows:
+- `%APPDATA%\Roaming\steamguard-cli\maFiles\`
+- `%USERPROFILE%\maFiles\`
 
 Your `maFiles` can be created with or imported from [Steam Desktop Authenticator][SDA]. You can create `maFiles` with steamguard-cli using the `setup` action (`steamguard setup`).
 
