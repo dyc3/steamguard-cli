@@ -180,7 +180,7 @@ pub enum AccountLinkError {
 	#[error("Steam was unable to link the authenticator to the account. No additional information about this error is available. This is a Steam error, not a steamguard-cli error. Try adding a phone number to your Steam account (which you can do here: https://store.steampowered.com/phone/add), or try again later.")]
 	GenericFailure,
 	#[error("Steam returned an unexpected error code: {0:?}")]
-	UnknownResult(EResult),
+	UnknownEResult(EResult),
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }
@@ -193,7 +193,7 @@ impl From<EResult> for AccountLinkError {
 			// However, this does not mean that this status just means "no phone number". It can also
 			// be literally anything else, so that's why we return GenericFailure here.
 			EResult::Fail => AccountLinkError::GenericFailure,
-			r => AccountLinkError::UnknownResult(r),
+			r => AccountLinkError::UnknownEResult(r),
 		}
 	}
 }
@@ -205,8 +205,8 @@ pub enum FinalizeLinkError {
 	/// Steam wants more 2fa codes to verify that we can generate valid codes. Call finalize again.
 	#[error("Steam wants more 2fa codes for verification.")]
 	WantMore { server_time: u64 },
-	#[error("Finalization was not successful. Status code {status:?}")]
-	Failure { status: EResult },
+	#[error("Steam returned an unexpected error code: {0:?}")]
+	UnknownEResult(EResult),
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }
@@ -215,7 +215,7 @@ impl From<EResult> for FinalizeLinkError {
 	fn from(result: EResult) -> Self {
 		match result {
 			EResult::TwoFactorActivationCodeMismatch => FinalizeLinkError::BadSmsCode,
-			r => FinalizeLinkError::Failure { status: r },
+			r => FinalizeLinkError::UnknownEResult(r),
 		}
 	}
 }
