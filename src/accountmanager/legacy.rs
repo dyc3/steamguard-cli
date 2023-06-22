@@ -49,19 +49,16 @@ pub struct SdaManifestEntry {
 	pub filename: String,
 	#[serde(default, rename = "steamid")]
 	pub steam_id: u64,
-	#[serde(default)]
-	pub account_name: String,
 	#[serde(default, flatten)]
 	pub encryption: Option<SdaEntryEncryptionParams>,
 }
 
 impl From<SdaManifestEntry> for ManifestEntry {
-	fn from(mut sda: SdaManifestEntry) -> Self {
-		sda.account_name.make_ascii_lowercase();
+	fn from(sda: SdaManifestEntry) -> Self {
 		Self {
 			filename: sda.filename,
 			steam_id: sda.steam_id,
-			account_name: sda.account_name,
+			account_name: Default::default(),
 			encryption: sda.encryption.map(|e| e.into()),
 		}
 	}

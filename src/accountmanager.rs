@@ -41,6 +41,12 @@ impl AccountManager {
 		}
 	}
 
+	pub fn register_accounts(&mut self, accounts: Vec<SteamGuardAccount>) {
+		for account in accounts {
+			self.register_loaded_account(Arc::new(Mutex::new(account)));
+		}
+	}
+
 	pub fn load(path: &Path) -> anyhow::Result<Self, ManifestLoadError> {
 		debug!("loading manifest: {:?}", &path);
 		let file = File::open(path)?;

@@ -15,7 +15,7 @@ use super::{
 pub fn load_and_migrate(
 	manifest_path: &Path,
 	passkey: Option<&String>,
-) -> anyhow::Result<Manifest> {
+) -> anyhow::Result<(Manifest, Vec<SteamGuardAccount>)> {
 	backup_file(manifest_path)?;
 	let parent = manifest_path.parent().unwrap();
 	parent.read_dir()?.for_each(|e| {
@@ -31,7 +31,10 @@ pub fn load_and_migrate(
 	do_migrate(manifest_path, passkey)
 }
 
-fn do_migrate(manifest_path: &Path, passkey: Option<&String>) -> anyhow::Result<Manifest> {
+fn do_migrate(
+	manifest_path: &Path,
+	passkey: Option<&String>,
+) -> anyhow::Result<(Manifest, Vec<SteamGuardAccount>)> {
 	let mut file = File::open(manifest_path)?;
 	let mut buffer = String::new();
 	file.read_to_string(&mut buffer)?;
@@ -48,11 +51,21 @@ fn do_migrate(manifest_path: &Path, passkey: Option<&String>) -> anyhow::Result<
 		}
 	}
 
-	Ok(manifest.into())
+	// HACK: force account names onto manifest entries
+	let mut manifest: Manifest = manifest.into();
+	let accounts: Vec<SteamGuardAccount> = accounts.into_iter().map(|a| a.into()).collect();
+	for (i, entry) in manifest.entries.iter_mut().enumerate() {
+		entry.account_name = accounts[i].account_name.to_lowercase();
+	}
+
+	Ok((manifest, accounts))
 }
 
 fn backup_file(path: &Path) -> anyhow::Result<()> {
-	let backup_path = path.with_extension("bak");
+	let backup_path = Path::join(
+		path.parent().unwrap(),
+		format!("{}.bak", path.file_name().unwrap().to_str().unwrap()),
+	);
 	std::fs::copy(path, backup_path)?;
 	Ok(())
 }
@@ -169,7 +182,7 @@ fn deserialize_manifest(text: String) -> anyhow::Result<MigratingManifest> {
 #[derive(Debug, Clone)]
 enum MigratingAccount {
 	SDA(SdaAccount),
-	ManifestV1(SteamGuardAccount), // TODO: get a new type for this
+	ManifestV1(SteamGuardAccount),
 }
 
 impl MigratingAccount {
@@ -177,6 +190,15 @@ impl MigratingAccount {
 		match self {
 			Self::SDA(sda) => Self::ManifestV1(sda.into()),
 			Self::ManifestV1(_) => self,
+		}
+	}
+}
+
+impl From<MigratingAccount> for SteamGuardAccount {
+	fn from(migrating: MigratingAccount) -> Self {
+		match migrating {
+			MigratingAccount::ManifestV1(account) => account,
+			_ => panic!("Account is not at the latest version!"),
 		}
 	}
 }
@@ -218,10 +240,10 @@ mod tests {
 		];
 		for case in cases {
 			eprintln!("testing: {:?}", case);
-			let manifest = do_migrate(Path::new(case.manifest), case.passkey.as_ref())?;
+			let (manifest, accounts) = do_migrate(Path::new(case.manifest), case.passkey.as_ref())?;
 			assert_eq!(manifest.version, CURRENT_MANIFEST_VERSION);
-			assert_eq!(manifest.entries.len(), 1);
 			assert_eq!(manifest.entries[0].account_name, "example");
+			assert_eq!(accounts[0].account_name, "example");
 		}
 		Ok(())
 	}
