@@ -20,6 +20,8 @@ where
 
 #[cfg(test)]
 mod test {
+	use serde::Serialize;
+
 	use super::*;
 
 	#[test]
