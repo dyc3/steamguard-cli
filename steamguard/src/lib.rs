@@ -33,13 +33,6 @@ pub mod token;
 pub mod transport;
 pub mod userlogin;
 
-// const STEAMAPI_BASE: String = "https://api.steampowered.com";
-// const COMMUNITY_BASE: String = "https://steamcommunity.com";
-// const MOBILEAUTH_BASE: String = STEAMAPI_BASE + "/IMobileAuthService/%s/v0001";
-// static MOBILEAUTH_GETWGTOKEN: String = MOBILEAUTH_BASE.Replace("%s", "GetWGToken");
-// const TWO_FACTOR_BASE: String = STEAMAPI_BASE + "/ITwoFactorService/%s/v0001";
-// static TWO_FACTOR_TIME_QUERY: String = TWO_FACTOR_BASE.Replace("%s", "QueryTime");
-
 extern crate base64;
 extern crate cookie;
 extern crate hmacsha1;
