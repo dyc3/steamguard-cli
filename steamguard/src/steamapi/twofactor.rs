@@ -1,3 +1,4 @@
+use crate::token::Jwt;
 use crate::transport::Transport;
 
 use super::{ApiRequest, ApiResponse, BuildableRequest};
@@ -25,7 +26,7 @@ where
 	pub fn add_authenticator(
 		&mut self,
 		req: CTwoFactor_AddAuthenticator_Request,
-		access_token: String,
+		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_AddAuthenticator_Response>> {
 		let req = ApiRequest::new("TwoFactor", "AddAuthenticator", 1, req)
 			.with_access_token(access_token);
@@ -40,7 +41,7 @@ where
 	pub fn finalize_authenticator(
 		&mut self,
 		req: CTwoFactor_FinalizeAddAuthenticator_Request,
-		access_token: String,
+		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_FinalizeAddAuthenticator_Response>> {
 		let req = ApiRequest::new("TwoFactor", "FinalizeAddAuthenticator", 1, req)
 			.with_access_token(access_token);
@@ -55,7 +56,7 @@ where
 	pub fn remove_authenticator(
 		&mut self,
 		req: CTwoFactor_RemoveAuthenticator_Request,
-		access_token: String,
+		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_RemoveAuthenticator_Response>> {
 		let req = ApiRequest::new("TwoFactor", "RemoveAuthenticator", 1, req)
 			.with_access_token(access_token);
@@ -70,7 +71,7 @@ where
 	pub fn query_status(
 		&mut self,
 		req: CTwoFactor_Status_Request,
-		access_token: String,
+		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_Status_Response>> {
 		let req =
 			ApiRequest::new("TwoFactor", "QueryStatus", 1, req).with_access_token(access_token);

@@ -75,26 +75,25 @@ fn build_time_bytes(time: u64) -> [u8; 8] {
 	return time.to_be_bytes();
 }
 
-#[derive(Debug, Serialize, Deserialize, Zeroize)]
-#[zeroize(drop)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Tokens {
-	access_token: String,
-	refresh_token: String,
+	access_token: Jwt,
+	refresh_token: Jwt,
 }
 
 impl Tokens {
-	pub fn new(access_token: String, refresh_token: String) -> Self {
+	pub fn new(access_token: impl Into<Jwt>, refresh_token: impl Into<Jwt>) -> Self {
 		Self {
-			access_token,
-			refresh_token,
+			access_token: access_token.into(),
+			refresh_token: refresh_token.into(),
 		}
 	}
 
-	pub fn access_token(&self) -> &String {
+	pub fn access_token(&self) -> &Jwt {
 		&self.access_token
 	}
 
-	pub fn refresh_token(&self) -> &String {
+	pub fn refresh_token(&self) -> &Jwt {
 		&self.refresh_token
 	}
 }
@@ -112,8 +111,12 @@ impl Serialize for Jwt {
 }
 
 impl Jwt {
-	fn decode(&self) -> anyhow::Result<SteamJwtData> {
+	pub fn decode(&self) -> anyhow::Result<SteamJwtData> {
 		decode_jwt(self.0.expose_secret())
+	}
+
+	pub fn expose_secret(&self) -> &str {
+		self.0.expose_secret()
 	}
 }
 
@@ -135,15 +138,21 @@ fn decode_jwt(jwt: &String) -> anyhow::Result<SteamJwtData> {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct SteamJwtData {
-	exp: u64,
-	iat: u64,
-	iss: String,
-	// Audience
-	aud: Vec<String>,
-	// Subject (steam id)
-	sub: String,
-	jti: String,
+pub struct SteamJwtData {
+	pub exp: u64,
+	pub iat: u64,
+	pub iss: String,
+	/// Audience
+	pub aud: Vec<String>,
+	/// Subject (steam id)
+	pub sub: String,
+	pub jti: String,
+}
+
+impl SteamJwtData {
+	pub fn steam_id(&self) -> u64 {
+		self.sub.parse::<u64>().unwrap()
+	}
 }
 
 mod tests {
@@ -220,6 +229,7 @@ mod tests {
 		return Ok(());
 	}
 
+	#[test]
 	fn test_decode_jwt() {
 		let sample: Jwt = "eyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInN0ZWFtIiwgInN1YiI6ICI3NjU2MTE5OTE1NTcwNjg5MiIsICJhdWQiOiBbICJ3ZWIiLCAicmVuZXciLCAiZGVyaXZlIiBdLCAiZXhwIjogMTcwNTAxMTk1NSwgIm5iZiI6IDE2Nzg0NjQ4MzcsICJpYXQiOiAxNjg3MTA0ODM3LCAianRpIjogIjE4QzVfMjJCM0Y0MzFfQ0RGNkEiLCAib2F0IjogMTY4NzEwNDgzNywgInBlciI6IDEsICJpcF9zdWJqZWN0IjogIjY5LjEyMC4xMzYuMTI0IiwgImlwX2NvbmZpcm1lciI6ICI2OS4xMjAuMTM2LjEyNCIgfQ.7p5TPj9pGQbxIzWDDNCSP9OkKYSeDnWBE8E-M8hUrxOEPCW0XwrbDUrh199RzjPDw".to_owned().into();
 		let data = sample.decode().expect("Failed to decode JWT");

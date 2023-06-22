@@ -1,7 +1,7 @@
 pub mod authentication;
 pub mod twofactor;
 
-use crate::api_responses::*;
+use crate::{api_responses::*, token::Jwt};
 use log::*;
 use reqwest::{
 	blocking::RequestBuilder,
@@ -486,15 +486,15 @@ pub trait BuildableRequest {
 }
 
 #[derive(Debug, Clone)]
-pub struct ApiRequest<T> {
+pub struct ApiRequest<'a, T> {
 	api_interface: String,
 	api_method: String,
 	api_version: u32,
-	access_token: Option<String>,
+	access_token: Option<&'a Jwt>,
 	request_data: T,
 }
 
-impl<T: BuildableRequest> ApiRequest<T> {
+impl<'a, T: BuildableRequest> ApiRequest<'a, T> {
 	pub fn new(
 		api_interface: impl Into<String>,
 		api_method: impl Into<String>,
@@ -510,13 +510,13 @@ impl<T: BuildableRequest> ApiRequest<T> {
 		}
 	}
 
-	pub fn with_access_token(mut self, access_token: String) -> Self {
+	pub fn with_access_token(mut self, access_token: &'a Jwt) -> Self {
 		self.access_token = Some(access_token);
 		self
 	}
 
-	pub fn access_token(&self) -> Option<&String> {
-		self.access_token.as_ref()
+	pub fn access_token(&self) -> Option<&Jwt> {
+		self.access_token
 	}
 
 	pub(crate) fn build_url(&self) -> String {

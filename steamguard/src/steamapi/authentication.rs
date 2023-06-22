@@ -25,6 +25,7 @@ use crate::{
 			CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthSessionGuardType,
 		},
 	},
+	token::Jwt,
 	transport::Transport,
 };
 
@@ -79,7 +80,7 @@ where
 	pub fn generate_access_token(
 		&mut self,
 		req: CAuthentication_AccessToken_GenerateForApp_Request,
-		access_token: String,
+		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CAuthentication_AccessToken_GenerateForApp_Response>> {
 		let req = ApiRequest::new("Authentication", "GenerateAccessTokenForApp", 1u32, req)
 			.with_access_token(access_token);

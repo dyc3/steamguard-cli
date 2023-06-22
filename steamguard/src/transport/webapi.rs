@@ -51,9 +51,9 @@ impl Transport for WebApiTransport {
 
 		req = if Req::method() == reqwest::Method::GET {
 			let encoded = encode_msg(apireq.request_data(), base64::URL_SAFE)?;
-			let mut params = vec![("input_protobuf_encoded", &encoded)];
+			let mut params = vec![("input_protobuf_encoded", encoded.as_str())];
 			if let Some(access_token) = apireq.access_token() {
-				params.push(("access_token", access_token));
+				params.push(("access_token", access_token.expose_secret()));
 			}
 			req.query(&params)
 		} else {
