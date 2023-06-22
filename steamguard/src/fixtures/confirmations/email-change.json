@@ -1,0 +1,22 @@
+{
+	"success": true,
+	"conf": [
+		{
+			"type": 6,
+			"type_name": "Account details",
+			"id": "13810258093",
+			"creator_id": "5112001996116090268",
+			"nonce": "11854208935012684707",
+			"creation_time": 1687457923,
+			"cancel": "Cancel",
+			"accept": "Confirm",
+			"icon": "https:\/\/community.akamai.steamstatic.com\/public\/shared\/images\/login\/key.png",
+			"multi": false,
+			"headline": "Account recovery",
+			"summary": [
+				""
+			],
+			"warn": null
+		}
+	]
+}

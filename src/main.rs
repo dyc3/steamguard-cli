@@ -594,7 +594,8 @@ fn do_subcmd_trade(
 					confirmations = confs;
 					break;
 				}
-				Err(_) => {
+				Err(err) => {
+					error!("Failed to get trade confirmations: {:#?}", err);
 					info!("failed to get trade confirmations, asking user to log in");
 					do_login(&mut account)?;
 				}
