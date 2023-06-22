@@ -2035,7 +2035,7 @@ checksum = "213701ba3370744dcd1a12960caa4843b3d68b4d1c0a5d575e0d65b2ee9d16c0"
 
 [[package]]
 name = "steamguard"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -2063,7 +2063,7 @@ dependencies = [
 
 [[package]]
 name = "steamguard-cli"
-version = "0.7.1"
+version = "0.8.0"
 dependencies = [
  "aes",
  "anyhow",
