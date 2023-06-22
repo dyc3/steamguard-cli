@@ -10,6 +10,7 @@ use std::{
 	path::Path,
 	sync::{Arc, Mutex},
 };
+use steamguard::accountlinker::AccountLinkSuccess;
 use steamguard::protobufs::steammessages_auth_steamclient::EAuthTokenPlatformType;
 use steamguard::token::Tokens;
 use steamguard::{
@@ -191,22 +192,12 @@ fn run() -> anyhow::Result<()> {
 	);
 
 	match args.sub.unwrap_or(cli::Subcommands::Code(args.code)) {
-		cli::Subcommands::Trade(args) => {
-			do_subcmd_trade(args, &mut manager, selected_accounts)
-		}
-		cli::Subcommands::Remove(args) => {
-			do_subcmd_remove(args, &mut manager, selected_accounts)
-		}
-		cli::Subcommands::Code(args) => {
-			do_subcmd_code(args, selected_accounts)
-		}
+		cli::Subcommands::Trade(args) => do_subcmd_trade(args, &mut manager, selected_accounts),
+		cli::Subcommands::Remove(args) => do_subcmd_remove(args, &mut manager, selected_accounts),
+		cli::Subcommands::Code(args) => do_subcmd_code(args, selected_accounts),
 		#[cfg(feature = "qr")]
-		cli::Subcommands::Qr(args) => {
-			do_subcmd_qr(args, selected_accounts)
-		}
-		cli::Subcommands::TestLogin => {
-			test_login::do_subcmd_test_login(selected_accounts)
-		}
+		cli::Subcommands::Qr(args) => do_subcmd_qr(args, selected_accounts),
+		cli::Subcommands::TestLogin => test_login::do_subcmd_test_login(selected_accounts),
 		s => {
 			error!("Unknown subcommand: {:?}", s);
 			Err(errors::UserError::UnknownSubcommand.into())
@@ -441,11 +432,11 @@ fn do_subcmd_setup(
 
 	info!("Adding authenticator...");
 	let mut linker = AccountLinker::new(session);
-	let account: SteamGuardAccount;
+	let link: AccountLinkSuccess;
 	loop {
 		match linker.link() {
 			Ok(a) => {
-				account = a;
+				link = a;
 				break;
 			}
 			Err(AccountLinkError::MustRemovePhoneNumber) => {
@@ -474,33 +465,42 @@ fn do_subcmd_setup(
 			}
 		}
 	}
-	manifest.add_account(account);
+	let mut server_time = link.server_time();
+	let phone_number_hint = link.phone_number_hint().to_owned();
+	manifest.add_account(link.into_account());
 	match manifest.save() {
 		Ok(_) => {}
 		Err(err) => {
 			error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
 			println!(
-				"Just in case, here is the account info. Save it somewhere just in case!\n{:?}",
+				"Just in case, here is the account info. Save it somewhere just in case!\n{:#?}",
 				manifest.get_account(&account_name).unwrap().lock().unwrap()
 			);
 			return Err(err);
 		}
 	}
 
-	let account_arc = manifest.get_account(&account_name).unwrap();
+	let account_arc = manifest
+		.get_account(&account_name)
+		.expect("account was not present in manifest");
 	let mut account = account_arc.lock().unwrap();
 
 	println!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code.expose_secret());
 	tui::pause();
 
 	debug!("attempting link finalization");
+	println!(
+		"A code has been sent to your phone number ending in {}.",
+		phone_number_hint
+	);
 	print!("Enter SMS code: ");
 	let sms_code = tui::prompt();
 	let mut tries = 0;
 	loop {
-		match linker.finalize(&mut account, sms_code.clone()) {
+		match linker.finalize(server_time, &mut account, sms_code.clone()) {
 			Ok(_) => break,
-			Err(FinalizeLinkError::WantMore) => {
+			Err(FinalizeLinkError::WantMore { server_time: s }) => {
+				server_time = s;
 				debug!("steam wants more 2fa codes (tries: {})", tries);
 				tries += 1;
 				if tries >= 30 {
@@ -593,38 +593,38 @@ fn do_subcmd_trade(
 				}
 			}
 		} else if stdout().is_tty() {
-  				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
-  				for conf in &accept {
-  					let result = account.accept_confirmation(conf);
-  					if result.is_err() {
-  						warn!("accept confirmation result: {:?}", result);
-  						any_failed = true;
-  						if args.fail_fast {
-  							return result;
-  						}
-  					} else {
-  						debug!("accept confirmation result: {:?}", result);
-  					}
-  				}
-  				for conf in &deny {
-  					let result = account.deny_confirmation(conf);
-  					debug!("deny confirmation result: {:?}", result);
-  					if result.is_err() {
-  						warn!("deny confirmation result: {:?}", result);
-  						any_failed = true;
-  						if args.fail_fast {
-  							return result;
-  						}
-  					} else {
-  						debug!("deny confirmation result: {:?}", result);
-  					}
-  				}
-  			} else {
-  				warn!("not a tty, not showing menu");
-  				for conf in &confirmations {
-  					println!("{}", conf.description());
-  				}
-  			}
+			let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
+			for conf in &accept {
+				let result = account.accept_confirmation(conf);
+				if result.is_err() {
+					warn!("accept confirmation result: {:?}", result);
+					any_failed = true;
+					if args.fail_fast {
+						return result;
+					}
+				} else {
+					debug!("accept confirmation result: {:?}", result);
+				}
+			}
+			for conf in &deny {
+				let result = account.deny_confirmation(conf);
+				debug!("deny confirmation result: {:?}", result);
+				if result.is_err() {
+					warn!("deny confirmation result: {:?}", result);
+					any_failed = true;
+					if args.fail_fast {
+						return result;
+					}
+				} else {
+					debug!("deny confirmation result: {:?}", result);
+				}
+			}
+		} else {
+			warn!("not a tty, not showing menu");
+			for conf in &confirmations {
+				println!("{}", conf.description());
+			}
+		}
 
 		if any_failed {
 			error!("Failed to respond to some confirmations.");

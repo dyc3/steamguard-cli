@@ -30,7 +30,7 @@ extern crate anyhow;
 #[macro_use]
 extern crate maplit;
 
-mod accountlinker;
+pub mod accountlinker;
 mod api_responses;
 mod confirmation;
 pub mod protobufs;

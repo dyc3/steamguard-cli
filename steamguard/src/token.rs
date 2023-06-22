@@ -1,3 +1,4 @@
+use regex::bytes;
 use secrecy::{ExposeSecret, Secret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryInto;
@@ -10,6 +11,11 @@ pub struct TwoFactorSecret(Secret<[u8; 20]>);
 impl TwoFactorSecret {
 	pub fn new() -> Self {
 		return Self([0u8; 20].into());
+	}
+
+	pub fn from_bytes(bytes: Vec<u8>) -> Self {
+		let bytes: [u8; 20] = bytes[..].try_into().unwrap();
+		return Self(bytes.into());
 	}
 
 	pub fn parse_shared_secret(secret: String) -> anyhow::Result<Self> {
