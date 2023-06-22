@@ -109,6 +109,10 @@ impl SteamGuardAccount {
 		self.session = Some(session.into());
 	}
 
+	pub fn is_logged_in(&self) -> bool {
+		return self.tokens.is_some();
+	}
+
 	pub fn generate_code(&self, time: u64) -> String {
 		return self.shared_secret.generate_code(time);
 	}

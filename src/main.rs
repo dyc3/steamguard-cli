@@ -11,7 +11,9 @@ use std::{
 	sync::{Arc, Mutex},
 };
 use steamguard::accountlinker::AccountLinkSuccess;
-use steamguard::protobufs::steammessages_auth_steamclient::EAuthTokenPlatformType;
+use steamguard::protobufs::steammessages_auth_steamclient::{
+	EAuthSessionGuardType, EAuthTokenPlatformType,
+};
 use steamguard::token::Tokens;
 use steamguard::{
 	steamapi, AccountLinkError, AccountLinker, Confirmation, DeviceDetails, ExposeSecret,
@@ -325,12 +327,30 @@ fn do_login_impl(
 	let selected_method = &confirmation_methods[selected];
 	info!("Selected method: {:?}", selected_method);
 
-	if let Some(account) = account {
-		let time = steamapi::get_server_time()?.server_time;
-		login.submit_steam_guard_code(
-			selected_method.confirmation_type,
-			account.generate_code(time),
-		)?;
+	match selected_method.confirmation_type {
+		EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => {
+			let code = if let Some(account) = account {
+				info!("Generating 2fa code...");
+				let time = steamapi::get_server_time()?.server_time;
+				account.generate_code(time)
+			} else {
+				eprint!("Enter the 2fa code from your device: ");
+				tui::prompt().trim().to_owned()
+			};
+			login.submit_steam_guard_code(selected_method.confirmation_type, code)?;
+		}
+		EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode => {
+			eprint!("Enter the 2fa code sent to your email: ");
+			let code = tui::prompt().trim().to_owned();
+			login.submit_steam_guard_code(selected_method.confirmation_type, code)?;
+		}
+		_ => {
+			error!(
+				"Unsupported confirmation method: {:?}",
+				selected_method.confirmation_type
+			);
+			bail!("Unsupported confirmation method");
+		}
 	}
 
 	info!("Polling for tokens... -- If this takes a long time, try logging in again.");
@@ -660,7 +680,12 @@ fn do_subcmd_remove(
 
 	let mut successful = vec![];
 	for a in selected_accounts {
-		let account = a.lock().unwrap();
+		let mut account = a.lock().unwrap();
+		if !account.is_logged_in() {
+			info!("Account does not have tokens, logging in");
+			do_login(&mut account)?;
+		}
+
 		match account.remove_authenticator(None) {
 			Ok(success) => {
 				if success {
