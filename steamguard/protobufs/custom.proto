@@ -19,3 +19,5 @@ message CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData {
   optional uint32 language = 11;
   optional int32 qos_level = 12 [default = 2, (description) = "[ENetQOSLevel] client-specified priority for this auth attempt"];
 }
+
+message CTwoFactor_Time_Request {}

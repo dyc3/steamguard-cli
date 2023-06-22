@@ -1,4 +1,5 @@
 pub mod authentication;
+pub mod twofactor;
 
 use crate::api_responses::*;
 use log::*;
@@ -12,9 +13,9 @@ use reqwest::{
 use secrecy::{CloneableSecret, DebugSecret, ExposeSecret, SerializableSecret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::iter::FromIterator;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{convert::TryFrom, iter::FromIterator};
 use zeroize::Zeroize;
 
 lazy_static! {
