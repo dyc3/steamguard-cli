@@ -199,6 +199,7 @@ fn run() -> anyhow::Result<()> {
 		cli::Subcommands::Code(args) => do_subcmd_code(args, selected_accounts),
 		#[cfg(feature = "qr")]
 		cli::Subcommands::Qr(args) => do_subcmd_qr(args, selected_accounts),
+		#[cfg(debug_assertions)]
 		cli::Subcommands::TestLogin => test_login::do_subcmd_test_login(selected_accounts),
 		s => {
 			error!("Unknown subcommand: {:?}", s);

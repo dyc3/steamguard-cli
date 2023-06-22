@@ -57,6 +57,7 @@ pub(crate) enum Subcommands {
 	Code(ArgsCode),
 	#[cfg(feature = "qr")]
 	Qr(ArgsQr),
+	#[cfg(debug_assertions)]
 	TestLogin,
 }
 
