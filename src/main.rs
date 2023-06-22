@@ -250,7 +250,9 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 		debug!("password is empty");
 	}
 	let tokens = do_login_impl(account.account_name.clone(), password, Some(account))?;
+	let steam_id = tokens.access_token().decode()?.steam_id();
 	account.set_tokens(tokens);
+	account.steam_id = steam_id;
 	Ok(())
 }
 

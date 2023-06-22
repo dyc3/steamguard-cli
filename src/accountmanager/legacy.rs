@@ -5,6 +5,7 @@ use std::{
 };
 
 use log::debug;
+use secrecy::ExposeSecret;
 use serde::Deserialize;
 use steamguard::{token::TwoFactorSecret, SecretString, SteamGuardAccount};
 
@@ -139,8 +140,14 @@ pub struct SdaAccount {
 
 impl From<SdaAccount> for SteamGuardAccount {
 	fn from(value: SdaAccount) -> Self {
+		let steam_id = value
+			.session
+			.as_ref()
+			.map(|s| s.expose_secret().steam_id)
+			.unwrap_or(0);
 		Self {
 			account_name: value.account_name,
+			steam_id,
 			serial_number: value.serial_number,
 			revocation_code: value.revocation_code,
 			shared_secret: value.shared_secret,

@@ -47,6 +47,7 @@ extern crate hmacsha1;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SteamGuardAccount {
 	pub account_name: String,
+	pub steam_id: u64,
 	pub serial_number: String,
 	#[serde(with = "secret_string")]
 	pub revocation_code: SecretString,
@@ -81,6 +82,7 @@ impl SteamGuardAccount {
 	pub fn new() -> Self {
 		return SteamGuardAccount {
 			account_name: String::from(""),
+			steam_id: 0,
 			serial_number: String::from(""),
 			revocation_code: String::from("").into(),
 			shared_secret: TwoFactorSecret::new(),
@@ -103,10 +105,6 @@ impl SteamGuardAccount {
 
 	pub fn set_tokens(&mut self, tokens: Tokens) {
 		self.tokens = Some(tokens);
-	}
-
-	pub fn set_session(&mut self, session: steamapi::Session) {
-		self.session = Some(session.into());
 	}
 
 	pub fn is_logged_in(&self) -> bool {

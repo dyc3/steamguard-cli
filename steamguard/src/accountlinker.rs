@@ -5,7 +5,6 @@ use crate::steamapi::twofactor::TwoFactorClient;
 use crate::token::TwoFactorSecret;
 use crate::transport::WebApiTransport;
 use crate::{
-	api_responses::{AddAuthenticatorResponse, FinalizeAddAuthenticatorResponse},
 	steamapi::{EResult, Session, SteamApiClient},
 	token::Tokens,
 	SteamGuardAccount,
@@ -77,7 +76,7 @@ impl AccountLinker {
 
 		let account = SteamGuardAccount {
 			account_name: resp.take_account_name(),
-			// steam_id,
+			steam_id,
 			serial_number: resp.serial_number().to_string(),
 			revocation_code: resp.take_revocation_code().into(),
 			uri: resp.take_uri().into(),
@@ -106,9 +105,8 @@ impl AccountLinker {
 	) -> anyhow::Result<(), FinalizeLinkError> {
 		let code = account.generate_code(time);
 
-		// FIXME: grab steam id from account instead of tokens
 		let token = self.tokens.access_token();
-		let steam_id = token.decode()?.steam_id();
+		let steam_id = account.steam_id;
 
 		let mut req = CTwoFactor_FinalizeAddAuthenticator_Request::new();
 		req.set_steamid(steam_id);
