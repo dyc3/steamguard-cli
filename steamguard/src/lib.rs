@@ -63,7 +63,6 @@ pub struct SteamGuardAccount {
 	#[serde(with = "secret_string")]
 	pub secret_1: SecretString,
 	pub tokens: Option<Tokens>,
-	pub session: Option<secrecy::Secret<steamapi::Session>>,
 }
 
 fn build_time_bytes(time: u64) -> [u8; 8] {
@@ -94,7 +93,6 @@ impl SteamGuardAccount {
 			device_id: String::from(""),
 			secret_1: String::from("").into(),
 			tokens: None,
-			session: None,
 		};
 	}
 

@@ -142,13 +142,9 @@ impl AccountManager {
 
 	pub fn add_account(&mut self, account: SteamGuardAccount) {
 		debug!("adding account to manifest: {}", account.account_name);
-		let steamid = account
-			.session
-			.as_ref()
-			.map_or(0, |s| s.expose_secret().steam_id);
 		self.manifest.entries.push(ManifestEntry {
 			filename: format!("{}.maFile", &account.account_name),
-			steam_id: steamid,
+			steam_id: account.steam_id,
 			account_name: account.account_name.clone(),
 			encryption: None,
 		});

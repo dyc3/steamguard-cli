@@ -86,7 +86,6 @@ impl AccountLinker {
 			device_id: self.device_id.clone(),
 			secret_1: base64::encode(&resp.take_secret_1()).into(),
 			tokens: Some(self.tokens.clone()),
-			session: None,
 		};
 		let success = AccountLinkSuccess {
 			account: account,
