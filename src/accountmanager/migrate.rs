@@ -189,6 +189,13 @@ impl MigratingAccount {
 			Self::ManifestV1(_) => self,
 		}
 	}
+
+	pub fn is_latest(&self) -> bool {
+		match self {
+			Self::ManifestV1(_) => true,
+			_ => false,
+		}
+	}
 }
 
 impl From<MigratingAccount> for SteamGuardAccount {
@@ -198,6 +205,17 @@ impl From<MigratingAccount> for SteamGuardAccount {
 			_ => panic!("Account is not at the latest version!"),
 		}
 	}
+}
+
+pub fn load_and_upgrade_sda_account(path: &Path) -> anyhow::Result<SteamGuardAccount> {
+	let file = File::open(path)?;
+	let account: SdaAccount = serde_json::from_reader(file)?;
+	let mut account = MigratingAccount::Sda(account);
+	while !account.is_latest() {
+		account = account.upgrade();
+	}
+
+	Ok(account.into())
 }
 
 #[cfg(test)]

@@ -565,12 +565,19 @@ fn do_subcmd_import(
 	manifest: &mut accountmanager::AccountManager,
 ) -> anyhow::Result<()> {
 	for file_path in args.files {
-		match manifest.import_account(&file_path) {
-			Ok(_) => {
-				info!("Imported account: {}", &file_path);
-			}
-			Err(err) => {
-				bail!("Failed to import account: {} {}", &file_path, err);
+		if args.sda {
+			let path = Path::new(&file_path);
+			let account = accountmanager::migrate::load_and_upgrade_sda_account(path)?;
+			manifest.add_account(account);
+			info!("Imported account: {}", &file_path);
+		} else {
+			match manifest.import_account(&file_path) {
+				Ok(_) => {
+					info!("Imported account: {}", &file_path);
+				}
+				Err(err) => {
+					bail!("Failed to import account: {} {}", &file_path, err);
+				}
 			}
 		}
 	}

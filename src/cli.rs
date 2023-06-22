@@ -127,6 +127,9 @@ pub(crate) struct ArgsSetup {}
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Import an account with steamguard already set up")]
 pub(crate) struct ArgsImport {
+	#[clap(long, help = "Whether or not the provided maFiles are from SDA.")]
+	pub sda: bool,
+
 	#[clap(long, help = "Paths to one or more maFiles, eg. \"./gaben.maFile\"")]
 	pub files: Vec<String>,
 }
