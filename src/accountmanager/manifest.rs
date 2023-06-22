@@ -1,8 +1,4 @@
-
-
-
 use serde::{Deserialize, Serialize};
-
 
 use super::EntryEncryptionParams;
 

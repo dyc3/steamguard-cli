@@ -2,11 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use log::info;
 
-use steamguard::{
-	SteamGuardAccount,
-};
+use steamguard::SteamGuardAccount;
 
-use crate::{do_login};
+use crate::do_login;
 
 pub fn do_subcmd_test_login(
 	selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
