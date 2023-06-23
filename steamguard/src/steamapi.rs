@@ -101,34 +101,6 @@ impl SteamApiClient {
 		}
 	}
 
-	fn build_session(&self, data: &OAuthData) -> Session {
-		trace!("SteamApiClient::build_session");
-		return Session {
-			token: data.oauth_token.clone(),
-			steam_id: data.steamid.parse().unwrap(),
-			steam_login: format!("{}%7C%7C{}", data.steamid, data.wgtoken),
-			steam_login_secure: format!("{}%7C%7C{}", data.steamid, data.wgtoken_secure),
-			session_id: self
-				.extract_session_id()
-				.expect("failed to extract session id from cookies"),
-			web_cookie: Some(data.webcookie.clone()),
-		};
-	}
-
-	fn extract_session_id(&self) -> Option<String> {
-		let cookies = self.cookies.cookies(&STEAM_COOKIE_URL).unwrap();
-		let all_cookies = cookies.to_str().unwrap();
-		for cookie in all_cookies
-			.split(";")
-			.map(|s| cookie::Cookie::parse(s).unwrap())
-		{
-			if cookie.name() == "sessionid" {
-				return Some(cookie.value().into());
-			}
-		}
-		return None;
-	}
-
 	pub fn save_cookies_from_response(&mut self, response: &reqwest::blocking::Response) {
 		let set_cookie_iter = response.headers().get_all(SET_COOKIE);
 
@@ -237,11 +209,6 @@ pub struct ApiResponse<T> {
 impl<T> ApiResponse<T> {
 	pub fn result(&self) -> EResult {
 		self.result
-	}
-
-	pub(crate) fn with_error_message(mut self, error_message: Option<String>) -> Self {
-		self.error_message = error_message;
-		self
 	}
 
 	pub fn error_message(&self) -> Option<&String> {

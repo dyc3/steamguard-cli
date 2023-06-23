@@ -274,10 +274,7 @@ fn do_login_impl(
 	password: String,
 	account: Option<&SteamGuardAccount>,
 ) -> anyhow::Result<Tokens> {
-	let mut login = UserLogin::new(
-		EAuthTokenPlatformType::k_EAuthTokenPlatformType_MobileApp,
-		build_device_details(),
-	);
+	let mut login = UserLogin::new(build_device_details());
 
 	let mut password = password;
 	let confirmation_methods;

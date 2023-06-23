@@ -97,7 +97,6 @@ impl BeginQrLoginResponse {
 /// Handles the user login flow.
 #[derive(Debug)]
 pub struct UserLogin {
-	platform_type: EAuthTokenPlatformType,
 	client: AuthenticationClient<WebApiTransport>,
 	device_details: DeviceDetails,
 
@@ -105,9 +104,8 @@ pub struct UserLogin {
 }
 
 impl UserLogin {
-	pub fn new(platform_type: EAuthTokenPlatformType, device_details: DeviceDetails) -> Self {
+	pub fn new(device_details: DeviceDetails) -> Self {
 		return Self {
-			platform_type,
 			client: AuthenticationClient::new(WebApiTransport::new()),
 			device_details,
 			started_auth: None,
