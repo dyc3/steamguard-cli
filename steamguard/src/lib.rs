@@ -61,22 +61,25 @@ pub struct SteamGuardAccount {
 }
 
 fn build_time_bytes(time: u64) -> [u8; 8] {
-	return time.to_be_bytes();
+	time.to_be_bytes()
 }
 
-fn generate_confirmation_hash_for_time(time: u64, tag: &str, identity_secret: &String) -> String {
-	let decode: &[u8] = &base64::decode(&identity_secret).unwrap();
+fn generate_confirmation_hash_for_time(
+	time: u64,
+	tag: &str,
+	identity_secret: impl AsRef<[u8]>,
+) -> String {
+	let decode: &[u8] = &base64::decode(identity_secret).unwrap();
 	let time_bytes = build_time_bytes(time);
 	let tag_bytes = tag.as_bytes();
 	let array = [&time_bytes, tag_bytes].concat();
 	let hash = hmac_sha1(decode, &array);
-	let encoded = base64::encode(hash);
-	return encoded;
+	base64::encode(hash)
 }
 
-impl SteamGuardAccount {
-	pub fn new() -> Self {
-		return SteamGuardAccount {
+impl Default for SteamGuardAccount {
+	fn default() -> Self {
+		Self {
 			account_name: String::from(""),
 			steam_id: 0,
 			serial_number: String::from(""),
@@ -88,7 +91,13 @@ impl SteamGuardAccount {
 			device_id: String::from(""),
 			secret_1: String::from("").into(),
 			tokens: None,
-		};
+		}
+	}
+}
+
+impl SteamGuardAccount {
+	pub fn new() -> Self {
+		Self::default()
 	}
 
 	pub fn from_reader<T>(r: T) -> anyhow::Result<Self>
@@ -103,11 +112,11 @@ impl SteamGuardAccount {
 	}
 
 	pub fn is_logged_in(&self) -> bool {
-		return self.tokens.is_some();
+		self.tokens.is_some()
 	}
 
 	pub fn generate_code(&self, time: u64) -> String {
-		return self.shared_secret.generate_code(time);
+		self.shared_secret.generate_code(time)
 	}
 
 	fn get_confirmation_query_params(&self, tag: &str, time: u64) -> HashMap<&str, String> {
@@ -121,7 +130,7 @@ impl SteamGuardAccount {
 		params.insert("t", time.to_string());
 		params.insert("m", String::from("android"));
 		params.insert("tag", String::from(tag));
-		return params;
+		params
 	}
 
 	fn build_cookie_jar(&self) -> reqwest::cookie::Jar {
@@ -287,11 +296,7 @@ mod tests {
 	#[test]
 	fn test_generate_confirmation_hash_for_time() {
 		assert_eq!(
-			generate_confirmation_hash_for_time(
-				1617591917,
-				"conf",
-				&String::from("GQP46b73Ws7gr8GmZFR0sDuau5c=")
-			),
+			generate_confirmation_hash_for_time(1617591917, "conf", "GQP46b73Ws7gr8GmZFR0sDuau5c="),
 			String::from("NaL8EIMhfy/7vBounJ0CvpKbrPk=")
 		);
 	}
