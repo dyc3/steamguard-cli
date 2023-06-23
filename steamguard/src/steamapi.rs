@@ -5,9 +5,7 @@ use crate::{
 	protobufs::service_twofactor::CTwoFactor_Time_Response, token::Jwt, transport::WebApiTransport,
 };
 use reqwest::Url;
-use secrecy::{CloneableSecret, DebugSecret, SerializableSecret};
-use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
+use serde::Deserialize;
 
 pub use self::authentication::AuthenticationClient;
 pub use self::twofactor::TwoFactorClient;
@@ -16,28 +14,6 @@ lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
 	static ref STEAM_API_BASE: String = "https://api.steampowered.com".into();
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
-#[zeroize(drop)]
-#[deprecated(note = "this is not used anymore, the closest equivalent is `Tokens`")]
-pub struct Session {
-	#[serde(rename = "SessionID")]
-	pub session_id: String,
-	#[serde(rename = "SteamLogin")]
-	pub steam_login: String,
-	#[serde(rename = "SteamLoginSecure")]
-	pub steam_login_secure: String,
-	#[serde(default, rename = "WebCookie")]
-	pub web_cookie: Option<String>,
-	#[serde(rename = "OAuthToken")]
-	pub token: String,
-	#[serde(rename = "SteamID")]
-	pub steam_id: u64,
-}
-
-impl SerializableSecret for Session {}
-impl CloneableSecret for Session {}
-impl DebugSecret for Session {}
 
 /// Queries Steam for the current time. A convenience function around TwoFactorClient.
 ///

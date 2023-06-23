@@ -2096,6 +2096,7 @@ dependencies = [
  "text_io",
  "thiserror",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
