@@ -1,11 +1,3 @@
-use std::fmt::Formatter;
-use std::marker::PhantomData;
-
-use protobuf::EnumFull;
-use protobuf::EnumOrUnknown;
-use protobuf::MessageField;
-use serde::{Deserialize, Serialize};
-
 include!(concat!(env!("OUT_DIR"), "/protobufs/mod.rs"));
 
 #[cfg(test)]

@@ -22,7 +22,7 @@ impl TwoFactorSecret {
 	}
 
 	pub fn parse_shared_secret(secret: String) -> anyhow::Result<Self> {
-		ensure!(secret.len() != 0, "unable to parse empty shared secret");
+		ensure!(!secret.is_empty(), "unable to parse empty shared secret");
 		let result: [u8; 20] = base64::decode(secret)?.try_into().unwrap();
 		Ok(Self(result.into()))
 	}
@@ -40,9 +40,9 @@ impl TwoFactorSecret {
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
 		let mut code_point: i32 = ((hashed_data[b] & 0x7F) as i32) << 24
-			| ((hashed_data[b + 1] & 0xFF) as i32) << 16
-			| ((hashed_data[b + 2] & 0xFF) as i32) << 8
-			| ((hashed_data[b + 3] & 0xFF) as i32);
+			| (hashed_data[b + 1] as i32) << 16
+			| (hashed_data[b + 2] as i32) << 8
+			| (hashed_data[b + 3] as i32);
 
 		for item in &mut code_array {
 			*item = steam_guard_code_translations

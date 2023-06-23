@@ -24,7 +24,6 @@ pub use userlogin::{DeviceDetails, LoginError, UserLogin};
 extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;
-#[macro_use]
 extern crate maplit;
 
 pub mod accountlinker;

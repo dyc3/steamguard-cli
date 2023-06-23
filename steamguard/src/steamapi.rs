@@ -49,7 +49,7 @@ pub fn get_server_time() -> anyhow::Result<CTwoFactor_Time_Response> {
 		return Err(anyhow::anyhow!("QueryTime failed: {:?}", resp));
 	}
 
-	return Ok(resp.into_response_data());
+	Ok(resp.into_response_data())
 }
 
 pub trait BuildableRequest {
@@ -95,10 +95,7 @@ impl<'a, T: BuildableRequest> ApiRequest<'a, T> {
 	pub(crate) fn build_url(&self) -> String {
 		format!(
 			"{}/I{}Service/{}/v{}",
-			STEAM_API_BASE.to_string(),
-			self.api_interface,
-			self.api_method,
-			self.api_version
+			*STEAM_API_BASE, self.api_interface, self.api_method, self.api_version
 		)
 	}
 

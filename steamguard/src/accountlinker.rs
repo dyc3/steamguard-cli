@@ -77,14 +77,14 @@ impl AccountLinker {
 			revocation_code: resp.take_revocation_code().into(),
 			uri: resp.take_uri().into(),
 			shared_secret: TwoFactorSecret::from_bytes(resp.take_shared_secret()),
-			token_gid: resp.take_token_gid().into(),
-			identity_secret: base64::encode(&resp.take_identity_secret()).into(),
+			token_gid: resp.take_token_gid(),
+			identity_secret: base64::encode(resp.take_identity_secret()).into(),
 			device_id: self.device_id.clone(),
-			secret_1: base64::encode(&resp.take_secret_1()).into(),
+			secret_1: base64::encode(resp.take_secret_1()).into(),
 			tokens: Some(self.tokens.clone()),
 		};
 		let success = AccountLinkSuccess {
-			account: account,
+			account,
 			server_time: resp.server_time(),
 			phone_number_hint: resp.take_phone_number_hint(),
 		};
@@ -124,7 +124,7 @@ impl AccountLinker {
 		}
 
 		self.finalized = true;
-		return Ok(());
+		Ok(())
 	}
 }
 

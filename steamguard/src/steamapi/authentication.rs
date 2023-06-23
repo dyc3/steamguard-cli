@@ -105,7 +105,7 @@ where
 				req,
 			)?;
 
-		return Ok(resp);
+		Ok(resp)
 	}
 
 	pub fn migrate_mobile_session(
