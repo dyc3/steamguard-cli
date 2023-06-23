@@ -1,6 +1,40 @@
-use crate::tui;
 use log::*;
 use steamguard::{Confirmation, ConfirmationType};
+
+use crate::tui;
+
+use super::*;
+
+#[derive(Debug, Clone, Parser, Default)]
+#[clap(about = "Debug stuff, not useful for most users.")]
+pub struct DebugCommand {
+	#[clap(long, help = "Show a text prompt.")]
+	pub demo_prompt: bool,
+	#[clap(long, help = "Show a \"press any key\" prompt.")]
+	pub demo_pause: bool,
+	#[clap(long, help = "Show a character prompt.")]
+	pub demo_prompt_char: bool,
+	#[clap(long, help = "Show an example confirmation menu using dummy data.")]
+	pub demo_conf_menu: bool,
+}
+
+impl ConstCommand for DebugCommand {
+	fn execute(&self) -> anyhow::Result<()> {
+		if self.demo_prompt {
+			demo_prompt();
+		}
+		if self.demo_pause {
+			demo_pause();
+		}
+		if self.demo_prompt_char {
+			demo_prompt_char();
+		}
+		if self.demo_conf_menu {
+			demo_confirmation_menu();
+		}
+		Ok(())
+	}
+}
 
 pub fn demo_prompt() {
 	print!("Prompt: ");
