@@ -41,7 +41,7 @@ fn do_migrate(
 	let mut buffer = String::new();
 	file.read_to_string(&mut buffer)?;
 	let mut manifest: MigratingManifest = deserialize_manifest(buffer)
-		.map_err(|err| MigrationError::ManifestDeserializeFailed(err))?;
+		.map_err(MigrationError::ManifestDeserializeFailed)?;
 
 	if manifest.is_encrypted() && passkey.is_none() {
 		return Err(MigrationError::MissingPasskey);

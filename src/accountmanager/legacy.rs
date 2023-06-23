@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::{
 	fs::File,
 	io::{BufReader, Read},
@@ -75,8 +77,7 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 		debug!("loading entry: {:?}", path);
 		let file = File::open(path)?;
 		let mut reader = BufReader::new(file);
-		let account: SdaAccount;
-		match (&passkey, encryption_params.as_ref()) {
+		let account: SdaAccount = match (&passkey, encryption_params.as_ref()) {
 			(Some(passkey), Some(params)) => {
 				let mut ciphertext: Vec<u8> = vec![];
 				reader.read_to_end(&mut ciphertext)?;
@@ -86,14 +87,12 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
 				let s = std::str::from_utf8(&plaintext).unwrap();
-				account = serde_json::from_str(s)?;
+				serde_json::from_str(s)?
 			}
 			(None, Some(_)) => {
 				return Err(ManifestAccountLoadError::MissingPasskey);
 			}
-			(_, None) => {
-				account = serde_json::from_reader(reader)?;
-			}
+			(_, None) => serde_json::from_reader(reader)?,
 		};
 		Ok(account)
 	}

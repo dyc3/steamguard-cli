@@ -17,7 +17,7 @@ lazy_static! {
 		Regex::new("^([A-H]|[J-N]|[P-R]|[T-Z]|[2-4]|[7-9]|[@%&])+$").unwrap();
 }
 
-pub fn validate_captcha_text(text: &String) -> bool {
+pub fn validate_captcha_text(text: &str) -> bool {
 	CAPTCHA_VALID_CHARS.is_match(text)
 }
 
@@ -149,7 +149,7 @@ pub(crate) fn prompt_confirmation_menu(
 			),
 		)?;
 
-		for i in 0..confirmations.len() {
+		for (i, conf) in confirmations.iter().enumerate() {
 			stdout().queue(Print("\r"))?;
 			if selected_idx == i {
 				stdout().queue(SetForegroundColor(Color::Yellow))?;
@@ -173,7 +173,7 @@ pub(crate) fn prompt_confirmation_menu(
 				stdout().queue(SetForegroundColor(Color::Yellow))?;
 			}
 
-			stdout().queue(Print(format!(" {}\n", confirmations[i].description())))?;
+			stdout().queue(Print(format!(" {}\n", conf.description())))?;
 		}
 
 		stdout().flush()?;

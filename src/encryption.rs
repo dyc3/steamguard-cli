@@ -45,12 +45,12 @@ impl Default for EncryptionScheme {
 
 pub trait EntryEncryptor {
 	fn encrypt(
-		passkey: &String,
+		passkey: &str,
 		params: &EntryEncryptionParams,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError>;
 	fn decrypt(
-		passkey: &String,
+		passkey: &str,
 		params: &EntryEncryptionParams,
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError>;
@@ -63,10 +63,7 @@ impl LegacySdaCompatible {
 	const PBKDF2_ITERATIONS: u32 = 50000; // This is excessive, but necessary to maintain compatibility with SteamDesktopAuthenticator.
 	const KEY_SIZE_BYTES: usize = 32;
 
-	fn get_encryption_key(
-		passkey: &String,
-		salt: &String,
-	) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
+	fn get_encryption_key(passkey: &str, salt: &str) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
 		let password_bytes = passkey.as_bytes();
 		let salt_bytes = base64::decode(salt)?;
 		let mut full_key: [u8; Self::KEY_SIZE_BYTES] = [0u8; Self::KEY_SIZE_BYTES];
@@ -86,11 +83,11 @@ impl EntryEncryptor for LegacySdaCompatible {
 	// ngl, this logic sucks ass. its kinda annoying that the logic is not completely symetric.
 
 	fn encrypt(
-		passkey: &String,
+		passkey: &str,
 		params: &EntryEncryptionParams,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = Self::get_encryption_key(&passkey.into(), &params.salt)?;
+		let key = Self::get_encryption_key(&passkey, &params.salt)?;
 		let iv = base64::decode(&params.iv)?;
 		let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
 
@@ -116,11 +113,11 @@ impl EntryEncryptor for LegacySdaCompatible {
 	}
 
 	fn decrypt(
-		passkey: &String,
+		passkey: &str,
 		params: &EntryEncryptionParams,
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = Self::get_encryption_key(&passkey.into(), &params.salt)?;
+		let key = Self::get_encryption_key(&passkey, &params.salt)?;
 		let iv = base64::decode(&params.iv)?;
 		let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
 
@@ -181,16 +178,14 @@ mod tests {
 	#[test]
 	fn test_encryption_key() {
 		assert_eq!(
-			LegacySdaCompatible::get_encryption_key(&"password".into(), &"GMhL0N2hqXg=".into())
-				.unwrap(),
+			LegacySdaCompatible::get_encryption_key("password", "GMhL0N2hqXg=").unwrap(),
 			base64::decode("KtiRa4/OxW83MlB6URf+Z8rAGj7CBY+pDlwD/NuVo6Y=")
 				.unwrap()
 				.as_slice()
 		);
 
 		assert_eq!(
-			LegacySdaCompatible::get_encryption_key(&"password".into(), &"wTzTE9A6aN8=".into())
-				.unwrap(),
+			LegacySdaCompatible::get_encryption_key(&"password", &"wTzTE9A6aN8=").unwrap(),
 			base64::decode("Dqpej/3DqEat0roJaHmu3luYgDzRCUmzX94n4fqvWj8=")
 				.unwrap()
 				.as_slice()
@@ -202,9 +197,8 @@ mod tests {
 		let passkey = "password";
 		let params = EntryEncryptionParams::generate();
 		let orig = "tactical glizzy".as_bytes().to_vec();
-		let encrypted =
-			LegacySdaCompatible::encrypt(&passkey.clone().into(), &params, orig.clone()).unwrap();
-		let result = LegacySdaCompatible::decrypt(&passkey.into(), &params, encrypted).unwrap();
+		let encrypted = LegacySdaCompatible::encrypt(&passkey, &params, orig.clone()).unwrap();
+		let result = LegacySdaCompatible::decrypt(&passkey, &params, encrypted).unwrap();
 		assert_eq!(orig, result.to_vec());
 		Ok(())
 	}
