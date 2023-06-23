@@ -83,8 +83,8 @@ cross build --release "--target=$BUILD_TARGET2"
 
 ./scripts/package-deb.sh
 
-BIN_PATH="target/$BUILD_TARGET/release/steamguard-cli"
-BIN_PATH2="target/$BUILD_TARGET2/release/steamguard-cli.exe"
+BIN_PATH="target/$BUILD_TARGET/release/steamguard"
+BIN_PATH2="target/$BUILD_TARGET2/release/steamguard.exe"
 RAW_VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
 TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
 if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
