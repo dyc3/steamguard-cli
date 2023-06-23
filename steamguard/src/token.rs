@@ -176,18 +176,17 @@ mod tests {
 		let serialized = serde_json::to_string(&secret)?;
 		assert_eq!(serialized, "{\"secret\":\"zvIayp3JPvtvX/QGHqsqKBk/44s=\"}");
 
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]
 	fn test_deserialize_2fa_secret() -> anyhow::Result<()> {
-		let secret: FooBar =
-			serde_json::from_str(&"{\"secret\":\"zvIayp3JPvtvX/QGHqsqKBk/44s=\"}")?;
+		let secret: FooBar = serde_json::from_str("{\"secret\":\"zvIayp3JPvtvX/QGHqsqKBk/44s=\"}")?;
 
 		let code = secret.secret.generate_code(1616374841u64);
 		assert_eq!(code, "2F9J5");
 
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]
@@ -200,7 +199,7 @@ mod tests {
 		let deserialized: FooBar = serde_json::from_str(&serialized)?;
 		assert_eq!(deserialized, secret);
 
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]
@@ -220,7 +219,7 @@ mod tests {
 
 		let code = secret.generate_code(1616374841u64);
 		assert_eq!(code, "2F9J5");
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]

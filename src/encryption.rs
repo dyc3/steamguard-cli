@@ -87,7 +87,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 		params: &EntryEncryptionParams,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = Self::get_encryption_key(&passkey, &params.salt)?;
+		let key = Self::get_encryption_key(passkey, &params.salt)?;
 		let iv = base64::decode(&params.iv)?;
 		let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
 
@@ -117,7 +117,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 		params: &EntryEncryptionParams,
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = Self::get_encryption_key(&passkey, &params.salt)?;
+		let key = Self::get_encryption_key(passkey, &params.salt)?;
 		let iv = base64::decode(&params.iv)?;
 		let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
 
@@ -185,7 +185,7 @@ mod tests {
 		);
 
 		assert_eq!(
-			LegacySdaCompatible::get_encryption_key(&"password", &"wTzTE9A6aN8=").unwrap(),
+			LegacySdaCompatible::get_encryption_key("password", "wTzTE9A6aN8=").unwrap(),
 			base64::decode("Dqpej/3DqEat0roJaHmu3luYgDzRCUmzX94n4fqvWj8=")
 				.unwrap()
 				.as_slice()
@@ -197,8 +197,8 @@ mod tests {
 		let passkey = "password";
 		let params = EntryEncryptionParams::generate();
 		let orig = "tactical glizzy".as_bytes().to_vec();
-		let encrypted = LegacySdaCompatible::encrypt(&passkey, &params, orig.clone()).unwrap();
-		let result = LegacySdaCompatible::decrypt(&passkey, &params, encrypted).unwrap();
+		let encrypted = LegacySdaCompatible::encrypt(passkey, &params, orig.clone()).unwrap();
+		let result = LegacySdaCompatible::decrypt(passkey, &params, encrypted).unwrap();
 		assert_eq!(orig, result.to_vec());
 		Ok(())
 	}

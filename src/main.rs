@@ -82,15 +82,13 @@ fn run() -> anyhow::Result<()> {
 	let mut manager: accountmanager::AccountManager;
 	if !path.exists() {
 		error!("Did not find manifest in {}", mafiles_dir);
-		match tui::prompt_char(
+		if tui::prompt_char(
 			format!("Would you like to create a manifest in {} ?", mafiles_dir).as_str(),
 			"Yn",
-		) {
-			'n' => {
-				info!("Aborting!");
-				return Err(errors::UserError::Aborted.into());
-			}
-			_ => {}
+		) == 'n'
+		{
+			info!("Aborting!");
+			return Err(errors::UserError::Aborted.into());
 		}
 		std::fs::create_dir_all(mafiles_dir)?;
 
@@ -701,14 +699,12 @@ fn do_subcmd_remove(
 						"Failed to remove authenticator from {}",
 						account.account_name
 					);
-					match tui::prompt_char(
+					if tui::prompt_char(
 						"Would you like to remove it from the manifest anyway?",
 						"yN",
-					) {
-						'y' => {
-							successful.push(account.account_name.clone());
-						}
-						_ => {}
+					) == 'y'
+					{
+						successful.push(account.account_name.clone());
 					}
 				}
 			}

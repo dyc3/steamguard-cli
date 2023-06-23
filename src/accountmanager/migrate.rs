@@ -40,8 +40,8 @@ fn do_migrate(
 	let mut file = File::open(manifest_path)?;
 	let mut buffer = String::new();
 	file.read_to_string(&mut buffer)?;
-	let mut manifest: MigratingManifest = deserialize_manifest(buffer)
-		.map_err(MigrationError::ManifestDeserializeFailed)?;
+	let mut manifest: MigratingManifest =
+		deserialize_manifest(buffer).map_err(MigrationError::ManifestDeserializeFailed)?;
 
 	if manifest.is_encrypted() && passkey.is_none() {
 		return Err(MigrationError::MissingPasskey);
@@ -94,28 +94,25 @@ pub(crate) enum MigrationError {
 
 #[derive(Debug)]
 enum MigratingManifest {
-	SDA(SdaManifest),
+	Sda(SdaManifest),
 	ManifestV1(ManifestV1),
 }
 
 impl MigratingManifest {
 	pub fn upgrade(self) -> Self {
 		match self {
-			Self::SDA(sda) => Self::ManifestV1(sda.into()),
+			Self::Sda(sda) => Self::ManifestV1(sda.into()),
 			Self::ManifestV1(_) => self,
 		}
 	}
 
 	pub fn is_latest(&self) -> bool {
-		match self {
-			Self::ManifestV1(_) => true,
-			_ => false,
-		}
+		matches!(self, Self::ManifestV1(_))
 	}
 
 	pub fn is_encrypted(&self) -> bool {
 		match self {
-			Self::SDA(manifest) => manifest.entries.iter().any(|e| e.encryption.is_some()),
+			Self::Sda(manifest) => manifest.entries.iter().any(|e| e.encryption.is_some()),
 			Self::ManifestV1(manifest) => manifest.entries.iter().any(|e| e.encryption.is_some()),
 		}
 	}
@@ -127,7 +124,7 @@ impl MigratingManifest {
 	) -> anyhow::Result<Vec<MigratingAccount>> {
 		debug!("loading all accounts for migration");
 		let accounts = match self {
-			Self::SDA(sda) => {
+			Self::Sda(sda) => {
 				let (accounts, errors) = sda
 					.entries
 					.iter()
@@ -194,7 +191,7 @@ fn deserialize_manifest(text: String) -> Result<MigratingManifest, serde_json::E
 		Ok(MigratingManifest::ManifestV1(manifest))
 	} else if json["version"] == serde_json::Value::Null {
 		let manifest: SdaManifest = serde_json::from_str(&text)?;
-		Ok(MigratingManifest::SDA(manifest))
+		Ok(MigratingManifest::Sda(manifest))
 	} else {
 		Err(serde_json::Error::custom(format!(
 			"Unknown manifest version: {}",
@@ -218,10 +215,7 @@ impl MigratingAccount {
 	}
 
 	pub fn is_latest(&self) -> bool {
-		match self {
-			Self::ManifestV1(_) => true,
-			_ => false,
-		}
+		matches!(self, Self::ManifestV1(_))
 	}
 }
 
