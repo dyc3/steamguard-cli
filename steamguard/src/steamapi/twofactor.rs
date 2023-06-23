@@ -6,7 +6,7 @@ use super::{ApiRequest, ApiResponse, BuildableRequest};
 use crate::protobufs::custom::CTwoFactor_Time_Request;
 use crate::protobufs::service_twofactor::*;
 
-const SERVICE_NAME: &str = "TwoFactor";
+const SERVICE_NAME: &str = "ITwoFactorService";
 
 #[derive(Debug)]
 pub struct TwoFactorClient<T>

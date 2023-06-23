@@ -7,7 +7,7 @@ use crate::{
 	transport::Transport,
 };
 
-const SERVICE_NAME: &str = "Authentication";
+const SERVICE_NAME: &str = "IAuthenticationService";
 
 use super::{ApiRequest, ApiResponse, BuildableRequest};
 
