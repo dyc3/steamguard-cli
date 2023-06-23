@@ -4,7 +4,9 @@
 use std::{fs::File, io::Read, path::Path};
 
 use log::debug;
+use serde::de::Error;
 use steamguard::SteamGuardAccount;
+use thiserror::Error;
 
 use super::{
 	legacy::{SdaAccount, SdaManifest},
@@ -12,10 +14,10 @@ use super::{
 	EntryEncryptionParams, EntryLoader, Manifest,
 };
 
-pub fn load_and_migrate(
+pub(crate) fn load_and_migrate(
 	manifest_path: &Path,
 	passkey: Option<&String>,
-) -> anyhow::Result<(Manifest, Vec<SteamGuardAccount>)> {
+) -> Result<(Manifest, Vec<SteamGuardAccount>), MigrationError> {
 	backup_file(manifest_path)?;
 	let parent = manifest_path.parent().unwrap();
 	parent.read_dir()?.for_each(|e| {
@@ -34,11 +36,19 @@ pub fn load_and_migrate(
 fn do_migrate(
 	manifest_path: &Path,
 	passkey: Option<&String>,
-) -> anyhow::Result<(Manifest, Vec<SteamGuardAccount>)> {
+) -> Result<(Manifest, Vec<SteamGuardAccount>), MigrationError> {
 	let mut file = File::open(manifest_path)?;
 	let mut buffer = String::new();
 	file.read_to_string(&mut buffer)?;
-	let mut manifest: MigratingManifest = deserialize_manifest(buffer)?;
+	let mut manifest: MigratingManifest = deserialize_manifest(buffer)
+		.map_err(|err| MigrationError::ManifestDeserializeFailed(err))?;
+
+	if manifest.is_encrypted() && passkey.is_none() {
+		return Err(MigrationError::MissingPasskey);
+	} else if !manifest.is_encrypted() && passkey.is_some() {
+		// no custom error because this is an edge case, mostly user error
+		return Err(MigrationError::UnexpectedError(anyhow::anyhow!("A passkey was provided but the manifest is not encrypted. Aborting migration because it would encrypt the maFiles, and you probably didn't mean to do that.")));
+	}
 
 	let folder = manifest_path.parent().unwrap();
 	let mut accounts = manifest.load_all_accounts(folder, passkey)?;
@@ -70,6 +80,18 @@ fn backup_file(path: &Path) -> anyhow::Result<()> {
 	Ok(())
 }
 
+#[derive(Debug, Error)]
+pub(crate) enum MigrationError {
+	#[error("Passkey is required to decrypt manifest")]
+	MissingPasskey,
+	#[error("Failed to deserialize manifest: {0}")]
+	ManifestDeserializeFailed(serde_json::Error),
+	#[error("IO error when upgrading manifest: {0}")]
+	IoError(#[from] std::io::Error),
+	#[error("An unexpected error occurred during manifest migration: {0}")]
+	UnexpectedError(#[from] anyhow::Error),
+}
+
 #[derive(Debug)]
 enum MigratingManifest {
 	SDA(SdaManifest),
@@ -95,6 +117,13 @@ impl MigratingManifest {
 		match self {
 			Self::SDA(_) => 0,
 			Self::ManifestV1(_) => 1,
+		}
+	}
+
+	pub fn is_encrypted(&self) -> bool {
+		match self {
+			Self::SDA(manifest) => manifest.entries.iter().any(|e| e.encryption.is_some()),
+			Self::ManifestV1(manifest) => manifest.entries.iter().any(|e| e.encryption.is_some()),
 		}
 	}
 
@@ -164,15 +193,20 @@ impl From<MigratingManifest> for Manifest {
 	}
 }
 
-fn deserialize_manifest(text: String) -> anyhow::Result<MigratingManifest> {
+fn deserialize_manifest(text: String) -> Result<MigratingManifest, serde_json::Error> {
 	let json: serde_json::Value = serde_json::from_str(&text)?;
 	debug!("deserializing manifest: version {}", json["version"]);
 	if json["version"] == 1 {
 		let manifest: ManifestV1 = serde_json::from_str(&text)?;
 		Ok(MigratingManifest::ManifestV1(manifest))
-	} else {
+	} else if json["version"] == serde_json::Value::Null {
 		let manifest: SdaManifest = serde_json::from_str(&text)?;
 		Ok(MigratingManifest::SDA(manifest))
+	} else {
+		Err(serde_json::Error::custom(format!(
+			"Unknown manifest version: {}",
+			json["version"]
+		)))
 	}
 }
 
