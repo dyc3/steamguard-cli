@@ -1,8 +1,5 @@
-use crate::api_responses::SteamApiResponse;
 use crate::confirmation::{ConfirmationListResponse, SendConfirmationResponse};
-use crate::protobufs::service_twofactor::{
-	CTwoFactor_RemoveAuthenticator_Request, CTwoFactor_RemoveAuthenticator_Response,
-};
+use crate::protobufs::service_twofactor::CTwoFactor_RemoveAuthenticator_Request;
 use crate::steamapi::EResult;
 use crate::{
 	steamapi::twofactor::TwoFactorClient, token::TwoFactorSecret, transport::WebApiTransport,
@@ -17,11 +14,9 @@ use reqwest::{
 	header::{COOKIE, USER_AGENT},
 	Url,
 };
-use scraper::{Html, Selector};
 pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, convert::TryInto, io::Read};
-use steamapi::SteamApiClient;
+use std::{collections::HashMap, io::Read};
 use token::Tokens;
 pub use userlogin::{DeviceDetails, LoginError, UserLogin};
 

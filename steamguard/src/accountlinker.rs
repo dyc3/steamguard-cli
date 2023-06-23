@@ -4,11 +4,7 @@ use crate::protobufs::service_twofactor::{
 use crate::steamapi::twofactor::TwoFactorClient;
 use crate::token::TwoFactorSecret;
 use crate::transport::WebApiTransport;
-use crate::{
-	steamapi::{EResult, Session, SteamApiClient},
-	token::Tokens,
-	SteamGuardAccount,
-};
+use crate::{steamapi::EResult, token::Tokens, SteamGuardAccount};
 use log::*;
 use thiserror::Error;
 

@@ -7,36 +7,22 @@ use crate::protobufs::steammessages_auth_steamclient::{
 	EAuthSessionGuardType,
 };
 use crate::steamapi::authentication::AuthenticationClient;
-use crate::steamapi::{ApiRequest, ApiResponse, EResult};
+use crate::steamapi::EResult;
 use crate::token::Tokens;
-use crate::transport::Transport;
 use crate::{
 	protobufs::steammessages_auth_steamclient::{
-		CAuthenticationSupport_RevokeToken_Request, CAuthenticationSupport_RevokeToken_Response,
-		CAuthentication_AccessToken_GenerateForApp_Request,
-		CAuthentication_AccessToken_GenerateForApp_Response,
-		CAuthentication_BeginAuthSessionViaCredentials_Request,
 		CAuthentication_BeginAuthSessionViaCredentials_Response,
 		CAuthentication_BeginAuthSessionViaQR_Request,
 		CAuthentication_BeginAuthSessionViaQR_Response,
-		CAuthentication_GetPasswordRSAPublicKey_Request,
 		CAuthentication_GetPasswordRSAPublicKey_Response,
-		CAuthentication_MigrateMobileSession_Request,
-		CAuthentication_MigrateMobileSession_Response, CAuthentication_RefreshToken_Revoke_Request,
-		CAuthentication_RefreshToken_Revoke_Response,
-		CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
-		CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response,
 		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
 		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthTokenPlatformType,
 	},
-	steamapi::{Session, SteamApiClient},
 	transport::WebApiTransport,
 };
 use log::*;
 use rsa::{PublicKey, RsaPublicKey};
-use secrecy::ExposeSecret;
-use serde::{Deserialize, Serialize};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub enum LoginError {
