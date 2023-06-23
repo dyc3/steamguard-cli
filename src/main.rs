@@ -322,7 +322,7 @@ fn do_login_impl(
 			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => {
 				let code = if let Some(account) = account {
 					debug!("Generating 2fa code...");
-					let time = steamapi::get_server_time()?.server_time;
+					let time = steamapi::get_server_time()?.server_time();
 					account.generate_code(time)
 				} else {
 					eprint!("Enter the 2fa code from your device: ");
@@ -780,7 +780,7 @@ fn do_subcmd_code(
 	let server_time = if args.offline {
 		SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
 	} else {
-		steamapi::get_server_time()?.server_time
+		steamapi::get_server_time()?.server_time()
 	};
 	debug!("Time used to generate codes: {}", server_time);
 	for account in selected_accounts {

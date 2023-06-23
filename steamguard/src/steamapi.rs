@@ -1,7 +1,10 @@
 pub mod authentication;
 pub mod twofactor;
 
-use crate::{api_responses::*, token::Jwt};
+use crate::{
+	api_responses::*, protobufs::service_twofactor::CTwoFactor_Time_Response, token::Jwt,
+	transport::WebApiTransport,
+};
 use log::*;
 use reqwest::{
 	blocking::RequestBuilder,
@@ -17,6 +20,8 @@ use std::iter::FromIterator;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use zeroize::Zeroize;
+
+use self::twofactor::TwoFactorClient;
 
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -45,35 +50,17 @@ impl SerializableSecret for Session {}
 impl CloneableSecret for Session {}
 impl DebugSecret for Session {}
 
-/// Queries Steam for the current time.
+/// Queries Steam for the current time. A convenience function around TwoFactorClient.
 ///
 /// Endpoint: `/ITwoFactorService/QueryTime/v0001`
-///
-/// Example Response:
-/// ```json
-/// {
-///   "response": {
-///     "server_time": "1655768666",
-///     "skew_tolerance_seconds": "60",
-///     "large_time_jink": "86400",
-///     "probe_frequency_seconds": 3600,
-///     "adjusted_time_probe_frequency_seconds": 300,
-///     "hint_probe_frequency_seconds": 60,
-///     "sync_timeout": 60,
-///     "try_again_seconds": 900,
-///     "max_attempts": 3
-///   }
-/// }
-/// ```
-pub fn get_server_time() -> anyhow::Result<QueryTimeResponse> {
-	let client = reqwest::blocking::Client::new();
-	let resp = client
-		.post("https://api.steampowered.com/ITwoFactorService/QueryTime/v0001")
-		.body("steamid=0")
-		.send()?;
-	let resp: SteamApiResponse<QueryTimeResponse> = resp.json()?;
+pub fn get_server_time() -> anyhow::Result<CTwoFactor_Time_Response> {
+	let mut client = TwoFactorClient::new(WebApiTransport::new());
+	let resp = client.query_time()?;
+	if resp.result != EResult::OK {
+		return Err(anyhow::anyhow!("QueryTime failed: {:?}", resp));
+	}
 
-	return Ok(resp.response);
+	return Ok(resp.into_response_data());
 }
 
 pub trait BuildableRequest {

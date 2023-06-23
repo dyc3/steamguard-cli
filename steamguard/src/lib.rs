@@ -156,7 +156,7 @@ impl SteamGuardAccount {
 			.cookie_store(true)
 			.build()?;
 
-		let time = steamapi::get_server_time()?.server_time;
+		let time = steamapi::get_server_time()?.server_time();
 		let resp = client
 			.get("https://steamcommunity.com/mobileconf/getlist".parse::<Url>().unwrap())
 			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
@@ -188,7 +188,7 @@ impl SteamGuardAccount {
 			.cookie_store(true)
 			.build()?;
 
-		let time = steamapi::get_server_time()?.server_time;
+		let time = steamapi::get_server_time()?.server_time();
 		let mut query_params = self.get_confirmation_query_params("conf", time);
 		query_params.insert("op", operation);
 		query_params.insert("cid", conf.id.to_string());
@@ -241,7 +241,7 @@ impl SteamGuardAccount {
 			.cookie_store(true)
 			.build()?;
 
-		let time = steamapi::get_server_time()?.server_time;
+		let time = steamapi::get_server_time()?.server_time();
 		let query_params = self.get_confirmation_query_params("details", time);
 
 		let resp: ConfirmationDetailsResponse = client.get(format!("https://steamcommunity.com/mobileconf/details/{}", conf.id).parse::<Url>().unwrap())
