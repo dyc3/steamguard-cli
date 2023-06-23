@@ -2,41 +2,29 @@ name: Lint, Build, Test
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --workspace --verbose
-    - name: Run tests
-      run: cargo test --workspace --verbose
-  lint:
-    name: rustfmt
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout sources
-      uses: actions/checkout@v2
-
-    - name: Install stable toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
-        components: rustfmt
-
-    - name: Run cargo fmt
-      uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: --all -- --check
+      - run: rustup component add clippy rustfmt
+      - uses: actions/checkout@v3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.2.1
+      - name: Check format
+        run: cargo fmt --all -- --check
+      - name: Check
+        run: cargo check --verbose --all-targets --all-features
+      - name: Clippy
+        run: cargo clippy --workspace --no-deps --all-features --all-targets -- -D warnings
+      - name: Validate documentation
+        run: cargo doc --workspace --no-deps --all-features
+      - name: Run tests
+        run: cargo test --verbose
