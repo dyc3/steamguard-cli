@@ -11,7 +11,6 @@ use crate::steamapi::{ApiRequest, ApiResponse, EResult};
 use crate::token::Tokens;
 use crate::transport::Transport;
 use crate::{
-	api_responses::{LoginResponse, RsaResponse},
 	protobufs::steammessages_auth_steamclient::{
 		CAuthenticationSupport_RevokeToken_Request, CAuthenticationSupport_RevokeToken_Response,
 		CAuthentication_AccessToken_GenerateForApp_Request,
