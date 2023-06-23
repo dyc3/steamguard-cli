@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use steamguard::{ExposeSecret, SteamGuardAccount};
+use steamguard::SteamGuardAccount;
 use thiserror::Error;
 
 mod legacy;

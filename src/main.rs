@@ -280,7 +280,7 @@ fn do_login_impl(
 	);
 
 	let mut password = password;
-	let mut confirmation_methods;
+	let confirmation_methods;
 	loop {
 		match login.begin_auth_via_credentials(&username, &password) {
 			Ok(methods) => {
@@ -306,7 +306,7 @@ fn do_login_impl(
 		}
 	}
 
-	for (method) in confirmation_methods {
+	for method in confirmation_methods {
 		match method.confirmation_type {
 			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation => {
 				eprintln!("Please confirm this login on your other device.");
