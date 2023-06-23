@@ -154,7 +154,7 @@ impl AccountLinkSuccess {
 }
 
 fn generate_device_id() -> String {
-	return format!("android:{}", uuid::Uuid::new_v4().to_string());
+	format!("android:{}", uuid::Uuid::new_v4())
 }
 
 #[derive(Error, Debug)]
