@@ -1,27 +1,30 @@
-use regex::bytes;
 use secrecy::{ExposeSecret, Secret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryInto;
-use zeroize::Zeroize;
 
 #[derive(Debug, Clone)]
 pub struct TwoFactorSecret(Secret<[u8; 20]>);
-// pub struct TwoFactorSecret(Secret<Vec<u8>>);
+
+impl Default for TwoFactorSecret {
+	fn default() -> Self {
+		Self::new()
+	}
+}
 
 impl TwoFactorSecret {
 	pub fn new() -> Self {
-		return Self([0u8; 20].into());
+		Self([0u8; 20].into())
 	}
 
 	pub fn from_bytes(bytes: Vec<u8>) -> Self {
 		let bytes: [u8; 20] = bytes[..].try_into().unwrap();
-		return Self(bytes.into());
+		Self(bytes.into())
 	}
 
 	pub fn parse_shared_secret(secret: String) -> anyhow::Result<Self> {
-		ensure!(secret.len() != 0, "unable to parse empty shared secret");
+		ensure!(!secret.is_empty(), "unable to parse empty shared secret");
 		let result: [u8; 20] = base64::decode(secret)?.try_into().unwrap();
-		return Ok(Self(result.into()));
+		Ok(Self(result.into()))
 	}
 
 	/// Generate a 5 character 2FA code to that can be used to log in to Steam.
@@ -37,17 +40,17 @@ impl TwoFactorSecret {
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
 		let mut code_point: i32 = ((hashed_data[b] & 0x7F) as i32) << 24
-			| ((hashed_data[b + 1] & 0xFF) as i32) << 16
-			| ((hashed_data[b + 2] & 0xFF) as i32) << 8
-			| ((hashed_data[b + 3] & 0xFF) as i32);
+			| (hashed_data[b + 1] as i32) << 16
+			| (hashed_data[b + 2] as i32) << 8
+			| (hashed_data[b + 3] as i32);
 
-		for i in 0..5 {
-			code_array[i] = steam_guard_code_translations
+		for item in &mut code_array {
+			*item = steam_guard_code_translations
 				[code_point as usize % steam_guard_code_translations.len()];
 			code_point /= steam_guard_code_translations.len() as i32;
 		}
 
-		return String::from_utf8(code_array.iter().map(|c| *c).collect()).unwrap();
+		String::from_utf8(code_array.to_vec()).unwrap()
 	}
 }
 
@@ -56,7 +59,7 @@ impl Serialize for TwoFactorSecret {
 	where
 		S: Serializer,
 	{
-		serializer.serialize_str(base64::encode(&self.0.expose_secret()).as_str())
+		serializer.serialize_str(base64::encode(self.0.expose_secret()).as_str())
 	}
 }
 
@@ -71,14 +74,14 @@ impl<'de> Deserialize<'de> for TwoFactorSecret {
 
 impl PartialEq for TwoFactorSecret {
 	fn eq(&self, other: &Self) -> bool {
-		return self.0.expose_secret() == other.0.expose_secret();
+		self.0.expose_secret() == other.0.expose_secret()
 	}
 }
 
 impl Eq for TwoFactorSecret {}
 
 fn build_time_bytes(time: u64) -> [u8; 8] {
-	return time.to_be_bytes();
+	time.to_be_bytes()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,7 +115,7 @@ impl Serialize for Jwt {
 	where
 		S: Serializer,
 	{
-		serializer.serialize_str(&self.0.expose_secret())
+		serializer.serialize_str(self.0.expose_secret())
 	}
 }
 
@@ -132,8 +135,8 @@ impl From<String> for Jwt {
 	}
 }
 
-fn decode_jwt(jwt: &String) -> anyhow::Result<SteamJwtData> {
-	let parts = jwt.split(".").collect::<Vec<&str>>();
+fn decode_jwt(jwt: impl AsRef<str>) -> anyhow::Result<SteamJwtData> {
+	let parts = jwt.as_ref().split('.').collect::<Vec<&str>>();
 	ensure!(parts.len() == 3, "Invalid JWT");
 
 	let data = parts[1];
@@ -164,13 +167,13 @@ impl SteamJwtData {
 mod tests {
 	use super::*;
 
+	#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+	struct FooBar {
+		secret: TwoFactorSecret,
+	}
+
 	#[test]
 	fn test_serialize_2fa_secret() -> anyhow::Result<()> {
-		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-		struct FooBar {
-			secret: TwoFactorSecret,
-		}
-
 		let secret = FooBar {
 			secret: TwoFactorSecret::parse_shared_secret("zvIayp3JPvtvX/QGHqsqKBk/44s=".into())?,
 		};
@@ -178,32 +181,21 @@ mod tests {
 		let serialized = serde_json::to_string(&secret)?;
 		assert_eq!(serialized, "{\"secret\":\"zvIayp3JPvtvX/QGHqsqKBk/44s=\"}");
 
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]
 	fn test_deserialize_2fa_secret() -> anyhow::Result<()> {
-		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-		struct FooBar {
-			secret: TwoFactorSecret,
-		}
-
-		let secret: FooBar =
-			serde_json::from_str(&"{\"secret\":\"zvIayp3JPvtvX/QGHqsqKBk/44s=\"}")?;
+		let secret: FooBar = serde_json::from_str("{\"secret\":\"zvIayp3JPvtvX/QGHqsqKBk/44s=\"}")?;
 
 		let code = secret.secret.generate_code(1616374841u64);
 		assert_eq!(code, "2F9J5");
 
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]
 	fn test_serialize_and_deserialize_2fa_secret() -> anyhow::Result<()> {
-		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-		struct FooBar {
-			secret: TwoFactorSecret,
-		}
-
 		let secret = FooBar {
 			secret: TwoFactorSecret::parse_shared_secret("zvIayp3JPvtvX/QGHqsqKBk/44s=".into())?,
 		};
@@ -212,7 +204,7 @@ mod tests {
 		let deserialized: FooBar = serde_json::from_str(&serialized)?;
 		assert_eq!(deserialized, secret);
 
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]
@@ -232,7 +224,7 @@ mod tests {
 
 		let code = secret.generate_code(1616374841u64);
 		assert_eq!(code, "2F9J5");
-		return Ok(());
+		Ok(())
 	}
 
 	#[test]

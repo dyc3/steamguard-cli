@@ -1,7 +1,6 @@
 pub mod webapi;
 
 use protobuf::MessageFull;
-use serde::{Deserialize, Serialize};
 pub use webapi::WebApiTransport;
 
 use crate::steamapi::{ApiRequest, ApiResponse, BuildableRequest};

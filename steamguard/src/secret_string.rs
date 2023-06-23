@@ -1,5 +1,5 @@
 use secrecy::{ExposeSecret, SecretString};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serializer};
 
 /// Helper to allow serializing a [secrecy::SecretString] as a [String]
 pub(crate) fn serialize<S>(secret_string: &SecretString, serializer: S) -> Result<S::Ok, S::Error>
@@ -20,16 +20,18 @@ where
 
 #[cfg(test)]
 mod test {
+	use serde::Serialize;
+
 	use super::*;
+
+	#[derive(Serialize, Deserialize)]
+	struct Foo {
+		#[serde(with = "super")]
+		secret: SecretString,
+	}
 
 	#[test]
 	fn test_secret_string_round_trip() {
-		#[derive(Serialize, Deserialize)]
-		struct Foo {
-			#[serde(with = "super")]
-			secret: SecretString,
-		}
-
 		let foo = Foo {
 			secret: String::from("hello").into(),
 		};
@@ -41,12 +43,6 @@ mod test {
 
 	#[test]
 	fn test_secret_string_deserialize() {
-		#[derive(Serialize, Deserialize)]
-		struct Foo {
-			#[serde(with = "super")]
-			secret: SecretString,
-		}
-
 		let foo: Foo = serde_json::from_str("{\"secret\": \"hello\"}").unwrap();
 		assert_eq!(foo.secret.expose_secret(), "hello");
 	}

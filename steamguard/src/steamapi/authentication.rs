@@ -1,33 +1,13 @@
 use crate::{
 	protobufs::{
 		custom::CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
-		steammessages_auth_steamclient::{
-			CAuthenticationSupport_RevokeToken_Request,
-			CAuthenticationSupport_RevokeToken_Response,
-			CAuthentication_AccessToken_GenerateForApp_Request,
-			CAuthentication_AccessToken_GenerateForApp_Response,
-			CAuthentication_BeginAuthSessionViaCredentials_Request,
-			CAuthentication_BeginAuthSessionViaCredentials_Response,
-			CAuthentication_BeginAuthSessionViaQR_Request,
-			CAuthentication_BeginAuthSessionViaQR_Response,
-			CAuthentication_GetAuthSessionInfo_Request,
-			CAuthentication_GetPasswordRSAPublicKey_Request,
-			CAuthentication_GetPasswordRSAPublicKey_Response,
-			CAuthentication_MigrateMobileSession_Request,
-			CAuthentication_MigrateMobileSession_Response,
-			CAuthentication_PollAuthSessionStatus_Request,
-			CAuthentication_PollAuthSessionStatus_Response,
-			CAuthentication_RefreshToken_Revoke_Request,
-			CAuthentication_RefreshToken_Revoke_Response,
-			CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
-			CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response,
-			CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
-			CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthSessionGuardType,
-		},
+		steammessages_auth_steamclient::*,
 	},
 	token::Jwt,
 	transport::Transport,
 };
+
+const SERVICE_NAME: &str = "IAuthenticationService";
 
 use super::{ApiRequest, ApiResponse, BuildableRequest};
 
@@ -52,12 +32,7 @@ where
 		&mut self,
 		req: CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
 	) -> anyhow::Result<ApiResponse<CAuthentication_BeginAuthSessionViaCredentials_Response>> {
-		let req = ApiRequest::new(
-			"Authentication",
-			"BeginAuthSessionViaCredentials",
-			1u32,
-			req,
-		);
+		let req = ApiRequest::new(SERVICE_NAME, "BeginAuthSessionViaCredentials", 1u32, req);
 		let resp = self.transport.send_request::<
 			CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
 			CAuthentication_BeginAuthSessionViaCredentials_Response>(req)?;
@@ -68,7 +43,7 @@ where
 		&mut self,
 		req: CAuthentication_BeginAuthSessionViaQR_Request,
 	) -> anyhow::Result<ApiResponse<CAuthentication_BeginAuthSessionViaQR_Response>> {
-		let req = ApiRequest::new("Authentication", "BeginAuthSessionViaQR", 1u32, req);
+		let req = ApiRequest::new(SERVICE_NAME, "BeginAuthSessionViaQR", 1u32, req);
 		let resp = self
 			.transport
 			.send_request::<CAuthentication_BeginAuthSessionViaQR_Request, CAuthentication_BeginAuthSessionViaQR_Response>(
@@ -82,7 +57,7 @@ where
 		req: CAuthentication_AccessToken_GenerateForApp_Request,
 		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CAuthentication_AccessToken_GenerateForApp_Response>> {
-		let req = ApiRequest::new("Authentication", "GenerateAccessTokenForApp", 1u32, req)
+		let req = ApiRequest::new(SERVICE_NAME, "GenerateAccessTokenForApp", 1u32, req)
 			.with_access_token(access_token);
 		let resp = self
 			.transport
@@ -98,21 +73,21 @@ where
 	) -> anyhow::Result<ApiResponse<CAuthentication_GetPasswordRSAPublicKey_Response>> {
 		let mut inner = CAuthentication_GetPasswordRSAPublicKey_Request::new();
 		inner.set_account_name(account_name);
-		let req = ApiRequest::new("Authentication", "GetPasswordRSAPublicKey", 1u32, inner);
+		let req = ApiRequest::new(SERVICE_NAME, "GetPasswordRSAPublicKey", 1u32, inner);
 		let resp = self
 			.transport
 			.send_request::<CAuthentication_GetPasswordRSAPublicKey_Request, CAuthentication_GetPasswordRSAPublicKey_Response>(
 				req,
 			)?;
 
-		return Ok(resp);
+		Ok(resp)
 	}
 
 	pub fn migrate_mobile_session(
 		&mut self,
 		req: CAuthentication_MigrateMobileSession_Request,
 	) -> anyhow::Result<ApiResponse<CAuthentication_MigrateMobileSession_Response>> {
-		let req = ApiRequest::new("Authentication", "MigrateMobileSession", 1u32, req);
+		let req = ApiRequest::new(SERVICE_NAME, "MigrateMobileSession", 1u32, req);
 		let resp = self
 			.transport
 			.send_request::<CAuthentication_MigrateMobileSession_Request, CAuthentication_MigrateMobileSession_Response>(
@@ -125,7 +100,7 @@ where
 		&mut self,
 		req: CAuthentication_PollAuthSessionStatus_Request,
 	) -> anyhow::Result<ApiResponse<CAuthentication_PollAuthSessionStatus_Response>> {
-		let req = ApiRequest::new("Authentication", "PollAuthSessionStatus", 1u32, req);
+		let req = ApiRequest::new(SERVICE_NAME, "PollAuthSessionStatus", 1u32, req);
 		let resp = self
 			.transport
 			.send_request::<CAuthentication_PollAuthSessionStatus_Request, CAuthentication_PollAuthSessionStatus_Response>(
@@ -138,7 +113,7 @@ where
 		&mut self,
 		req: CAuthentication_RefreshToken_Revoke_Request,
 	) -> anyhow::Result<ApiResponse<CAuthentication_RefreshToken_Revoke_Response>> {
-		let req = ApiRequest::new("Authentication", "RevokeRefreshToken", 1u32, req);
+		let req = ApiRequest::new(SERVICE_NAME, "RevokeRefreshToken", 1u32, req);
 		let resp = self
 			.transport
 			.send_request::<CAuthentication_RefreshToken_Revoke_Request, CAuthentication_RefreshToken_Revoke_Response>(
@@ -151,7 +126,7 @@ where
 		&mut self,
 		req: CAuthenticationSupport_RevokeToken_Request,
 	) -> anyhow::Result<ApiResponse<CAuthenticationSupport_RevokeToken_Response>> {
-		let req = ApiRequest::new("Authentication", "RevokeToken", 1u32, req);
+		let req = ApiRequest::new(SERVICE_NAME, "RevokeToken", 1u32, req);
 		let resp = self
 			.transport
 			.send_request::<CAuthenticationSupport_RevokeToken_Request, CAuthenticationSupport_RevokeToken_Response>(
@@ -166,7 +141,7 @@ where
 	) -> anyhow::Result<ApiResponse<CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response>>
 	{
 		let req = ApiRequest::new(
-			"Authentication",
+			SERVICE_NAME,
 			"UpdateAuthSessionWithMobileConfirmation",
 			1u32,
 			req,
@@ -184,7 +159,7 @@ where
 		req: CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
 	) -> anyhow::Result<ApiResponse<CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response>> {
 		let req = ApiRequest::new(
-			"Authentication",
+			SERVICE_NAME,
 			"UpdateAuthSessionWithSteamGuardCode",
 			1u32,
 			req,

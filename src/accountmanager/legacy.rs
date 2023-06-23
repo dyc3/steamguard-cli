@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::{
 	fs::File,
 	io::{BufReader, Read},
@@ -5,9 +7,10 @@ use std::{
 };
 
 use log::debug;
-use secrecy::ExposeSecret;
+use secrecy::{CloneableSecret, DebugSecret, ExposeSecret};
 use serde::Deserialize;
 use steamguard::{token::TwoFactorSecret, SecretString, SteamGuardAccount};
+use zeroize::Zeroize;
 
 use crate::encryption::{EncryptionScheme, EntryEncryptor};
 
@@ -75,8 +78,7 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 		debug!("loading entry: {:?}", path);
 		let file = File::open(path)?;
 		let mut reader = BufReader::new(file);
-		let account: SdaAccount;
-		match (&passkey, encryption_params.as_ref()) {
+		let account: SdaAccount = match (&passkey, encryption_params.as_ref()) {
 			(Some(passkey), Some(params)) => {
 				let mut ciphertext: Vec<u8> = vec![];
 				reader.read_to_end(&mut ciphertext)?;
@@ -86,14 +88,12 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
 				let s = std::str::from_utf8(&plaintext).unwrap();
-				account = serde_json::from_str(s)?;
+				serde_json::from_str(s)?
 			}
 			(None, Some(_)) => {
 				return Err(ManifestAccountLoadError::MissingPasskey);
 			}
-			(_, None) => {
-				account = serde_json::from_reader(reader)?;
-			}
+			(_, None) => serde_json::from_reader(reader)?,
 		};
 		Ok(account)
 	}
@@ -135,8 +135,29 @@ pub struct SdaAccount {
 	#[serde(with = "crate::secret_string")]
 	pub secret_1: SecretString,
 	#[serde(default, rename = "Session")]
-	pub session: Option<secrecy::Secret<steamguard::steamapi::Session>>,
+	pub session: Option<secrecy::Secret<Session>>,
 }
+
+#[derive(Debug, Clone, Deserialize, Zeroize)]
+#[zeroize(drop)]
+#[deprecated(note = "this is not used anymore, the closest equivalent is `Tokens`")]
+pub struct Session {
+	#[serde(rename = "SessionID")]
+	pub session_id: String,
+	#[serde(rename = "SteamLogin")]
+	pub steam_login: String,
+	#[serde(rename = "SteamLoginSecure")]
+	pub steam_login_secure: String,
+	#[serde(default, rename = "WebCookie")]
+	pub web_cookie: Option<String>,
+	#[serde(rename = "OAuthToken")]
+	pub token: String,
+	#[serde(rename = "SteamID")]
+	pub steam_id: u64,
+}
+
+impl CloneableSecret for Session {}
+impl DebugSecret for Session {}
 
 impl From<SdaAccount> for SteamGuardAccount {
 	fn from(value: SdaAccount) -> Self {

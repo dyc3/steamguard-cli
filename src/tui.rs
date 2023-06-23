@@ -6,38 +6,9 @@ use crossterm::{
 	terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 	QueueableCommand,
 };
-use log::*;
-use regex::Regex;
 use std::collections::HashSet;
 use std::io::{stderr, stdout, Write};
 use steamguard::Confirmation;
-
-lazy_static! {
-	static ref CAPTCHA_VALID_CHARS: Regex =
-		Regex::new("^([A-H]|[J-N]|[P-R]|[T-Z]|[2-4]|[7-9]|[@%&])+$").unwrap();
-}
-
-pub fn validate_captcha_text(text: &String) -> bool {
-	CAPTCHA_VALID_CHARS.is_match(text)
-}
-
-#[test]
-fn test_validate_captcha_text() {
-	assert!(validate_captcha_text(&String::from("2WWUA@")));
-	assert!(validate_captcha_text(&String::from("3G8HT2")));
-	assert!(validate_captcha_text(&String::from("3J%@X3")));
-	assert!(validate_captcha_text(&String::from("2GCZ4A")));
-	assert!(validate_captcha_text(&String::from("3G8HT2")));
-	assert!(!validate_captcha_text(&String::from("asd823")));
-	assert!(!validate_captcha_text(&String::from("!PQ4RD")));
-	assert!(!validate_captcha_text(&String::from("1GQ4XZ")));
-	assert!(!validate_captcha_text(&String::from("8GO4XZ")));
-	assert!(!validate_captcha_text(&String::from("IPQ4RD")));
-	assert!(!validate_captcha_text(&String::from("0PT4RD")));
-	assert!(!validate_captcha_text(&String::from("APTSRD")));
-	assert!(!validate_captcha_text(&String::from("AP5TRD")));
-	assert!(!validate_captcha_text(&String::from("AP6TRD")));
-}
 
 /// Prompt the user for text input.
 pub(crate) fn prompt() -> String {
@@ -58,20 +29,6 @@ pub(crate) fn prompt() -> String {
 	}
 
 	line
-}
-
-pub(crate) fn prompt_captcha_text(captcha_gid: &String) -> String {
-	eprintln!("Captcha required. Open this link in your web browser: https://steamcommunity.com/public/captcha.php?gid={}", captcha_gid);
-	let mut captcha_text;
-	loop {
-		eprint!("Enter captcha text: ");
-		captcha_text = prompt();
-		if !captcha_text.is_empty() && validate_captcha_text(&captcha_text) {
-			break;
-		}
-		warn!("Invalid chars for captcha text found in user's input. Prompting again...");
-	}
-	captcha_text
 }
 
 /// Prompt the user for a single character response. Useful for asking yes or no questions.
@@ -149,7 +106,7 @@ pub(crate) fn prompt_confirmation_menu(
 			),
 		)?;
 
-		for i in 0..confirmations.len() {
+		for (i, conf) in confirmations.iter().enumerate() {
 			stdout().queue(Print("\r"))?;
 			if selected_idx == i {
 				stdout().queue(SetForegroundColor(Color::Yellow))?;
@@ -173,7 +130,7 @@ pub(crate) fn prompt_confirmation_menu(
 				stdout().queue(SetForegroundColor(Color::Yellow))?;
 			}
 
-			stdout().queue(Print(format!(" {}\n", confirmations[i].description())))?;
+			stdout().queue(Print(format!(" {}\n", conf.description())))?;
 		}
 
 		stdout().flush()?;
