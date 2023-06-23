@@ -108,8 +108,7 @@ fn encode_msg<T: MessageFull>(msg: &T, config: base64::Config) -> anyhow::Result
 }
 
 fn decode_msg<T: MessageFull>(bytes: &[u8]) -> anyhow::Result<T> {
-	// let bytes = base64::decode_config(b64, base64::STANDARD)?;
-	let msg = T::parse_from_bytes(bytes.as_ref())?;
+	let msg = T::parse_from_bytes(bytes)?;
 	Ok(msg)
 }
 

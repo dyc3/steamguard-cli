@@ -125,7 +125,7 @@ impl SteamGuardAccount {
 		params.insert("a", self.steam_id.to_string());
 		params.insert(
 			"k",
-			generate_confirmation_hash_for_time(time, tag, &self.identity_secret.expose_secret()),
+			generate_confirmation_hash_for_time(time, tag, self.identity_secret.expose_secret()),
 		);
 		params.insert("t", time.to_string());
 		params.insert("m", String::from("android"));
