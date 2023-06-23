@@ -25,6 +25,7 @@ lazy_static! {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
 #[zeroize(drop)]
+#[deprecated(note = "this is not used anymore, the closest equivalent is `Tokens`")]
 pub struct Session {
 	#[serde(rename = "SessionID")]
 	pub session_id: String,
@@ -168,20 +169,6 @@ impl SteamApiClient {
 
 	pub fn post<U: reqwest::IntoUrl + std::fmt::Display>(&self, url: U) -> RequestBuilder {
 		self.request(reqwest::Method::POST, url)
-	}
-
-	/// Updates the cookie jar with the session cookies by pinging steam servers.
-	pub fn update_session(&mut self) -> anyhow::Result<()> {
-		trace!("SteamApiClient::update_session");
-
-		let resp = self
-			.get("https://steamcommunity.com/login?oauth_client_id=DE45CD61&oauth_scope=read_profile%20write_profile%20read_client%20write_client".parse::<Url>().unwrap())
-			.send()?;
-		self.save_cookies_from_response(&resp);
-		trace!("{:?}", resp);
-
-		trace!("cookies: {:?}", self.cookies);
-		Ok(())
 	}
 }
 

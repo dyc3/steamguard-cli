@@ -113,13 +113,6 @@ impl MigratingManifest {
 		}
 	}
 
-	pub fn version(&self) -> u32 {
-		match self {
-			Self::SDA(_) => 0,
-			Self::ManifestV1(_) => 1,
-		}
-	}
-
 	pub fn is_encrypted(&self) -> bool {
 		match self {
 			Self::SDA(manifest) => manifest.entries.iter().any(|e| e.encryption.is_some()),
