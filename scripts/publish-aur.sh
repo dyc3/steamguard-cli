@@ -31,7 +31,7 @@ fi
 
 
 # get version info
-BIN_PATH="target/release/steamguard-cli"
+BIN_PATH="target/release/steamguard"
 RAW_VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
 TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
 if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
