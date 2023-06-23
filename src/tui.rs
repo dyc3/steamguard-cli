@@ -6,8 +6,6 @@ use crossterm::{
 	terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 	QueueableCommand,
 };
-use log::*;
-use regex::Regex;
 use std::collections::HashSet;
 use std::io::{stderr, stdout, Write};
 use steamguard::Confirmation;

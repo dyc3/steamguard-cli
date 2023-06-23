@@ -23,7 +23,6 @@ use steamguard::{
 use crate::accountmanager::migrate::load_and_migrate;
 use crate::accountmanager::{AccountManager, ManifestAccountLoadError, ManifestLoadError};
 
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate anyhow;

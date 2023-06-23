@@ -144,7 +144,7 @@ impl SteamGuardAccount {
 			.as_str(),
 			&url,
 		);
-		return cookies;
+		cookies
 	}
 
 	pub fn get_trade_confirmations(&self) -> Result<Vec<Confirmation>, anyhow::Error> {
