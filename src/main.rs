@@ -104,6 +104,7 @@ fn run() -> anyhow::Result<()> {
 				let (manifest, accounts) = load_and_migrate(path.as_path(), args.passkey.as_ref())?;
 				let mut manager = AccountManager::from_manifest(manifest, mafiles_dir);
 				manager.register_accounts(accounts);
+				manager.submit_passkey(args.passkey.clone());
 				manager.save()?;
 				manager
 			}
@@ -114,7 +115,7 @@ fn run() -> anyhow::Result<()> {
 		}
 	}
 
-	let mut passkey: Option<String> = args.passkey.clone();
+	let mut passkey = args.passkey.clone();
 	manager.submit_passkey(passkey);
 
 	loop {
