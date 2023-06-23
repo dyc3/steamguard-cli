@@ -10,7 +10,7 @@ if ! which cross; then
 	cargo install cross
 fi
 
-BIN_PATH="target/x86_64-unknown-linux-musl/release/steamguard-cli"
+BIN_PATH="target/x86_64-unknown-linux-musl/release/steamguard"
 if [[ ! -f "$BIN_PATH" ]]; then
 	echo "ERROR: Could not find release binaries, building them..."
 	cross build --release --target=x86_64-unknown-linux-musl
@@ -24,9 +24,6 @@ mkdir -p "$TEMP_PKG_PATH/etc/bash_completion.d"
 mkdir -p "$TEMP_PKG_PATH/DEBIAN"
 
 cp "$BIN_PATH" "$TEMP_PKG_PATH/usr/local/bin/steamguard"
-pushd "$TEMP_PKG_PATH/usr/local/bin/"
-ln -s "./steamguard" "./steamguard-cli"
-popd
 "$BIN_PATH" completion --shell bash > "$TEMP_PKG_PATH/etc/bash_completion.d/steamguard"
 
 cat <<EOT >> $TEMP_PKG_PATH/DEBIAN/control

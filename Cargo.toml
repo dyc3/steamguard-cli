@@ -19,9 +19,13 @@ license = "GPL-3.0-or-later"
 default = ["qr"]
 qr = ["qrcode"]
 
-[[bin]]
-name = "steamguard-cli"
+# [[bin]]
+# name = "steamguard-cli"
 # filename = "steamguard" # TODO: uncomment when https://github.com/rust-lang/cargo/issues/9778 is stablized.
+
+[[bin]]
+name = "steamguard"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
