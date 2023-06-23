@@ -32,9 +32,11 @@ cargo build --release
 
 # Usage
 `steamguard-cli` looks for your `maFiles/manifest.json` in at these paths, in this order:
+
 Linux:
 - `~/.config/steamguard-cli/maFiles/`
 - `~/maFiles/`
+
 Windows:
 - `%APPDATA%\Roaming\steamguard-cli\maFiles\`
 - `%USERPROFILE%\maFiles\`
