@@ -2,26 +2,15 @@ pub mod authentication;
 pub mod twofactor;
 
 use crate::{
-	api_responses::*, protobufs::service_twofactor::CTwoFactor_Time_Response, token::Jwt,
-	transport::WebApiTransport,
+	protobufs::service_twofactor::CTwoFactor_Time_Response, token::Jwt, transport::WebApiTransport,
 };
-use log::*;
-use reqwest::{
-	blocking::RequestBuilder,
-	cookie::CookieStore,
-	header::COOKIE,
-	header::{HeaderMap, HeaderName, HeaderValue, SET_COOKIE},
-	Url,
-};
-use secrecy::{CloneableSecret, DebugSecret, ExposeSecret, SerializableSecret};
+use reqwest::Url;
+use secrecy::{CloneableSecret, DebugSecret, SerializableSecret};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::iter::FromIterator;
-use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
 use zeroize::Zeroize;
 
-use self::twofactor::TwoFactorClient;
+pub use self::authentication::AuthenticationClient;
+pub use self::twofactor::TwoFactorClient;
 
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();

@@ -1,8 +1,6 @@
-use regex::bytes;
 use secrecy::{ExposeSecret, Secret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryInto;
-use zeroize::Zeroize;
 
 #[derive(Debug, Clone)]
 pub struct TwoFactorSecret(Secret<[u8; 20]>);
@@ -164,13 +162,13 @@ impl SteamJwtData {
 mod tests {
 	use super::*;
 
+	#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+	struct FooBar {
+		secret: TwoFactorSecret,
+	}
+
 	#[test]
 	fn test_serialize_2fa_secret() -> anyhow::Result<()> {
-		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-		struct FooBar {
-			secret: TwoFactorSecret,
-		}
-
 		let secret = FooBar {
 			secret: TwoFactorSecret::parse_shared_secret("zvIayp3JPvtvX/QGHqsqKBk/44s=".into())?,
 		};
@@ -183,11 +181,6 @@ mod tests {
 
 	#[test]
 	fn test_deserialize_2fa_secret() -> anyhow::Result<()> {
-		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-		struct FooBar {
-			secret: TwoFactorSecret,
-		}
-
 		let secret: FooBar =
 			serde_json::from_str(&"{\"secret\":\"zvIayp3JPvtvX/QGHqsqKBk/44s=\"}")?;
 
@@ -199,11 +192,6 @@ mod tests {
 
 	#[test]
 	fn test_serialize_and_deserialize_2fa_secret() -> anyhow::Result<()> {
-		#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-		struct FooBar {
-			secret: TwoFactorSecret,
-		}
-
 		let secret = FooBar {
 			secret: TwoFactorSecret::parse_shared_secret("zvIayp3JPvtvX/QGHqsqKBk/44s=".into())?,
 		};
