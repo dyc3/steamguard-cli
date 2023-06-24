@@ -46,7 +46,7 @@ impl<'a> QrApprover<'a> {
 
 		let resp = self
 			.client
-			.update_session_with_mobile_confirmation(req, &self.tokens.access_token())?;
+			.update_session_with_mobile_confirmation(req, self.tokens.access_token())?;
 
 		if resp.result != EResult::OK {
 			return Err(resp.result.into());
