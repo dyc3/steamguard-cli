@@ -4,7 +4,7 @@ steamguard-cli is a command-line tool, and as such, it is meant to be used in a 
 
 ## Windows
 
-1. Download `steamguard.exe` from the [releases page](releases).
+1. Download `steamguard.exe` from the [releases page][releases].
 2. Place `steamguard.exe` in a folder of your choice. For this example, we will use `%USERPROFILE%\Desktop`.
 3. Open Powershell or Command Prompt. The prompt should be at `%USERPROFILE%` (eg. `C:\Users\<username>`).
 4. Use `cd` to change directory into the folder where you placed `steamguard.exe`. For this example, it would be `cd Desktop`.
@@ -14,7 +14,7 @@ steamguard-cli is a command-line tool, and as such, it is meant to be used in a 
 
 ### Ubuntu/Debian
 
-1. Download the `.deb` from the [releases page](releases).
+1. Download the `.deb` from the [releases page][releases].
 2. Open a terminal and run this to install it:
 ```bash
 sudo dpkg -i ./steamguard-cli_<version>_amd64.deb
@@ -22,7 +22,7 @@ sudo dpkg -i ./steamguard-cli_<version>_amd64.deb
 
 ### Other Linux
 
-1. Download `steamguard` from the [releases page](releases)
+1. Download `steamguard` from the [releases page][releases]
 2. Make it executable, and move `steamguard` to `/usr/local/bin` or any other directory in your `$PATH`.
 ```bash
 chmod +x ./steamguard
