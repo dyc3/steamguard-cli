@@ -687,6 +687,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hmac-sha256"
+version = "1.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3688e69b38018fec1557254f64c8dc2cc8ec502890182f395dbb0aa997aa5735"
+
+[[package]]
 name = "html5ever"
 version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2050,6 +2056,7 @@ dependencies = [
  "base64",
  "cookie 0.14.4",
  "hmac-sha1",
+ "hmac-sha256",
  "lazy_static 1.4.0",
  "log",
  "maplit",

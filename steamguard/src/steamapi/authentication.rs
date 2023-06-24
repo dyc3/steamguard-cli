@@ -138,6 +138,7 @@ where
 	pub fn update_session_with_mobile_confirmation(
 		&mut self,
 		req: CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
+		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response>>
 	{
 		let req = ApiRequest::new(
@@ -145,7 +146,8 @@ where
 			"UpdateAuthSessionWithMobileConfirmation",
 			1u32,
 			req,
-		);
+		)
+		.with_access_token(access_token);
 		let resp = self
 			.transport
 			.send_request::<CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request, CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response>(
