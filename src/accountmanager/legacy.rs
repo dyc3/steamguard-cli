@@ -142,15 +142,15 @@ pub struct SdaAccount {
 #[zeroize(drop)]
 #[deprecated(note = "this is not used anymore, the closest equivalent is `Tokens`")]
 pub struct Session {
-	#[serde(rename = "SessionID")]
+	#[serde(default, rename = "SessionID")]
 	pub session_id: String,
-	#[serde(rename = "SteamLogin")]
+	#[serde(default, rename = "SteamLogin")]
 	pub steam_login: String,
-	#[serde(rename = "SteamLoginSecure")]
+	#[serde(default, rename = "SteamLoginSecure")]
 	pub steam_login_secure: String,
 	#[serde(default, rename = "WebCookie")]
 	pub web_cookie: Option<String>,
-	#[serde(rename = "OAuthToken")]
+	#[serde(default, rename = "OAuthToken")]
 	pub token: String,
 	#[serde(rename = "SteamID")]
 	pub steam_id: u64,
