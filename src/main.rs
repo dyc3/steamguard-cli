@@ -6,11 +6,13 @@ use std::{
 	path::Path,
 	sync::{Arc, Mutex},
 };
-use steamguard::protobufs::steammessages_auth_steamclient::{
-	EAuthSessionGuardType, EAuthTokenPlatformType,
+use steamguard::{
+	protobufs::steammessages_auth_steamclient::{EAuthSessionGuardType, EAuthTokenPlatformType},
+	refresher::TokenRefresher,
+	transport::WebApiTransport,
 };
-use steamguard::token::Tokens;
 use steamguard::{steamapi, DeviceDetails, LoginError, SteamGuardAccount, UserLogin};
+use steamguard::{steamapi::AuthenticationClient, token::Tokens};
 
 use crate::accountmanager::migrate::load_and_migrate;
 pub use crate::accountmanager::{AccountManager, ManifestAccountLoadError, ManifestLoadError};
@@ -219,6 +221,25 @@ fn get_selected_accounts(
 }
 
 fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
+	if let Some(tokens) = account.tokens.as_mut() {
+		info!("Refreshing access token...");
+		let client = AuthenticationClient::new(WebApiTransport::new());
+		let mut refresher = TokenRefresher::new(client);
+		match refresher.refresh(account.steam_id, tokens) {
+			Ok(token) => {
+				info!("Successfully refreshed access token, no need to prompt to log in.");
+				tokens.set_access_token(token);
+				return Ok(());
+			}
+			Err(err) => {
+				warn!(
+					"Failed to refresh access token, prompting for login: {}",
+					err
+				);
+			}
+		}
+	}
+
 	if !account.account_name.is_empty() {
 		info!("Username: {}", account.account_name);
 	} else {

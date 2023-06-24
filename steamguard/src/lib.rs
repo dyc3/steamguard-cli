@@ -30,6 +30,7 @@ pub mod accountlinker;
 mod api_responses;
 mod confirmation;
 pub mod protobufs;
+pub mod refresher;
 mod secret_string;
 pub mod steamapi;
 pub mod token;
