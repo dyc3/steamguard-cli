@@ -88,12 +88,16 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
 				let s = std::str::from_utf8(&plaintext).unwrap();
-				serde_json::from_str(s)?
+				let mut deser = serde_json::Deserializer::from_str(s);
+				serde_path_to_error::deserialize(&mut deser)?
 			}
 			(None, Some(_)) => {
 				return Err(ManifestAccountLoadError::MissingPasskey);
 			}
-			(_, None) => serde_json::from_reader(reader)?,
+			(_, None) => {
+				let mut deser = serde_json::Deserializer::from_reader(reader);
+				serde_path_to_error::deserialize(&mut deser)?
+			}
 		};
 		Ok(account)
 	}
