@@ -12,6 +12,16 @@ steamguard-cli is a command-line tool, and as such, it is meant to be used in a 
 
 ## Linux
 
+### Ubuntu/Debian
+
+1. Download the `.deb` from the [releases page](releases).
+2. Open a terminal and run this to install it:
+```bash
+sudo dpkg -i ./steamguard-cli_<version>_amd64.deb
+```
+
+### Other Linux
+
 1. Download `steamguard` from the [releases page](releases)
 2. Make it executable, and move `steamguard` to `/usr/local/bin` or any other directory in your `$PATH`.
 ```bash
