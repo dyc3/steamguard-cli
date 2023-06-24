@@ -2,7 +2,7 @@ use log::{debug, trace};
 use protobuf::MessageFull;
 use reqwest::{blocking::multipart::Form, Url};
 
-use super::Transport;
+use super::{Transport, TransportError};
 use crate::steamapi::{ApiRequest, ApiResponse, BuildableRequest, EResult};
 
 lazy_static! {
@@ -36,9 +36,9 @@ impl WebApiTransport {
 
 impl Transport for WebApiTransport {
 	fn send_request<Req: BuildableRequest + MessageFull, Res: MessageFull>(
-		&mut self,
+		&self,
 		apireq: ApiRequest<Req>,
-	) -> anyhow::Result<ApiResponse<Res>> {
+	) -> anyhow::Result<ApiResponse<Res>, TransportError> {
 		// All the API endpoints accept 2 data formats: json and protobuf.
 		// Depending on the http method for the request, the data can go in 2 places:
 		// - GET: query string, with the key `input_protobuf_encoded` or `input_json`
@@ -47,7 +47,7 @@ impl Transport for WebApiTransport {
 		// input protobuf data is always encoded in base64
 
 		if Req::requires_access_token() && apireq.access_token().is_none() {
-			return Err(anyhow::anyhow!("Access token required for this request"));
+			return Err(TransportError::Unauthorized);
 		}
 
 		let url = apireq.build_url();
@@ -76,14 +76,31 @@ impl Transport for WebApiTransport {
 		debug!("Response HTTP status: {}", status);
 
 		let eresult = if let Some(eresult) = resp.headers().get("x-eresult") {
-			debug!("HTTP Header x-eresult: {}", eresult.to_str()?);
-			eresult.to_str()?.parse::<i32>()?.into()
+			let s = eresult
+				.to_str()
+				.map_err(|err| TransportError::HeaderParseFailure {
+					header: "x-eresult".to_owned(),
+					source: err.into(),
+				})?;
+			debug!("HTTP Header x-eresult: {}", s);
+			s.parse::<i32>()
+				.map_err(|err| TransportError::HeaderParseFailure {
+					header: "x-eresult".to_owned(),
+					source: err.into(),
+				})?
+				.into()
 		} else {
 			EResult::Invalid
 		};
 		let error_msg = if let Some(error_message) = resp.headers().get("x-error_message") {
-			debug!("HTTP Header x-error_message: {}", error_message.to_str()?);
-			Some(error_message.to_str()?.to_owned())
+			let s = error_message
+				.to_str()
+				.map_err(|err| TransportError::HeaderParseFailure {
+					header: "x-error_message".to_owned(),
+					source: err.into(),
+				})?;
+			debug!("HTTP Header x-error_message: {}", s);
+			Some(s.to_owned())
 		} else {
 			None
 		};
@@ -91,6 +108,10 @@ impl Transport for WebApiTransport {
 		let bytes = resp.bytes()?;
 		if !status.is_success() {
 			trace!("Response body (raw): {:?}", bytes);
+
+			if status == reqwest::StatusCode::UNAUTHORIZED {
+				return Err(TransportError::Unauthorized);
+			}
 		}
 
 		let res = decode_msg::<Res>(bytes.as_ref())?;
@@ -113,9 +134,8 @@ fn encode_msg<T: MessageFull>(msg: &T, config: base64::Config) -> anyhow::Result
 	Ok(b64)
 }
 
-fn decode_msg<T: MessageFull>(bytes: &[u8]) -> anyhow::Result<T> {
-	let msg = T::parse_from_bytes(bytes)?;
-	Ok(msg)
+fn decode_msg<T: MessageFull>(bytes: &[u8]) -> Result<T, protobuf::Error> {
+	T::parse_from_bytes(bytes)
 }
 
 #[cfg(test)]
