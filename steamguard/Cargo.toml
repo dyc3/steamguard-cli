@@ -32,6 +32,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 zeroize = "^1.4.3"
 protobuf = "3.2.0"
 protobuf-json-mapping = "3.2.0"
+hmac-sha256 = "1.1.7"
 
 [build-dependencies]
 anyhow = "^1.0"

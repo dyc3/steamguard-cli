@@ -15,6 +15,7 @@ pub mod encrypt;
 pub mod import;
 #[cfg(feature = "qr")]
 pub mod qr;
+pub mod qr_login;
 pub mod remove;
 pub mod setup;
 pub mod trade;
@@ -27,6 +28,7 @@ pub use encrypt::EncryptCommand;
 pub use import::ImportCommand;
 #[cfg(feature = "qr")]
 pub use qr::QrCommand;
+pub use qr_login::QrLoginCommand;
 pub use remove::RemoveCommand;
 pub use setup::SetupCommand;
 pub use trade::TradeCommand;
@@ -117,6 +119,7 @@ pub(crate) enum Subcommands {
 	Code(CodeCommand),
 	#[cfg(feature = "qr")]
 	Qr(QrCommand),
+	QrLogin(QrLoginCommand),
 }
 
 #[derive(Debug, Clone, Copy, ArgEnum)]
