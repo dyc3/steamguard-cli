@@ -54,7 +54,7 @@ impl QrApprover {
 }
 
 fn build_signature(account: &SteamGuardAccount, challenge: &Challenge) -> [u8; 32] {
-	let mut data = Vec::<u8>::new();
+	let mut data = Vec::<u8>::with_capacity(18);
 	data.extend_from_slice(&challenge.version.to_le_bytes());
 	data.extend_from_slice(&challenge.client_id.to_le_bytes());
 	data.extend_from_slice(&account.steam_id.to_le_bytes());
