@@ -1,8 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use log::*;
-use qrcode::QrCode;
-use secrecy::ExposeSecret;
+use steamguard::QrApprover;
 
 use crate::AccountManager;
 
@@ -28,5 +27,23 @@ impl AccountCommand for QrLoginCommand {
 			accounts.len() == 1,
 			"You can only log in to one account at a time."
 		);
+
+		let mut account = accounts[0].lock().unwrap();
+
+		info!("Approving login to {}", account.account_name);
+
+		if account.tokens.is_none() {
+			crate::do_login(&mut account)?;
+		}
+
+		let Some(tokens) = account.tokens.as_ref() else {
+			error!("No tokens found for {}. Can't approve login if we aren't logged in ourselves.", account.account_name);
+			return Err(anyhow!("No tokens found for {}", account.account_name));
+		};
+
+		let mut approver = QrApprover::new(tokens);
+		approver.approve(&account, &self.url)?;
+
+		Ok(())
 	}
 }

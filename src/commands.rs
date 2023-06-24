@@ -119,6 +119,7 @@ pub(crate) enum Subcommands {
 	Code(CodeCommand),
 	#[cfg(feature = "qr")]
 	Qr(QrCommand),
+	QrLogin(QrLoginCommand),
 }
 
 #[derive(Debug, Clone, Copy, ArgEnum)]

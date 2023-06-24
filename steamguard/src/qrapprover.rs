@@ -1,3 +1,4 @@
+use log::debug;
 use reqwest::IntoUrl;
 
 use crate::{
@@ -11,13 +12,13 @@ use crate::{
 /// QR code login approver
 ///
 /// This can be used to approve a login request from another device that is displaying a QR code.
-pub struct QrApprover {
-	tokens: Tokens,
+pub struct QrApprover<'a> {
+	tokens: &'a Tokens,
 	client: AuthenticationClient<WebApiTransport>,
 }
 
-impl QrApprover {
-	pub fn new(tokens: Tokens) -> Self {
+impl<'a> QrApprover<'a> {
+	pub fn new(tokens: &'a Tokens) -> Self {
 		let client = AuthenticationClient::new(WebApiTransport::new());
 		Self { tokens, client }
 	}
@@ -25,12 +26,14 @@ impl QrApprover {
 	/// Approve a login request from a challenge URL
 	pub fn approve(
 		&mut self,
-		account: SteamGuardAccount,
+		account: &SteamGuardAccount,
 		challenge_url: impl IntoUrl,
 	) -> Result<(), QrApproverError> {
+		debug!("building signature");
 		let challenge = parse_challenge_url(challenge_url)?;
 		let signature = build_signature(&account.shared_secret, account.steam_id, &challenge);
 
+		debug!("approving login");
 		let mut req = CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request::new();
 		req.set_steamid(account.steam_id);
 		req.set_version(challenge.version.into());
@@ -89,10 +92,13 @@ struct Challenge {
 	client_id: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum QrApproverError {
+	#[error("Invalid challenge URL")]
 	InvalidChallengeUrl,
+	#[error("Unknown EResult: {0:?}")]
 	UnknownEResult(EResult),
+	#[error("Unknown error: {0}")]
 	Unknown(anyhow::Error),
 }
 
