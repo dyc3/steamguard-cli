@@ -54,7 +54,7 @@ impl TwoFactorSecret {
 	}
 
 	pub(crate) fn expose_secret(&self) -> &[u8; 20] {
-		self.expose_secret()
+		self.0.expose_secret()
 	}
 }
 
