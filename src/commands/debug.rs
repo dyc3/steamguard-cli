@@ -39,7 +39,7 @@ impl ConstCommand for DebugCommand {
 			demo_confirmation_menu();
 		}
 		if let Some(path) = self.print_stripped_json.as_ref() {
-			debug_print_json(&path)?;
+			debug_print_json(path)?;
 		}
 		Ok(())
 	}
