@@ -84,7 +84,7 @@ pub(crate) fn prompt_confirmation_menu(
 	confirmations: Vec<Confirmation>,
 ) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
 	if confirmations.is_empty() {
-		bail!("no confirmations")
+		return Ok((vec![], vec![]));
 	}
 
 	let mut to_accept_idx: HashSet<usize> = HashSet::new();
