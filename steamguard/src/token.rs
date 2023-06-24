@@ -102,6 +102,10 @@ impl Tokens {
 		&self.access_token
 	}
 
+	pub fn set_access_token(&mut self, token: Jwt) {
+		self.access_token = token;
+	}
+
 	pub fn refresh_token(&self) -> &Jwt {
 		&self.refresh_token
 	}
