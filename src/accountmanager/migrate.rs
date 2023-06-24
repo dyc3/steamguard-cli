@@ -5,8 +5,6 @@ use serde::de::Error;
 use steamguard::SteamGuardAccount;
 use thiserror::Error;
 
-use crate::debug::log_json_error_better;
-
 use super::{
 	legacy::{SdaAccount, SdaManifest},
 	manifest::ManifestV1,
@@ -186,12 +184,10 @@ fn deserialize_manifest(text: String) -> Result<MigratingManifest, serde_json::E
 	let json: serde_json::Value = serde_json::from_str(&text)?;
 	debug!("deserializing manifest: version {}", json["version"]);
 	if json["version"] == 1 {
-		let manifest: ManifestV1 =
-			serde_json::from_value(json).map_err(|err| log_json_error_better(err, &text))?;
+		let manifest: ManifestV1 = serde_json::from_str(&text)?;
 		Ok(MigratingManifest::ManifestV1(manifest))
 	} else if json["version"] == serde_json::Value::Null {
-		let manifest: SdaManifest =
-			serde_json::from_value(json).map_err(|err| log_json_error_better(err, &text))?;
+		let manifest: SdaManifest = serde_json::from_str(&text)?;
 		Ok(MigratingManifest::Sda(manifest))
 	} else {
 		Err(serde_json::Error::custom(format!(
