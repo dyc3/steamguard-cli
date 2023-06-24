@@ -210,7 +210,7 @@ fn deserialize_manifest(
 			struct Dummy;
 			impl<'de> Deserialize<'de> for Dummy {
 				fn deserialize<D: serde::Deserializer<'de>>(_: D) -> Result<Self, D::Error> {
-					Err(D::Error::custom(format!("Unknown manifest version")))
+					Err(D::Error::custom("Unknown manifest version".to_string()))
 				}
 			}
 
