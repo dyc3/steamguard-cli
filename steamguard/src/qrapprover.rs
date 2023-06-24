@@ -3,7 +3,7 @@ use reqwest::IntoUrl;
 use crate::{
 	protobufs::steammessages_auth_steamclient::CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
 	steamapi::{AuthenticationClient, EResult},
-	token::Tokens,
+	token::{Tokens, TwoFactorSecret},
 	transport::WebApiTransport,
 	SteamGuardAccount,
 };
@@ -29,7 +29,7 @@ impl QrApprover {
 		challenge_url: impl IntoUrl,
 	) -> Result<(), QrApproverError> {
 		let challenge = parse_challenge_url(challenge_url)?;
-		let signature = build_signature(&account, &challenge);
+		let signature = build_signature(&account.shared_secret, account.steam_id, &challenge);
 
 		let mut req = CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request::new();
 		req.set_steamid(account.steam_id);
@@ -53,13 +53,17 @@ impl QrApprover {
 	}
 }
 
-fn build_signature(account: &SteamGuardAccount, challenge: &Challenge) -> [u8; 32] {
+fn build_signature(
+	shared_secret: &TwoFactorSecret,
+	steam_id: u64,
+	challenge: &Challenge,
+) -> [u8; 32] {
 	let mut data = Vec::<u8>::with_capacity(18);
 	data.extend_from_slice(&challenge.version.to_le_bytes());
 	data.extend_from_slice(&challenge.client_id.to_le_bytes());
-	data.extend_from_slice(&account.steam_id.to_le_bytes());
+	data.extend_from_slice(&steam_id.to_le_bytes());
 
-	hmac_sha256::HMAC::mac(data, account.shared_secret.expose_secret())
+	hmac_sha256::HMAC::mac(data, shared_secret.expose_secret())
 }
 
 fn parse_challenge_url(challenge_url: impl IntoUrl) -> Result<Challenge, QrApproverError> {
@@ -89,11 +93,18 @@ struct Challenge {
 pub enum QrApproverError {
 	InvalidChallengeUrl,
 	UnknownEResult(EResult),
+	Unknown(anyhow::Error),
 }
 
 impl From<EResult> for QrApproverError {
 	fn from(result: EResult) -> Self {
 		Self::UnknownEResult(result)
+	}
+}
+
+impl From<anyhow::Error> for QrApproverError {
+	fn from(err: anyhow::Error) -> Self {
+		Self::Unknown(err)
 	}
 }
 
@@ -120,5 +131,26 @@ mod tests {
 			let challenge = parse_challenge_url(url);
 			assert!(challenge.is_err(), "url: {}", url);
 		}
+	}
+
+	#[test]
+	fn test_build_signature() {
+		let challenge = Challenge {
+			version: 1,
+			client_id: 2372462679780599330,
+		};
+		let secret =
+			TwoFactorSecret::parse_shared_secret("zvIayp3JPvtvX/QGHqsqKBk/44s=".to_owned())
+				.unwrap();
+		let steam_id = 76561197960265728;
+		let signature = build_signature(&secret, steam_id, &challenge);
+
+		assert_eq!(
+			signature,
+			[
+				56, 233, 253, 249, 254, 89, 110, 161, 18, 35, 35, 144, 14, 217, 210, 150, 170, 110,
+				61, 166, 176, 161, 140, 211, 108, 78, 138, 202, 61, 52, 85, 46
+			]
+		);
 	}
 }
