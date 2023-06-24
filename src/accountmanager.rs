@@ -53,7 +53,8 @@ impl AccountManager {
 		let mut reader = BufReader::new(file);
 		let mut buffer = String::new();
 		reader.read_to_string(&mut buffer)?;
-		let manifest: Manifest = match serde_json::from_str(&buffer) {
+		let mut deser = serde_json::Deserializer::from_str(&buffer);
+		let manifest: Manifest = match serde_path_to_error::deserialize(&mut deser) {
 			Ok(m) => m,
 			Err(orig_err) => match serde_json::from_str::<SdaManifest>(&buffer) {
 				Ok(_) => return Err(ManifestLoadError::MigrationNeeded)?,
@@ -159,7 +160,8 @@ impl AccountManager {
 
 		let file = File::open(path)?;
 		let reader = BufReader::new(file);
-		let account: SteamGuardAccount = serde_json::from_reader(reader)?;
+		let mut deser = serde_json::Deserializer::from_reader(reader);
+		let account: SteamGuardAccount = serde_path_to_error::deserialize(&mut deser)?;
 		ensure!(
 			!self.account_exists(&account.account_name),
 			"Account already exists in manifest, please remove it first."
@@ -361,12 +363,16 @@ impl EntryLoader<SteamGuardAccount> for ManifestEntry {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
 				let s = std::str::from_utf8(&plaintext).unwrap();
-				serde_json::from_str(s)?
+				let mut deser = serde_json::Deserializer::from_str(s);
+				serde_path_to_error::deserialize(&mut deser)?
 			}
 			(None, Some(_)) => {
 				return Err(ManifestAccountLoadError::MissingPasskey);
 			}
-			(_, None) => serde_json::from_reader(reader)?,
+			(_, None) => {
+				let mut deser = serde_json::Deserializer::from_reader(reader);
+				serde_path_to_error::deserialize(&mut deser)?
+			}
 		};
 		Ok(account)
 	}
@@ -378,8 +384,8 @@ pub enum ManifestLoadError {
 	Missing(#[from] std::io::Error),
 	#[error("Manifest needs to be migrated to the latest format.")]
 	MigrationNeeded,
-	#[error("Failed to deserialize the manifest.")]
-	DeserializationFailed(#[from] serde_json::Error),
+	#[error("Failed to deserialize the manifest. {self:?}")]
+	DeserializationFailed(#[from] serde_path_to_error::Error<serde_json::Error>),
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }
@@ -394,8 +400,8 @@ pub enum ManifestAccountLoadError {
 	IncorrectPasskey,
 	#[error("Failed to decrypt account. {self:?}")]
 	DecryptionFailed(#[from] crate::encryption::EntryEncryptionError),
-	#[error("Failed to deserialize the account.")]
-	DeserializationFailed(#[from] serde_json::Error),
+	#[error("Failed to deserialize the account. {self:?}")]
+	DeserializationFailed(#[from] serde_path_to_error::Error<serde_json::Error>),
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }

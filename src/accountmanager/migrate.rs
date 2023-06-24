@@ -1,7 +1,7 @@
 use std::{fs::File, io::Read, path::Path};
 
 use log::debug;
-use serde::de::Error;
+use serde::{de::Error, Deserialize};
 use steamguard::SteamGuardAccount;
 use thiserror::Error;
 
@@ -82,7 +82,7 @@ pub(crate) enum MigrationError {
 	#[error("Passkey is required to decrypt manifest")]
 	MissingPasskey,
 	#[error("Failed to deserialize manifest: {0}")]
-	ManifestDeserializeFailed(serde_json::Error),
+	ManifestDeserializeFailed(serde_path_to_error::Error<serde_json::Error>),
 	#[error("IO error when upgrading manifest: {0}")]
 	IoError(#[from] std::io::Error),
 	#[error("An unexpected error occurred during manifest migration: {0}")]
@@ -180,20 +180,44 @@ impl From<MigratingManifest> for Manifest {
 	}
 }
 
-fn deserialize_manifest(text: String) -> Result<MigratingManifest, serde_json::Error> {
-	let json: serde_json::Value = serde_json::from_str(&text)?;
-	debug!("deserializing manifest: version {}", json["version"]);
-	if json["version"] == 1 {
-		let manifest: ManifestV1 = serde_json::from_str(&text)?;
-		Ok(MigratingManifest::ManifestV1(manifest))
-	} else if json["version"] == serde_json::Value::Null {
-		let manifest: SdaManifest = serde_json::from_str(&text)?;
-		Ok(MigratingManifest::Sda(manifest))
-	} else {
-		Err(serde_json::Error::custom(format!(
-			"Unknown manifest version: {}",
-			json["version"]
-		)))
+#[derive(Deserialize)]
+struct JustVersion {
+	version: Option<u32>,
+}
+
+fn deserialize_manifest(
+	text: String,
+) -> Result<MigratingManifest, serde_path_to_error::Error<serde_json::Error>> {
+	let mut deser = serde_json::Deserializer::from_str(&text);
+	let version: JustVersion = serde_path_to_error::deserialize(&mut deser)?;
+
+	debug!("deserializing manifest: version {:?}", version.version);
+	let mut deser = serde_json::Deserializer::from_str(&text);
+
+	match version.version {
+		Some(1) => {
+			let manifest: ManifestV1 = serde_path_to_error::deserialize(&mut deser)?;
+			Ok(MigratingManifest::ManifestV1(manifest))
+		}
+		None => {
+			let manifest: SdaManifest = serde_path_to_error::deserialize(&mut deser)?;
+			Ok(MigratingManifest::Sda(manifest))
+		}
+		_ => {
+			// HACK: there's no way to construct the Path type, so we create it by forcing a deserialize error
+
+			#[derive(Debug)]
+			struct Dummy;
+			impl<'de> Deserialize<'de> for Dummy {
+				fn deserialize<D: serde::Deserializer<'de>>(_: D) -> Result<Self, D::Error> {
+					Err(D::Error::custom("Unknown manifest version".to_string()))
+				}
+			}
+
+			let mut deser = serde_json::Deserializer::from_str("");
+			let err = serde_path_to_error::deserialize::<_, Dummy>(&mut deser).unwrap_err();
+			Err(err)
+		}
 	}
 }
 
