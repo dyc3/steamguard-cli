@@ -7,7 +7,7 @@ use crate::steamapi::{ApiRequest, ApiResponse, BuildableRequest};
 
 pub trait Transport {
 	fn send_request<Req: BuildableRequest + MessageFull, Res: MessageFull>(
-		&mut self,
+		&self,
 		req: ApiRequest<Req>,
 	) -> Result<ApiResponse<Res>, TransportError>;
 
