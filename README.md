@@ -10,6 +10,10 @@ A command line utility for setting up and using Steam Mobile Authenticator (AKA 
 # Disclaimer
 **This utility is effectively in beta. Use this software at your own risk. Make sure to back up your maFiles regularly, and make sure to actually write down your revocation code. If you lose both of these, we can't help you, your only recourse is to beg Steam support.**
 
+# Quickstart
+
+If you have no idea what the rest of this document is talking about, go read the [quickstart](docs/quickstart.md).
+
 # Install
 
 If you have the Rust toolchain installed:
