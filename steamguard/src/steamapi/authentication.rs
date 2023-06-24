@@ -4,7 +4,7 @@ use crate::{
 		steammessages_auth_steamclient::*,
 	},
 	token::Jwt,
-	transport::Transport,
+	transport::{Transport, TransportError},
 };
 
 const SERVICE_NAME: &str = "IAuthenticationService";
@@ -139,8 +139,10 @@ where
 		&mut self,
 		req: CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
 		access_token: &Jwt,
-	) -> anyhow::Result<ApiResponse<CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response>>
-	{
+	) -> Result<
+		ApiResponse<CAuthentication_UpdateAuthSessionWithMobileConfirmation_Response>,
+		TransportError,
+	> {
 		let req = ApiRequest::new(
 			SERVICE_NAME,
 			"UpdateAuthSessionWithMobileConfirmation",

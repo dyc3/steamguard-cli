@@ -9,7 +9,7 @@ use anyhow::Result;
 pub use confirmation::{Confirmation, ConfirmationType};
 use hmacsha1::hmac_sha1;
 use log::*;
-pub use qrapprover::QrApprover;
+pub use qrapprover::{QrApprover, QrApproverError};
 use reqwest::{
 	cookie::CookieStore,
 	header::{COOKIE, USER_AGENT},

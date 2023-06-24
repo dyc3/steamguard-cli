@@ -96,6 +96,12 @@ struct Challenge {
 pub enum QrApproverError {
 	#[error("Invalid challenge URL")]
 	InvalidChallengeUrl,
+	#[error("Steam says that this qr login challege has already been used. Try again with a new QR code.")]
+	DuplicateRequest,
+	#[error("Unauthorized")]
+	Unauthorized,
+	#[error("Transport error: {0}")]
+	TransportError(crate::transport::TransportError),
 	#[error("Unknown EResult: {0:?}")]
 	UnknownEResult(EResult),
 	#[error("Unknown error: {0}")]
@@ -104,13 +110,25 @@ pub enum QrApproverError {
 
 impl From<EResult> for QrApproverError {
 	fn from(result: EResult) -> Self {
-		Self::UnknownEResult(result)
+		match result {
+			EResult::DuplicateRequest => Self::DuplicateRequest,
+			_ => Self::UnknownEResult(result),
+		}
 	}
 }
 
 impl From<anyhow::Error> for QrApproverError {
 	fn from(err: anyhow::Error) -> Self {
 		Self::Unknown(err)
+	}
+}
+
+impl From<crate::transport::TransportError> for QrApproverError {
+	fn from(err: crate::transport::TransportError) -> Self {
+		match err {
+			crate::transport::TransportError::Unauthorized => Self::Unauthorized,
+			_ => Self::TransportError(err),
+		}
 	}
 }
 
