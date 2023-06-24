@@ -39,7 +39,7 @@ impl AccountCommand for TradeCommand {
 				crate::do_login(&mut account)?;
 			}
 
-			info!("Checking for trade confirmations");
+			info!("{}: Checking for trade confirmations", account.account_name);
 			let confirmations: Vec<Confirmation>;
 			loop {
 				match account.get_trade_confirmations() {
@@ -53,6 +53,11 @@ impl AccountCommand for TradeCommand {
 						crate::do_login(&mut account)?;
 					}
 				}
+			}
+
+			if confirmations.is_empty() {
+				info!("{}: No confirmations", account.account_name);
+				continue;
 			}
 
 			let mut any_failed = false;
