@@ -9,7 +9,25 @@ pub trait Transport {
 	fn send_request<Req: BuildableRequest + MessageFull, Res: MessageFull>(
 		&mut self,
 		req: ApiRequest<Req>,
-	) -> anyhow::Result<ApiResponse<Res>>;
+	) -> Result<ApiResponse<Res>, TransportError>;
 
 	fn close(&mut self);
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum TransportError {
+	#[error("Transport failed to parse response headers")]
+	HeaderParseFailure {
+		header: String,
+		#[source]
+		source: anyhow::Error,
+	},
+	#[error("Transport failed to parse response body")]
+	ProtobufError(#[from] protobuf::Error),
+	#[error("Unauthorized: Access token is missing or invalid")]
+	Unauthorized,
+	#[error("NetworkFailure: Transport failed to make request: {0}")]
+	NetworkFailure(#[from] reqwest::Error),
+	#[error("Unexpected error when transport was making request: {0}")]
+	Unknown(#[from] anyhow::Error),
 }
