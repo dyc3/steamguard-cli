@@ -108,6 +108,7 @@ impl From<anyhow::Error> for QrApproverError {
 	}
 }
 
+#[cfg(test)]
 mod tests {
 	use super::*;
 
