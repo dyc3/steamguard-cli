@@ -1,6 +1,3 @@
-// notes for migration:
-// account names must be made lowercase
-
 use std::{fs::File, io::Read, path::Path};
 
 use log::debug;

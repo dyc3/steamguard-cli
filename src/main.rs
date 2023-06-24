@@ -26,6 +26,7 @@ extern crate proptest;
 extern crate ring;
 mod accountmanager;
 mod commands;
+mod debug;
 mod encryption;
 mod errors;
 mod secret_string;

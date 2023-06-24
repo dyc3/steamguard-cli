@@ -1,7 +1,7 @@
 use log::*;
 use steamguard::{Confirmation, ConfirmationType};
 
-use crate::tui;
+use crate::{debug::parse_json_stripped, tui};
 
 use super::*;
 
@@ -16,6 +16,12 @@ pub struct DebugCommand {
 	pub demo_prompt_char: bool,
 	#[clap(long, help = "Show an example confirmation menu using dummy data.")]
 	pub demo_conf_menu: bool,
+
+	#[clap(
+		long,
+		help = "Read the specified file, parse it, strip values, and print the result."
+	)]
+	pub print_stripped_json: Option<String>,
 }
 
 impl ConstCommand for DebugCommand {
@@ -31,6 +37,9 @@ impl ConstCommand for DebugCommand {
 		}
 		if self.demo_conf_menu {
 			demo_confirmation_menu();
+		}
+		if let Some(path) = self.print_stripped_json.as_ref() {
+			debug_print_json(path)?;
 		}
 		Ok(())
 	}
@@ -95,4 +104,12 @@ pub fn demo_confirmation_menu() {
 	])
 	.expect("confirmation menu demo failed");
 	println!("accept: {}, deny: {}", accept.len(), deny.len());
+}
+
+fn debug_print_json(path: &str) -> anyhow::Result<()> {
+	let json = std::fs::read_to_string(path)?;
+	let v = parse_json_stripped(&json)?;
+	println!("{}", serde_json::to_string_pretty(&v)?);
+
+	Ok(())
 }
