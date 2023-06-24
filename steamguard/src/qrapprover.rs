@@ -98,6 +98,8 @@ pub enum QrApproverError {
 	InvalidChallengeUrl,
 	#[error("Steam says that this qr login challege has already been used. Try again with a new QR code.")]
 	DuplicateRequest,
+	#[error("Steam says that this qr login challege has expired. Try again with a new QR code.")]
+	Expired,
 	#[error("Unauthorized")]
 	Unauthorized,
 	#[error("Transport error: {0}")]
