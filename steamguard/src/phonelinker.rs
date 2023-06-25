@@ -29,7 +29,7 @@ impl PhoneLinker {
 			.client
 			.set_account_phone_number(req, self.tokens.access_token())?;
 
-		if resp.result != EResult::OK {
+		if resp.result != EResult::Pending {
 			return Err(SetPhoneNumberError::UnknownEResult(resp.result));
 		}
 
@@ -97,9 +97,7 @@ pub enum SetPhoneNumberError {
 
 impl From<EResult> for SetPhoneNumberError {
 	fn from(result: EResult) -> Self {
-		match result {
-			r => SetPhoneNumberError::UnknownEResult(r),
-		}
+		SetPhoneNumberError::UnknownEResult(result)
 	}
 }
 
@@ -140,8 +138,6 @@ pub enum ConfirmPhoneNumberError {
 
 impl From<EResult> for ConfirmPhoneNumberError {
 	fn from(result: EResult) -> Self {
-		match result {
-			r => ConfirmPhoneNumberError::UnknownEResult(r),
-		}
+		ConfirmPhoneNumberError::UnknownEResult(result)
 	}
 }
