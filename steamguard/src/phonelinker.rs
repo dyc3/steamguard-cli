@@ -6,6 +6,8 @@ use crate::{
 	transport::WebApiTransport,
 };
 
+pub use phonenumber::PhoneNumber;
+
 pub struct PhoneLinker {
 	client: PhoneClient<WebApiTransport>,
 	tokens: Tokens,
@@ -16,19 +18,24 @@ impl PhoneLinker {
 		Self { client, tokens }
 	}
 
+	/// If successful, wait for the user to click the link in the email, then immediately call [`send_phone_verification_code`].
 	pub fn set_account_phone_number(
 		&self,
-		phone_number: String,
-		phone_country_code: String,
+		phone_number: PhoneNumber,
 	) -> Result<SetAccountPhoneNumberResponse, SetPhoneNumberError> {
 		// This results in an email being sent to the account's email address with a link to click on to confirm the phone number.
 		// This endpoint also does almost no validation of the phone number. It only validates it after the user clicks the link.
 
-		// `phone_number` needs to include the country code
+		// `phone_number` needs to include the country code in the format `11234567890`
 
 		let mut req = CPhone_SetAccountPhoneNumber_Request::new();
-		req.set_phone_number(phone_number);
-		req.set_phone_country_code(phone_country_code);
+		req.set_phone_number(
+			phone_number
+				.format()
+				.mode(phonenumber::Mode::E164)
+				.to_string(),
+		);
+		req.set_phone_country_code(phone_number.code().value().to_string());
 
 		let resp = self
 			.client
@@ -44,6 +51,7 @@ impl PhoneLinker {
 
 	// confirm_add_phone_to_account is actually not needed, because it's performed by the user clicking the link in the email.
 
+	/// language 0 is english
 	pub fn send_phone_verification_code(&self, language: u32) -> anyhow::Result<()> {
 		let mut req = CPhone_SendPhoneVerificationCode_Request::new();
 		req.set_language(language);
