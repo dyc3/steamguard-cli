@@ -1,4 +1,5 @@
 pub mod authentication;
+pub mod phone;
 pub mod twofactor;
 
 use crate::{
