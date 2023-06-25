@@ -162,9 +162,6 @@ pub enum AccountLinkError {
 	/// No phone number on the account
 	#[error("A phone number is needed, but not already present on the account.")]
 	MustProvidePhoneNumber,
-	/// A phone number is already on the account
-	#[error("A phone number was provided, but one is already present on the account.")]
-	MustRemovePhoneNumber,
 	/// User need to click link from confirmation email
 	#[error("An email has been sent to the user's email, click the link in that email.")]
 	MustConfirmEmail,
