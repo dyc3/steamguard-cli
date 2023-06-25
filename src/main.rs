@@ -33,29 +33,54 @@ mod encryption;
 mod errors;
 mod secret_string;
 pub(crate) mod tui;
+#[cfg(feature = "updater")]
+mod updater;
 
 fn main() {
-	std::process::exit(match run() {
+	let args = commands::Args::parse();
+
+	stderrlog::new()
+		.verbosity(args.global.verbosity as usize)
+		.module(module_path!())
+		.module("steamguard")
+		.init()
+		.unwrap();
+	debug!("{:?}", args);
+	#[cfg(feature = "updater")]
+	let should_do_update_check = !args.global.no_update_check;
+
+	let exit_code = match run(args) {
 		Ok(_) => 0,
 		Err(e) => {
 			error!("{:?}", e);
 			255
 		}
-	});
+	};
+
+	#[cfg(feature = "updater")]
+	if should_do_update_check {
+		match updater::check_for_update() {
+			Ok(Some(version)) => {
+				eprintln!();
+				info!(
+					"steamguard-cli v{} is available. Download it here: https://github.com/dyc3/steamguard-cli/releases",
+					version
+				);
+			}
+			Ok(None) => {
+				debug!("No update available");
+			}
+			Err(e) => {
+				warn!("Failed to check for updates: {}", e);
+			}
+		}
+	}
+
+	std::process::exit(exit_code);
 }
 
-fn run() -> anyhow::Result<()> {
-	let args = commands::Args::parse();
-	info!("{:?}", args);
-
+fn run(args: commands::Args) -> anyhow::Result<()> {
 	let globalargs = args.global;
-
-	stderrlog::new()
-		.verbosity(globalargs.verbosity as usize)
-		.module(module_path!())
-		.module("steamguard")
-		.init()
-		.unwrap();
 
 	let cmd: CommandType = match args.sub.unwrap_or(Subcommands::Code(args.code)) {
 		Subcommands::Debug(args) => CommandType::Const(Box::new(args)),
