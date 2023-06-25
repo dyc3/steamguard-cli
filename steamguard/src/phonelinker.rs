@@ -21,6 +21,11 @@ impl PhoneLinker {
 		phone_number: String,
 		phone_country_code: String,
 	) -> Result<SetAccountPhoneNumberResponse, SetPhoneNumberError> {
+		// This results in an email being sent to the account's email address with a link to click on to confirm the phone number.
+		// This endpoint also does almost no validation of the phone number. It only validates it after the user clicks the link.
+
+		// `phone_number` needs to include the country code
+
 		let mut req = CPhone_SetAccountPhoneNumber_Request::new();
 		req.set_phone_number(phone_number);
 		req.set_phone_country_code(phone_country_code);
@@ -42,6 +47,7 @@ impl PhoneLinker {
 		steam_id: u64,
 		stoken: String,
 	) -> anyhow::Result<(), ConfirmPhoneNumberError> {
+		// this step is actually not needed, because it's performed by the user clicking the link in the email.
 		let mut req = CPhone_ConfirmAddPhoneToAccount_Request::new();
 		req.set_steamid(steam_id);
 		req.set_stoken(stoken);
