@@ -43,10 +43,6 @@ impl ManifestCommand for SetupCommand {
 					eprintln!("Looks like you don't have a phone number on this account.");
 					do_add_phone_number(linker.tokens())?;
 				}
-				Err(AccountLinkError::AuthenticatorPresent) => {
-					println!("An authenticator is already present on this account.");
-					bail!("An authenticator is already present on this account.");
-				}
 				Err(AccountLinkError::MustConfirmEmail) => {
 					println!("Check your email and click the link.");
 					tui::pause();
