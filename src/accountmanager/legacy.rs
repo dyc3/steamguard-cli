@@ -155,7 +155,7 @@ pub struct Session {
 	#[serde(default, rename = "WebCookie")]
 	pub web_cookie: Option<String>,
 	#[serde(default, rename = "OAuthToken")]
-	pub token: String,
+	pub token: Option<String>,
 	#[serde(rename = "SteamID")]
 	pub steam_id: u64,
 }

@@ -294,6 +294,10 @@ mod tests {
 				manifest: "src/fixtures/maFiles/compat/no-webcookie/manifest.json",
 				passkey: None,
 			},
+			Test {
+				manifest: "src/fixtures/maFiles/compat/null-oauthtoken/manifest.json",
+				passkey: None,
+			},
 		];
 		for case in cases {
 			eprintln!("testing: {:?}", case);
