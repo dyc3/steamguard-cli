@@ -1,7 +1,9 @@
 use log::*;
+use phonenumber::PhoneNumber;
 use secrecy::ExposeSecret;
 use steamguard::{
-	accountlinker::AccountLinkSuccess, AccountLinkError, AccountLinker, FinalizeLinkError,
+	accountlinker::AccountLinkSuccess, phonelinker::PhoneLinker, steamapi::PhoneClient,
+	token::Tokens, transport::WebApiTransport, AccountLinkError, AccountLinker, FinalizeLinkError,
 };
 
 use crate::{tui, AccountManager};
@@ -25,11 +27,11 @@ impl ManifestCommand for SetupCommand {
 			);
 		}
 		info!("Logging in to {}", username);
-		let session =
+		let tokens =
 			crate::do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
 		info!("Adding authenticator...");
-		let mut linker = AccountLinker::new(session);
+		let mut linker = AccountLinker::new(tokens);
 		let link: AccountLinkSuccess;
 		loop {
 			match linker.link() {
@@ -37,14 +39,9 @@ impl ManifestCommand for SetupCommand {
 					link = a;
 					break;
 				}
-				Err(AccountLinkError::MustRemovePhoneNumber) => {
-					println!("There is already a phone number on this account, please remove it and try again.");
-					bail!("There is already a phone number on this account, please remove it and try again.");
-				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
-					println!("Enter your phone number in the following format: +1 123-456-7890");
-					print!("Phone number: ");
-					linker.phone_number = tui::prompt().replace(&['(', ')', '-'][..], "");
+					eprintln!("Looks like you don't have a phone number on this account.");
+					do_add_phone_number(linker.tokens())?;
 				}
 				Err(AccountLinkError::AuthenticatorPresent) => {
 					println!("An authenticator is already present on this account.");
@@ -134,4 +131,53 @@ impl ManifestCommand for SetupCommand {
 
 		Ok(())
 	}
+}
+
+pub fn do_add_phone_number(tokens: &Tokens) -> anyhow::Result<()> {
+	let client = PhoneClient::new(WebApiTransport::new());
+
+	let linker = PhoneLinker::new(client, tokens.clone());
+
+	let phone_number: PhoneNumber;
+	loop {
+		eprintln!("Enter your phone number, including country code, in this format: +1 1234567890");
+		eprint!("Phone number: ");
+		let number = tui::prompt();
+		match phonenumber::parse(None, &number) {
+			Ok(p) => {
+				phone_number = p;
+				break;
+			}
+			Err(err) => {
+				error!("Failed to parse phone number: {}", err);
+			}
+		}
+	}
+
+	let resp = linker.set_account_phone_number(phone_number)?;
+
+	eprintln!(
+		"Please click the link in the email sent to {}",
+		resp.confirmation_email_address()
+	);
+	tui::pause();
+
+	debug!("sending phone verification code");
+	linker.send_phone_verification_code(0)?;
+
+	loop {
+		eprint!("Enter the code sent to your phone: ");
+		let code = tui::prompt();
+
+		match linker.verify_account_phone_with_code(code) {
+			Ok(_) => break,
+			Err(err) => {
+				error!("Failed to verify phone number: {}", err);
+			}
+		}
+	}
+
+	info!("Successfully added phone number to account");
+
+	Ok(())
 }
