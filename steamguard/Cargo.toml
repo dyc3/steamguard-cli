@@ -33,6 +33,7 @@ zeroize = "^1.4.3"
 protobuf = "3.2.0"
 protobuf-json-mapping = "3.2.0"
 hmac-sha256 = "1.1.7"
+phonenumber = "0.3"
 
 [build-dependencies]
 anyhow = "^1.0"

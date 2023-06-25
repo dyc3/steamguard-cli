@@ -11,7 +11,6 @@ use thiserror::Error;
 #[derive(Debug)]
 pub struct AccountLinker {
 	device_id: String,
-	pub phone_number: String,
 	pub account: Option<SteamGuardAccount>,
 	pub finalized: bool,
 	tokens: Tokens,
@@ -22,7 +21,6 @@ impl AccountLinker {
 	pub fn new(tokens: Tokens) -> AccountLinker {
 		Self {
 			device_id: generate_device_id(),
-			phone_number: "".into(),
 			account: None,
 			finalized: false,
 			tokens,
@@ -30,29 +28,11 @@ impl AccountLinker {
 		}
 	}
 
+	pub fn tokens(&self) -> &Tokens {
+		&self.tokens
+	}
+
 	pub fn link(&mut self) -> anyhow::Result<AccountLinkSuccess, AccountLinkError> {
-		// let has_phone = self.client.has_phone()?;
-
-		// if has_phone && !self.phone_number.is_empty() {
-		// 	return Err(AccountLinkError::MustRemovePhoneNumber);
-		// }
-		// if !has_phone && self.phone_number.is_empty() {
-		// 	return Err(AccountLinkError::MustProvidePhoneNumber);
-		// }
-
-		// if !has_phone {
-		// 	if self.sent_confirmation_email {
-		// 		if !self.client.check_email_confirmation()? {
-		// 			return Err(anyhow!("Failed email confirmation check"))?;
-		// 		}
-		// 	} else if !self.client.add_phone_number(self.phone_number.clone())? {
-		// 		return Err(anyhow!("Failed to add phone number"))?;
-		// 	} else {
-		// 		self.sent_confirmation_email = true;
-		// 		return Err(AccountLinkError::MustConfirmEmail);
-		// 	}
-		// }
-
 		let access_token = self.tokens.access_token();
 		let steam_id = access_token.decode()?.steam_id();
 
@@ -162,14 +142,13 @@ pub enum AccountLinkError {
 	/// No phone number on the account
 	#[error("A phone number is needed, but not already present on the account.")]
 	MustProvidePhoneNumber,
-	/// A phone number is already on the account
-	#[error("A phone number was provided, but one is already present on the account.")]
-	MustRemovePhoneNumber,
 	/// User need to click link from confirmation email
 	#[error("An email has been sent to the user's email, click the link in that email.")]
 	MustConfirmEmail,
-	#[error("Authenticator is already present.")]
+	#[error("Authenticator is already present on this account.")]
 	AuthenticatorPresent,
+	#[error("You are sending too many requests to Steam, and we got rate limited. Wait at least a couple hours and try again.")]
+	RateLimitExceeded,
 	#[error("Steam was unable to link the authenticator to the account. No additional information about this error is available. This is a Steam error, not a steamguard-cli error. Try adding a phone number to your Steam account (which you can do here: https://store.steampowered.com/phone/add), or try again later.")]
 	GenericFailure,
 	#[error("Steam returned an unexpected error code: {0:?}")]
@@ -181,10 +160,13 @@ pub enum AccountLinkError {
 impl From<EResult> for AccountLinkError {
 	fn from(result: EResult) -> Self {
 		match result {
+			EResult::RateLimitExceeded => AccountLinkError::RateLimitExceeded,
+			EResult::NoVerifiedPhone => AccountLinkError::MustProvidePhoneNumber,
 			EResult::DuplicateRequest => AccountLinkError::AuthenticatorPresent,
 			// If the user has no phone number on their account, it will always return this status code.
 			// However, this does not mean that this status just means "no phone number". It can also
 			// be literally anything else, so that's why we return GenericFailure here.
+			// update 2023: This may be no longer true, now it seems to return NoVerifiedPhone if there is no phone number. We'll see.
 			EResult::Fail => AccountLinkError::GenericFailure,
 			r => AccountLinkError::UnknownEResult(r),
 		}

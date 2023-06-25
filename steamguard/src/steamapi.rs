@@ -1,4 +1,5 @@
 pub mod authentication;
+pub mod phone;
 pub mod twofactor;
 
 use crate::{
@@ -8,6 +9,7 @@ use reqwest::Url;
 use serde::Deserialize;
 
 pub use self::authentication::AuthenticationClient;
+pub use self::phone::PhoneClient;
 pub use self::twofactor::TwoFactorClient;
 
 lazy_static! {

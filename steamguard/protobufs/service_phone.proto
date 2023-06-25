@@ -1,0 +1,50 @@
+
+message CPhone_AddPhoneToAccount_Response {
+	optional bool success = 1;
+	optional int32 phone_number_type = 2;
+}
+
+message CPhone_ConfirmAddPhoneToAccount_Request {
+	optional fixed64 steamid = 1;
+	optional string stoken = 2;
+}
+
+message CPhone_IsAccountWaitingForEmailConfirmation_Request {
+}
+
+message CPhone_IsAccountWaitingForEmailConfirmation_Response {
+	optional bool awaiting_email_confirmation = 1;
+	optional uint32 seconds_to_wait = 2;
+}
+
+message CPhone_SendPhoneVerificationCode_Request {
+	optional uint32 language = 1;
+}
+
+message CPhone_SendPhoneVerificationCode_Response {
+}
+
+message CPhone_SetAccountPhoneNumber_Request {
+	optional string phone_number = 1;
+	optional string phone_country_code = 2;
+}
+
+message CPhone_SetAccountPhoneNumber_Response {
+	optional string confirmation_email_address = 1;
+	optional string phone_number_formatted = 2;
+}
+
+message CPhone_VerifyAccountPhoneWithCode_Request {
+	optional string code = 1;
+}
+
+message CPhone_VerifyAccountPhoneWithCode_Response {
+}
+
+service Phone {
+	rpc ConfirmAddPhoneToAccount (.CPhone_ConfirmAddPhoneToAccount_Request) returns (.CPhone_AddPhoneToAccount_Response);
+	rpc IsAccountWaitingForEmailConfirmation (.CPhone_IsAccountWaitingForEmailConfirmation_Request) returns (.CPhone_IsAccountWaitingForEmailConfirmation_Response);
+	rpc SendPhoneVerificationCode (.CPhone_SendPhoneVerificationCode_Request) returns (.CPhone_SendPhoneVerificationCode_Response);
+	rpc SetAccountPhoneNumber (.CPhone_SetAccountPhoneNumber_Request) returns (.CPhone_SetAccountPhoneNumber_Response);
+	rpc VerifyAccountPhoneWithCode (.CPhone_VerifyAccountPhoneWithCode_Request) returns (.CPhone_VerifyAccountPhoneWithCode_Response);
+}
