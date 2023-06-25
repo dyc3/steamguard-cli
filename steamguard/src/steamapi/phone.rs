@@ -95,7 +95,7 @@ where
 		&self,
 		req: CPhone_VerifyAccountPhoneWithCode_Request,
 		access_token: &Jwt,
-	) -> anyhow::Result<ApiResponse<CPhone_VerifyAccountPhoneWithCode_Response>> {
+	) -> Result<ApiResponse<CPhone_VerifyAccountPhoneWithCode_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "VerifyAccountPhoneWithCode", 1u32, req)
 			.with_access_token(access_token);
 		let resp = self

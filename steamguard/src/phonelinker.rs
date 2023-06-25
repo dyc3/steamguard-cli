@@ -42,28 +42,39 @@ impl PhoneLinker {
 		Ok(resp.into())
 	}
 
-	pub fn confirm_add_phone_to_account(
-		&self,
-		steam_id: u64,
-		stoken: String,
-	) -> anyhow::Result<(), ConfirmPhoneNumberError> {
-		// this step is actually not needed, because it's performed by the user clicking the link in the email.
-		let mut req = CPhone_ConfirmAddPhoneToAccount_Request::new();
-		req.set_steamid(steam_id);
-		req.set_stoken(stoken);
+	// confirm_add_phone_to_account is actually not needed, because it's performed by the user clicking the link in the email.
+
+	pub fn send_phone_verification_code(&self, language: u32) -> anyhow::Result<()> {
+		let mut req = CPhone_SendPhoneVerificationCode_Request::new();
+		req.set_language(language);
 
 		let resp = self
 			.client
-			.confirm_add_phone_to_account(req, self.tokens.access_token())?;
+			.send_phone_verification_code(req, self.tokens.access_token())?;
+
+		if resp.result != EResult::OK {
+			return Err(anyhow::anyhow!(
+				"Failed to send phone verification code: {:?}",
+				resp.result
+			));
+		}
+
+		Ok(())
+	}
+
+	pub fn verify_account_phone_with_code(
+		&self,
+		code: String,
+	) -> anyhow::Result<(), VerifyPhoneError> {
+		let mut req = CPhone_VerifyAccountPhoneWithCode_Request::new();
+		req.set_code(code);
+
+		let resp = self
+			.client
+			.verify_account_phone_with_code(req, self.tokens.access_token())?;
 
 		if resp.result != EResult::OK {
 			return Err(resp.result.into());
-		}
-
-		let resp = resp.into_response_data();
-
-		if !resp.success() {
-			return Err(ConfirmPhoneNumberError::Failed);
 		}
 
 		Ok(())
@@ -133,17 +144,15 @@ impl From<CPhone_SetAccountPhoneNumber_Response> for SetAccountPhoneNumberRespon
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ConfirmPhoneNumberError {
-	#[error("Failed to confirm phone number")]
-	Failed,
+pub enum VerifyPhoneError {
 	#[error("Transport error: {0}")]
 	TransportError(#[from] TransportError),
 	#[error("Steam says: {0:?}")]
 	UnknownEResult(EResult),
 }
 
-impl From<EResult> for ConfirmPhoneNumberError {
+impl From<EResult> for VerifyPhoneError {
 	fn from(result: EResult) -> Self {
-		ConfirmPhoneNumberError::UnknownEResult(result)
+		VerifyPhoneError::UnknownEResult(result)
 	}
 }
