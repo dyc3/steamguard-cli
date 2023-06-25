@@ -13,7 +13,6 @@ use steamguard::{
 };
 use steamguard::{steamapi, DeviceDetails, LoginError, SteamGuardAccount, UserLogin};
 use steamguard::{steamapi::AuthenticationClient, token::Tokens};
-use updater::check_for_update;
 
 use crate::accountmanager::migrate::load_and_migrate;
 pub use crate::accountmanager::{AccountManager, ManifestAccountLoadError, ManifestLoadError};
@@ -34,6 +33,7 @@ mod encryption;
 mod errors;
 mod secret_string;
 pub(crate) mod tui;
+#[cfg(feature = "updater")]
 mod updater;
 
 fn main() {
@@ -46,6 +46,7 @@ fn main() {
 		.init()
 		.unwrap();
 	debug!("{:?}", args);
+	#[cfg(feature = "updater")]
 	let should_do_update_check = !args.global.no_update_check;
 
 	let exit_code = match run(args) {
@@ -56,8 +57,9 @@ fn main() {
 		}
 	};
 
+	#[cfg(feature = "updater")]
 	if should_do_update_check {
-		match check_for_update() {
+		match updater::check_for_update() {
 			Ok(Some(version)) => {
 				eprintln!();
 				info!(

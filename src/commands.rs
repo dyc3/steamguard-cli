@@ -105,6 +105,7 @@ pub(crate) struct GlobalArgs {
 	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
 	pub verbosity: Verbosity,
 
+	#[cfg(feature = "updater")]
 	#[clap(
 		long,
 		help = "Disable checking for updates.",
