@@ -67,7 +67,7 @@ impl ManifestCommand for SetupCommand {
 			Ok(_) => {}
 			Err(err) => {
 				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
-				println!(
+				eprintln!(
 				"Just in case, here is the account info. Save it somewhere just in case!\n{:#?}",
 				manager.get_account(&account_name).unwrap().lock().unwrap()
 			);
@@ -80,7 +80,7 @@ impl ManifestCommand for SetupCommand {
 			.expect("account was not present in manifest");
 		let mut account = account_arc.lock().unwrap();
 
-		println!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code.expose_secret());
+		eprintln!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code.expose_secret());
 		tui::pause();
 
 		debug!("attempting link finalization");
@@ -112,11 +112,11 @@ impl ManifestCommand for SetupCommand {
 		let revocation_code = account.revocation_code.clone();
 		drop(account); // explicitly drop the lock so we don't hang on the mutex
 
-		println!("Authenticator finalized.");
+		info!("Authenticator finalized.");
 		match manager.save() {
 			Ok(_) => {}
 			Err(err) => {
-				println!(
+				error!(
 					"Failed to save manifest, but we were able to save it before. {}",
 					err
 				);
@@ -124,7 +124,7 @@ impl ManifestCommand for SetupCommand {
 			}
 		}
 
-		println!(
+		eprintln!(
 			"Authenticator has been finalized. Please actually write down your revocation code: {}",
 			revocation_code.expose_secret()
 		);
