@@ -104,6 +104,13 @@ pub(crate) struct GlobalArgs {
 	pub passkey: Option<String>,
 	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
 	pub verbosity: Verbosity,
+
+	#[clap(
+		long,
+		help = "Disable checking for updates.",
+		long_help = "Disable checking for updates. By default, steamguard-cli will check for updates every now and then. This can be disabled with this flag."
+	)]
+	pub no_update_check: bool,
 }
 
 #[derive(Debug, Clone, Parser)]

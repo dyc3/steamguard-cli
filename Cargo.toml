@@ -1,8 +1,6 @@
 [workspace]
 
-members = [
-	"steamguard"
-]
+members = ["steamguard"]
 
 [package]
 name = "steamguard-cli"
@@ -61,6 +59,7 @@ gethostname = "0.4.3"
 secrecy = { version = "0.8", features = ["serde"] }
 zeroize = "^1.4.3"
 serde_path_to_error = "0.1.11"
+update-informer = { version = "1.0.0", default-features = false, features = ["github"] }
 
 [dev-dependencies]
 tempdir = "0.3"
