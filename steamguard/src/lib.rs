@@ -179,10 +179,10 @@ impl SteamGuardAccount {
 
 		trace!("{:?}", resp);
 		let text = resp.text().unwrap();
-		trace!("text: {:?}", text);
-		trace!("{}", text);
+		debug!("Confirmations response: {}", text);
 
-		let body: ConfirmationListResponse = serde_json::from_str(text.as_str())?;
+		let mut deser = serde_json::Deserializer::from_str(text.as_str());
+		let body: ConfirmationListResponse = serde_path_to_error::deserialize(&mut deser)?;
 		ensure!(body.success);
 		Ok(body.conf)
 	}
@@ -222,7 +222,8 @@ impl SteamGuardAccount {
 		let raw = resp.text()?;
 		debug!("send_confirmation_ajax() response body: {:?}", &raw);
 
-		let body: SendConfirmationResponse = serde_json::from_str(raw.as_str())?;
+		let mut deser = serde_json::Deserializer::from_str(raw.as_str());
+		let body: SendConfirmationResponse = serde_path_to_error::deserialize(&mut deser)?;
 
 		if !body.success {
 			return Err(anyhow!("Server responded with failure."));
@@ -256,16 +257,19 @@ impl SteamGuardAccount {
 		let time = steamapi::get_server_time()?.server_time();
 		let query_params = self.get_confirmation_query_params("details", time);
 
-		let resp: ConfirmationDetailsResponse = client.get(format!("https://steamcommunity.com/mobileconf/details/{}", conf.id).parse::<Url>().unwrap())
+		let resp = client.get(format!("https://steamcommunity.com/mobileconf/details/{}", conf.id).parse::<Url>().unwrap())
 			.header("X-Requested-With", "com.valvesoftware.android.steam.community")
 			.header(USER_AGENT, "Mozilla/5.0 (Linux; U; Android 4.1.1; en-us; Google Nexus 4 - 4.1.1 - API 16 - 768x1280 Build/JRO03S) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30")
 			.header(COOKIE, cookies.cookies(&url).unwrap())
 			.query(&query_params)
-			.send()?
-			.json()?;
+			.send()?;
 
-		ensure!(resp.success);
-		Ok(resp.html)
+		let text = resp.text()?;
+		let mut deser = serde_json::Deserializer::from_str(text.as_str());
+		let body: ConfirmationDetailsResponse = serde_path_to_error::deserialize(&mut deser)?;
+
+		ensure!(body.success);
+		Ok(body.html)
 	}
 
 	/// Removes the mobile authenticator from the steam account. If this operation succeeds, this object can no longer be considered valid.

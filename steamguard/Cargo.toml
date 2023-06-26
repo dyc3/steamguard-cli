@@ -34,6 +34,7 @@ protobuf = "3.2.0"
 protobuf-json-mapping = "3.2.0"
 hmac-sha256 = "1.1.7"
 phonenumber = "0.3"
+serde_path_to_error = "0.1.11"
 
 [build-dependencies]
 anyhow = "^1.0"
