@@ -30,11 +30,11 @@
 			"cargo": {
 				"args": [
 					"build",
-					"--bin=steamguard-cli",
+					"--bin=steamguard",
 					"--package=steamguard-cli"
 				],
 				"filter": {
-					"name": "steamguard-cli",
+					"name": "steamguard",
 					"kind": "bin"
 				}
 			},
@@ -49,11 +49,11 @@
 				"args": [
 					"test",
 					"--no-run",
-					"--bin=steamguard-cli",
+					"--bin=steamguard",
 					"--package=steamguard-cli"
 				],
 				"filter": {
-					"name": "steamguard-cli",
+					"name": "steamguard",
 					"kind": "bin"
 				}
 			},

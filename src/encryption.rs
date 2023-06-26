@@ -60,7 +60,7 @@ pub trait EntryEncryptor {
 pub struct LegacySdaCompatible;
 
 impl LegacySdaCompatible {
-	const PBKDF2_ITERATIONS: u32 = 50000; // This is excessive, but necessary to maintain compatibility with SteamDesktopAuthenticator.
+	const PBKDF2_ITERATIONS: u32 = 50000; // This is necessary to maintain compatibility with SteamDesktopAuthenticator.
 	const KEY_SIZE_BYTES: usize = 32;
 
 	fn get_encryption_key(passkey: &str, salt: &str) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
