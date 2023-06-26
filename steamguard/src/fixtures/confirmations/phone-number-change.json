@@ -1,0 +1,22 @@
+{
+	"success": true,
+	"conf": [
+		{
+			"type": 5,
+			"type_name": "Account details",
+			"id": "13831364158",
+			"creator_id": "4486196268090979848",
+			"nonce": "11118003665658287603",
+			"creation_time": 1687821676,
+			"cancel": "Cancel",
+			"accept": "Confirm",
+			"icon": null,
+			"multi": false,
+			"headline": "Change phone number",
+			"summary": [
+				""
+			],
+			"warn": null
+		}
+	]
+}
