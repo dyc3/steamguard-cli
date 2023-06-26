@@ -1,6 +1,7 @@
 extern crate rpassword;
 use clap::Parser;
 use log::*;
+use secrecy::SecretString;
 use std::{
 	io::Write,
 	path::Path,
@@ -164,7 +165,8 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 				if manager.has_passkey() {
 					error!("Incorrect passkey");
 				}
-				passkey = rpassword::prompt_password_stderr("Enter encryption passkey: ").ok();
+				let raw = rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
+				passkey = Some(SecretString::new(raw));
 				manager.submit_passkey(passkey);
 			}
 			Err(e) => {
@@ -193,7 +195,8 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 				if manager.has_passkey() {
 					error!("Incorrect passkey");
 				}
-				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				let raw = rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
+				passkey = Some(SecretString::new(raw));
 				manager.submit_passkey(passkey);
 			}
 			Err(e) => {

@@ -72,7 +72,7 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 	fn load(
 		&self,
 		path: &Path,
-		passkey: Option<&String>,
+		passkey: Option<&SecretString>,
 		encryption_params: Option<&EntryEncryptionParams>,
 	) -> anyhow::Result<SdaAccount, ManifestAccountLoadError> {
 		debug!("loading entry: {:?}", path);
@@ -82,8 +82,11 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 			(Some(passkey), Some(params)) => {
 				let mut ciphertext: Vec<u8> = vec![];
 				reader.read_to_end(&mut ciphertext)?;
-				let plaintext =
-					crate::encryption::LegacySdaCompatible::decrypt(passkey, params, ciphertext)?;
+				let plaintext = crate::encryption::LegacySdaCompatible::decrypt(
+					passkey.expose_secret(),
+					params,
+					ciphertext,
+				)?;
 				if plaintext[0] != b'{' && plaintext[plaintext.len() - 1] != b'}' {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}

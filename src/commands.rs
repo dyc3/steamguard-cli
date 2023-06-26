@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use clap::{clap_derive::ArgEnum, Parser};
 use clap_complete::Shell;
+use secrecy::SecretString;
 use std::str::FromStr;
 use steamguard::SteamGuardAccount;
 
@@ -101,7 +102,7 @@ pub(crate) struct GlobalArgs {
 		env = "STEAMGUARD_CLI_PASSKEY",
 		help = "Specify your encryption passkey."
 	)]
-	pub passkey: Option<String>,
+	pub passkey: Option<SecretString>,
 	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
 	pub verbosity: Verbosity,
 
