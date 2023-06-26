@@ -4,7 +4,7 @@ members = ["steamguard"]
 
 [package]
 name = "steamguard-cli"
-version = "0.9.2"
+version = "0.9.3"
 authors = ["dyc3 (Carson McManus) <carson.mcmanus1@gmail.com>"]
 edition = "2018"
 description = "A command line utility to generate Steam 2FA codes and respond to confirmations."
@@ -48,7 +48,7 @@ cookie = "0.14"
 regex = "1"
 lazy_static = "1.4.0"
 uuid = { version = "0.8", features = ["v4"] }
-steamguard = { version = "^0.9.0", path = "./steamguard" }
+steamguard = { version = "^0.9.1", path = "./steamguard" }
 dirs = "3.0.2"
 ring = { version = "0.16.20", features = ["std"] }
 aes = "0.8.3"
