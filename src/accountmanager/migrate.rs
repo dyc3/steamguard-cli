@@ -263,7 +263,7 @@ pub fn load_and_upgrade_sda_account(path: &Path) -> anyhow::Result<SteamGuardAcc
 
 #[cfg(test)]
 mod tests {
-	use crate::accountmanager::CURRENT_MANIFEST_VERSION;
+	use crate::{accountmanager::CURRENT_MANIFEST_VERSION, AccountManager};
 
 	use super::*;
 
@@ -357,6 +357,81 @@ mod tests {
 			let account = load_and_upgrade_sda_account(Path::new(case.mafile))?;
 			assert_eq!(account.account_name, case.account_name);
 			assert_eq!(account.steam_id, case.steam_id);
+		}
+
+		Ok(())
+	}
+
+	#[test]
+	fn should_migrate_to_latest_version_save_and_load_again() -> anyhow::Result<()> {
+		#[derive(Debug)]
+		struct Test {
+			dir: &'static str,
+			passkey: Option<SecretString>,
+		}
+		let cases = vec![
+			Test {
+				dir: "src/fixtures/maFiles/compat/1-account/",
+				passkey: None,
+			},
+			// FIXME: disabled because of #233
+			// Test {
+			// 	manifest: "src/fixtures/maFiles/compat/1-account-encrypted/",
+			// 	passkey: Some(SecretString::new("password".into())),
+			// },
+			Test {
+				dir: "src/fixtures/maFiles/compat/2-account/",
+				passkey: None,
+			},
+			Test {
+				dir: "src/fixtures/maFiles/compat/missing-account-name/",
+				passkey: None,
+			},
+			Test {
+				dir: "src/fixtures/maFiles/compat/no-webcookie/",
+				passkey: None,
+			},
+			Test {
+				dir: "src/fixtures/maFiles/compat/null-oauthtoken/",
+				passkey: None,
+			},
+		];
+		for case in cases {
+			eprintln!("testing: {:?}", case);
+			let temp = tempdir::TempDir::new("steamguard-cli-test")?;
+			for file in std::fs::read_dir(case.dir)? {
+				let file = file?;
+				let path = file.path();
+				eprintln!("copying {:?}", path);
+				let dest = temp.path().join(path.file_name().unwrap());
+				eprintln!("to {:?}", dest);
+				std::fs::copy(&path, dest)?;
+			}
+
+			let (manifest, accounts) = do_migrate(
+				Path::join(temp.path(), "manifest.json").as_path(),
+				case.passkey.as_ref(),
+			)?;
+			assert_eq!(manifest.version, CURRENT_MANIFEST_VERSION);
+			assert_eq!(manifest.entries[0].account_name, "example");
+			assert_eq!(manifest.entries[0].steam_id, 1234);
+			assert_eq!(accounts[0].account_name, "example");
+			assert_eq!(accounts[0].steam_id, 1234);
+
+			let mut manager =
+				AccountManager::from_manifest(manifest, temp.path().to_str().unwrap().to_owned());
+			manager.submit_passkey(case.passkey.clone());
+			manager.register_accounts(accounts);
+			manager.save()?;
+
+			let path = Path::join(temp.path(), "manifest.json");
+			let mut manager = AccountManager::load(path.as_path())?;
+			manager.submit_passkey(case.passkey.clone());
+			manager.load_accounts()?;
+			let account = manager.get_or_load_account("example")?;
+			let account = account.lock().unwrap();
+			assert_eq!(account.account_name, "example");
+			assert_eq!(account.steam_id, 1234);
 		}
 
 		Ok(())
