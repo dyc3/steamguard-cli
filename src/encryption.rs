@@ -1,5 +1,5 @@
 use aes::cipher::{block_padding::Pkcs7, Key, KeyInit};
-use aes::cipher::{BlockDecrypt, BlockDecryptMut, BlockEncrypt, BlockSizeUser};
+use aes::cipher::{BlockDecrypt, BlockEncrypt, BlockSizeUser};
 use aes::Aes256;
 use inout::block_padding::generic_array::GenericArray;
 use inout::block_padding::Padding;
@@ -86,35 +86,34 @@ impl EntryEncryptor for LegacySdaCompatible {
 	fn encrypt(
 		passkey: &str,
 		params: &EntryEncryptionParams,
-		plaintext: Vec<u8>,
+		mut plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
-		let iv = base64::decode(&params.iv)?;
+		let mut iv = [0u8; IV_LENGTH];
+		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
 		let cipher = Aes256::new(&key);
 
 		let origsize = plaintext.len();
-		let buffersize: usize = (origsize / 16 + (if origsize % 16 == 0 { 0 } else { 1 })) * 16;
+		let buffersize: usize = (origsize / Aes256::block_size()
+			+ (if origsize % Aes256::block_size() == 0 {
+				0
+			} else {
+				1
+			})) * Aes256::block_size();
+		if plaintext.len() % IV_LENGTH != 0 {
+			let diff = buffersize - origsize;
+			let repeat = std::iter::repeat(diff).take(diff).map(|x| x as u8);
+			plaintext.extend(repeat);
+		}
 
-		let mut ciphertext = Vec::<u8>::with_capacity(buffersize);
-		let chunk_iter = plaintext.chunks_exact(Aes256::block_size());
-		let remainder = chunk_iter.remainder();
+		xor_in_place(&mut plaintext[0..IV_LENGTH], &iv);
+		let chunk_iter = plaintext.chunks_exact_mut(Aes256::block_size());
 		for chunk in chunk_iter {
-			let mut chunkbuffer = GenericArray::clone_from_slice(chunk);
+			let mut chunkbuffer = GenericArray::from_mut_slice(chunk);
 			cipher.encrypt_block(&mut chunkbuffer);
-			ciphertext.extend(&chunkbuffer);
-		}
-		if remainder.len() > 0 {
-			debug!("encrypting last chunk");
-			let mut buf = [0u8; 16];
-			buf[..remainder.len()].copy_from_slice(&remainder);
-			let mut padded = GenericArray::from_mut_slice(&mut buf);
-			Pkcs7::pad(&mut padded, remainder.len());
-			cipher.encrypt_block(padded);
-			ciphertext.extend(padded.iter());
 		}
 
-		// let ciphertext = cipher.encrypt(&mut buffer, buffersize)?;
-		let final_buffer = base64::encode(ciphertext);
+		let final_buffer = base64::encode(plaintext);
 		return Ok(final_buffer.as_bytes().to_vec());
 	}
 
@@ -124,16 +123,22 @@ impl EntryEncryptor for LegacySdaCompatible {
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
-		let iv = base64::decode(&params.iv)?;
+		let mut iv = [0u8; IV_LENGTH];
+		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
 		let cipher = Aes256::new(&key);
 		let mut decoded = base64::decode(ciphertext)?;
 		let decoded_len = decoded.len();
 
 		let mut plaintext = Vec::with_capacity(decoded.len());
-		for chunk in decoded.chunks_mut(16) {
+		for chunk in decoded.chunks_mut(Aes256::block_size()) {
 			let mut chunkbuffer = GenericArray::from_mut_slice(chunk);
 			cipher.decrypt_block(&mut chunkbuffer);
-			if decoded_len - plaintext.len() <= 16 || decoded_len == 16 {
+			if plaintext.len() == 0 {
+				xor_in_place(&mut chunkbuffer[0..IV_LENGTH], &iv);
+			}
+			if decoded_len - plaintext.len() <= Aes256::block_size()
+				|| decoded_len == Aes256::block_size()
+			{
 				debug!("decrypting last chunk");
 				match Pkcs7::unpad(&chunkbuffer) {
 					Ok(unpadded) => {
@@ -190,6 +195,12 @@ impl From<std::io::Error> for EntryEncryptionError {
 	}
 }
 
+fn xor_in_place<const N: usize>(a: &mut [u8], b: &[u8; N]) {
+	for (i, byte) in a.iter_mut().enumerate() {
+		*byte ^= b[i];
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -219,7 +230,12 @@ mod tests {
 
 	#[test]
 	fn test_ensure_encryption_symmetric() -> anyhow::Result<()> {
-		let cases = ["foo", "tactical glizzy", "glizzy gladiator"];
+		let cases = [
+			"foo",
+			"tactical glizzy",
+			"glizzy gladiator",
+			"shadow wizard money gang",
+		];
 		let passkey = "password";
 		let params = EntryEncryptionParams::generate();
 		for case in cases {
