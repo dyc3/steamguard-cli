@@ -629,11 +629,10 @@ mod tests {
 				manifest: "src/fixtures/maFiles/manifest-v1/1-account/manifest.json",
 				passkey: None,
 			},
-			// FIXME: disabled because of #233
-			// Test {
-			// 	manifest: "src/fixtures/maFiles/manifest-v1/1-account-encrypted/manifest.json",
-			// 	passkey: Some(SecretString::new("password".into())),
-			// },
+			Test {
+				manifest: "src/fixtures/maFiles/manifest-v1/1-account-encrypted/manifest.json",
+				passkey: Some(SecretString::new("password".into())),
+			},
 			Test {
 				manifest: "src/fixtures/maFiles/manifest-v1/2-account/manifest.json",
 				passkey: None,
