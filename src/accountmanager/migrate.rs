@@ -311,4 +311,54 @@ mod tests {
 		}
 		Ok(())
 	}
+
+	#[test]
+	fn should_migrate_single_accounts() -> anyhow::Result<()> {
+		#[derive(Debug)]
+		struct Test {
+			mafile: &'static str,
+			account_name: &'static str,
+			steam_id: u64,
+		}
+		let cases = vec![
+			Test {
+				mafile: "src/fixtures/maFiles/compat/1-account/1234.maFile",
+				account_name: "example",
+				steam_id: 1234,
+			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/2-account/1234.maFile",
+				account_name: "example",
+				steam_id: 1234,
+			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/2-account/5678.maFile",
+				account_name: "example2",
+				steam_id: 5678,
+			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/missing-account-name/1234.maFile",
+				account_name: "example",
+				steam_id: 1234,
+			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/no-webcookie/nowebcookie.maFile",
+				account_name: "example",
+				steam_id: 1234,
+			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/null-oauthtoken/nulloauthtoken.maFile",
+				account_name: "example",
+				steam_id: 1234,
+			},
+		];
+		for case in cases {
+			eprintln!("testing: {:?}", case);
+			let account = load_and_upgrade_sda_account(Path::new(case.mafile))?;
+			assert_eq!(account.account_name, case.account_name);
+			assert_eq!(account.steam_id, case.steam_id);
+		}
+
+		Ok(())
+	}
 }
