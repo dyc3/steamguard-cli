@@ -7,7 +7,9 @@ use crate::AccountManager;
 use super::*;
 
 #[derive(Debug, Clone, Parser, Default)]
-#[clap(about = "Import an account with steamguard already set up")]
+#[clap(
+	about = "Import an account with steamguard already set up. It must not be encrypted. If you haven't used steamguard-cli before, you probably don't need to use this command."
+)]
 pub struct ImportCommand {
 	#[clap(long, help = "Whether or not the provided maFiles are from SDA.")]
 	pub sda: bool,
