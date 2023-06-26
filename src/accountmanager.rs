@@ -105,7 +105,7 @@ impl AccountManager {
 	/// Must call `register_loaded_account` after loading the account.
 	fn load_account(
 		&self,
-		account_name: &String,
+		account_name: impl AsRef<str>,
 	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
 		let entry = self.get_entry(account_name)?;
 		self.load_account_by_entry(entry)
@@ -234,24 +234,24 @@ impl AccountManager {
 	#[allow(dead_code)]
 	pub fn get_entry(
 		&self,
-		account_name: &String,
+		account_name: impl AsRef<str>,
 	) -> anyhow::Result<&ManifestEntry, ManifestAccountLoadError> {
 		self.manifest
 			.entries
 			.iter()
-			.find(|e| &e.account_name == account_name)
+			.find(|e| &e.account_name == account_name.as_ref())
 			.ok_or(ManifestAccountLoadError::MissingManifestEntry)
 	}
 
 	#[allow(dead_code)]
 	pub fn get_entry_mut(
 		&mut self,
-		account_name: &String,
+		account_name: impl AsRef<str>,
 	) -> anyhow::Result<&mut ManifestEntry, ManifestAccountLoadError> {
 		self.manifest
 			.entries
 			.iter_mut()
-			.find(|e| &e.account_name == account_name)
+			.find(|e| &e.account_name == account_name.as_ref())
 			.ok_or(ManifestAccountLoadError::MissingManifestEntry)
 	}
 
@@ -263,11 +263,11 @@ impl AccountManager {
 	/// Fails if the account does not exist in the manifest entries.
 	pub fn get_account(
 		&self,
-		account_name: &String,
+		account_name: impl AsRef<str>,
 	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>> {
 		let account = self
 			.accounts
-			.get(account_name)
+			.get(account_name.as_ref())
 			.cloned()
 			.ok_or(anyhow!("Account not loaded"));
 		account
@@ -276,13 +276,13 @@ impl AccountManager {
 	/// Get or load the spcified account.
 	pub fn get_or_load_account(
 		&mut self,
-		account_name: &String,
+		account_name: impl AsRef<str>,
 	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
-		let account = self.get_account(account_name);
+		let account = self.get_account(account_name.as_ref());
 		if let Ok(account) = account {
 			return Ok(account);
 		}
-		let account = self.load_account(account_name)?;
+		let account = self.load_account(account_name.as_ref())?;
 		self.register_loaded_account(account.clone());
 		Ok(account)
 	}
@@ -467,7 +467,7 @@ mod tests {
 		assert_eq!(manager.manifest.entries[0].filename, "asdf1234.maFile");
 		manager.load_accounts()?;
 		assert_eq!(manager.manifest.entries.len(), manager.accounts.len());
-		let account_name = "asdf1234".into();
+		let account_name = "asdf1234";
 		assert_eq!(
 			manager
 				.get_account(&account_name)?
@@ -531,7 +531,7 @@ mod tests {
 			loaded_manager.manifest.entries.len(),
 			loaded_manager.accounts.len()
 		);
-		let account_name = "asdf1234".into();
+		let account_name = "asdf1234";
 		assert_eq!(
 			loaded_manager
 				.get_account(&account_name)?
@@ -595,7 +595,7 @@ mod tests {
 			loaded_manager.manifest.entries.len(),
 			loaded_manager.accounts.len()
 		);
-		let account_name = "asdf1234".into();
+		let account_name = "asdf1234";
 		assert_eq!(
 			loaded_manager
 				.get_account(&account_name)?
@@ -660,7 +660,7 @@ mod tests {
 			loaded_manager.manifest.entries.len(),
 			loaded_manager.accounts.len()
 		);
-		let account_name = "asdf1234".into();
+		let account_name = "asdf1234";
 		assert_eq!(
 			loaded_manager
 				.get_account(&account_name)?
@@ -693,134 +693,44 @@ mod tests {
 		Ok(())
 	}
 
-	// #[test]
-	// fn test_sda_compatibility_1() -> anyhow::Result<()> {
-	// 	let path = Path::new("src/fixtures/maFiles/compat/1-account/manifest.json");
-	// 	assert!(path.is_file());
-	// 	let mut manager = AccountManager::load(path)?;
-	// 	assert!(matches!(manager.entries.last().unwrap().encryption, None));
-	// 	manager.load_accounts()?;
-	// 	let account_name = manager.entries.last().unwrap().account_name.clone();
-	// 	assert_eq!(
-	// 		account_name,
-	// 		manager
-	// 			.get_account(&account_name)?
-	// 			.lock()
-	// 			.unwrap()
-	// 			.account_name
-	// 	);
-	// 	Ok(())
-	// }
-
-	// #[test]
-	// fn test_sda_compatibility_1_encrypted() -> anyhow::Result<()> {
-	// 	let path = Path::new("src/fixtures/maFiles/compat/1-account-encrypted/manifest.json");
-	// 	assert!(path.is_file());
-	// 	let mut manifest = Manifest::load(path)?;
-	// 	assert!(matches!(
-	// 		manifest.entries.last().unwrap().encryption,
-	// 		Some(_)
-	// 	));
-	// 	manifest.submit_passkey(Some("password".into()));
-	// 	manifest.load_accounts()?;
-	// 	let account_name = manifest.entries.last().unwrap().account_name.clone();
-	// 	assert_eq!(
-	// 		account_name,
-	// 		manifest
-	// 			.get_account(&account_name)?
-	// 			.lock()
-	// 			.unwrap()
-	// 			.account_name
-	// 	);
-	// 	Ok(())
-	// }
-
-	// #[test]
-	// fn test_sda_compatibility_no_webcookie() -> anyhow::Result<()> {
-	// 	let path = Path::new("src/fixtures/maFiles/compat/no-webcookie/manifest.json");
-	// 	assert!(path.is_file());
-	// 	let mut manifest = Manifest::load(path)?;
-	// 	assert!(matches!(manifest.entries.last().unwrap().encryption, None));
-	// 	assert!(matches!(manifest.load_accounts(), Ok(_)));
-	// 	let account_name = manifest.entries.last().unwrap().account_name.clone();
-	// 	let account = manifest.get_account(&account_name)?;
-	// 	assert_eq!(account_name, account.lock().unwrap().account_name);
-	// 	assert_eq!(
-	// 		account
-	// 			.lock()
-	// 			.unwrap()
-	// 			.session
-	// 			.as_ref()
-	// 			.unwrap()
-	// 			.expose_secret()
-	// 			.web_cookie,
-	// 		None
-	// 	);
-	// 	Ok(())
-	// }
-
-	// #[test]
-	// fn test_sda_compatibility_2() -> anyhow::Result<()> {
-	// 	let path = Path::new("src/fixtures/maFiles/compat/2-account/manifest.json");
-	// 	assert!(path.is_file());
-	// 	let mut manifest = Manifest::load(path)?;
-	// 	assert!(matches!(manifest.entries.last().unwrap().encryption, None));
-	// 	manifest.load_accounts()?;
-	// 	let account_name = manifest.entries[0].account_name.clone();
-	// 	let account = manifest.get_account(&account_name)?;
-	// 	assert_eq!(account_name, account.lock().unwrap().account_name);
-	// 	assert_eq!(
-	// 		account.lock().unwrap().revocation_code.expose_secret(),
-	// 		"R12345"
-	// 	);
-	// 	assert_eq!(
-	// 		account
-	// 			.lock()
-	// 			.unwrap()
-	// 			.session
-	// 			.as_ref()
-	// 			.unwrap()
-	// 			.expose_secret()
-	// 			.steam_id,
-	// 		1234
-	// 	);
-
-	// 	let account_name = manifest.entries[1].account_name.clone();
-	// 	let account = manifest.get_account(&account_name)?;
-	// 	assert_eq!(account_name, account.lock().unwrap().account_name);
-	// 	assert_eq!(
-	// 		account.lock().unwrap().revocation_code.expose_secret(),
-	// 		"R56789"
-	// 	);
-	// 	assert_eq!(
-	// 		account
-	// 			.lock()
-	// 			.unwrap()
-	// 			.session
-	// 			.as_ref()
-	// 			.unwrap()
-	// 			.expose_secret()
-	// 			.steam_id,
-	// 		5678
-	// 	);
-	// 	Ok(())
-	// }
-
-	// #[cfg(test)]
-	// mod manifest_upgrades {
-	// 	use super::*;
-
-	// 	#[test]
-	// 	fn test_missing_account_name() {
-	// 		let path = Path::new("src/fixtures/maFiles/compat/missing-account-name/manifest.json");
-	// 		assert!(path.is_file());
-	// 		let mut manager = AccountManager::load(path).unwrap();
-	// 		assert_eq!(manager.entries.len(), 1);
-	// 		assert_eq!(manager.entries[0].account_name, "".to_string());
-	// 		assert!(manager.is_missing_account_name());
-
-	// 		manager.auto_upgrade().unwrap();
-	// 		assert_eq!(manager.entries[0].account_name, "example".to_string());
-	// 	}
-	// }
+	#[test]
+	fn should_load_manifest_v1() -> anyhow::Result<()> {
+		#[derive(Debug)]
+		struct Test {
+			manifest: &'static str,
+			passkey: Option<SecretString>,
+		}
+		let cases = vec![
+			Test {
+				manifest: "src/fixtures/maFiles/manifest-v1/1-account/manifest.json",
+				passkey: None,
+			},
+			Test {
+				manifest: "src/fixtures/maFiles/manifest-v1/1-account-encrypted/manifest.json",
+				passkey: Some(SecretString::new("password".into())),
+			},
+			Test {
+				manifest: "src/fixtures/maFiles/manifest-v1/2-account/manifest.json",
+				passkey: None,
+			},
+			Test {
+				manifest: "src/fixtures/maFiles/manifest-v1/missing-account-name/manifest.json",
+				passkey: None,
+			},
+		];
+		for case in cases {
+			eprintln!("testing: {:?}", case);
+			let mut manager = AccountManager::load(Path::new(case.manifest))?;
+			manager.submit_passkey(case.passkey.clone());
+			manager.load_accounts()?;
+			assert_eq!(manager.manifest.version, CURRENT_MANIFEST_VERSION);
+			assert_eq!(manager.manifest.entries[0].account_name, "example");
+			assert_eq!(manager.manifest.entries[0].steam_id, 1234);
+			let account = manager.get_account("example").unwrap();
+			let account = account.lock().unwrap();
+			assert_eq!(account.account_name, "example");
+			assert_eq!(account.steam_id, 1234);
+		}
+		Ok(())
+	}
 }
