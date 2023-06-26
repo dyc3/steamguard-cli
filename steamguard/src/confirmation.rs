@@ -13,7 +13,7 @@ pub struct Confirmation {
 	pub creation_time: u64,
 	pub cancel: String,
 	pub accept: String,
-	pub icon: String,
+	pub icon: Option<String>,
 	pub multi: bool,
 	pub headline: String,
 	pub summary: Vec<String>,
@@ -38,6 +38,7 @@ pub enum ConfirmationType {
 	Generic = 1,
 	Trade = 2,
 	MarketSell = 3,
+	AccountDetails = 5,
 	AccountRecovery = 6,
 	Unknown(u32),
 }
@@ -70,15 +71,30 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn test_parse_email_change() -> anyhow::Result<()> {
-		let text = include_str!("fixtures/confirmations/email-change.json");
-		let confirmations = serde_json::from_str::<ConfirmationListResponse>(text)?;
+	fn test_parse_confirmations() -> anyhow::Result<()> {
+		struct Test {
+			text: &'static str,
+			confirmation_type: ConfirmationType,
+		}
+		let cases = [
+			Test {
+				text: include_str!("fixtures/confirmations/email-change.json"),
+				confirmation_type: ConfirmationType::AccountRecovery,
+			},
+			Test {
+				text: include_str!("fixtures/confirmations/phone-number-change.json"),
+				confirmation_type: ConfirmationType::AccountDetails,
+			},
+		];
+		for case in cases.iter() {
+			let confirmations = serde_json::from_str::<ConfirmationListResponse>(case.text)?;
 
-		assert_eq!(confirmations.conf.len(), 1);
+			assert_eq!(confirmations.conf.len(), 1);
 
-		let confirmation = &confirmations.conf[0];
+			let confirmation = &confirmations.conf[0];
 
-		assert_eq!(confirmation.conf_type, ConfirmationType::AccountRecovery);
+			assert_eq!(confirmation.conf_type, case.confirmation_type);
+		}
 
 		Ok(())
 	}
