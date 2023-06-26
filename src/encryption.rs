@@ -1,5 +1,8 @@
 use aes::cipher::{block_padding::Pkcs7, Key, KeyInit};
-use aes::cipher::{BlockDecrypt, BlockEncrypt, BlockSizeUser};
+use aes::cipher::{
+	BlockDecrypt, BlockDecryptMut, BlockEncrypt, BlockEncryptMut, BlockSizeUser, InvalidLength, Iv,
+	KeyIvInit,
+};
 use aes::Aes256;
 use inout::block_padding::generic_array::GenericArray;
 use inout::block_padding::Padding;
@@ -66,7 +69,7 @@ impl LegacySdaCompatible {
 	const PBKDF2_ITERATIONS: u32 = 50000; // This is necessary to maintain compatibility with SteamDesktopAuthenticator.
 	const KEY_SIZE_BYTES: usize = 32;
 
-	fn get_encryption_key(passkey: &str, salt: &str) -> anyhow::Result<Key<Aes256>> {
+	fn get_encryption_key(passkey: &str, salt: &str) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
 		let password_bytes = passkey.as_bytes();
 		let salt_bytes = base64::decode(salt)?;
 		let mut full_key: [u8; Self::KEY_SIZE_BYTES] = [0u8; Self::KEY_SIZE_BYTES];
@@ -77,8 +80,7 @@ impl LegacySdaCompatible {
 			password_bytes,
 			&mut full_key,
 		);
-		let key = Key::<Aes256>::from(full_key);
-		Ok(key)
+		Ok(full_key)
 	}
 }
 
@@ -91,30 +93,13 @@ impl EntryEncryptor for LegacySdaCompatible {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
 		let mut iv = [0u8; IV_LENGTH];
 		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
-		let cipher = Aes256::new(&key);
 
-		let origsize = plaintext.len();
-		let buffersize: usize = (origsize / Aes256::block_size()
-			+ (if origsize % Aes256::block_size() == 0 {
-				0
-			} else {
-				1
-			})) * Aes256::block_size();
-		if plaintext.len() % IV_LENGTH != 0 {
-			let diff = buffersize - origsize;
-			let repeat = std::iter::repeat(diff).take(diff).map(|x| x as u8);
-			plaintext.extend(repeat);
-		}
+		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
 
-		xor_in_place(&mut plaintext[0..IV_LENGTH], &iv);
-		let chunk_iter = plaintext.chunks_exact_mut(Aes256::block_size());
-		for chunk in chunk_iter {
-			let mut chunkbuffer = GenericArray::from_mut_slice(chunk);
-			cipher.encrypt_block(&mut chunkbuffer);
-		}
+		let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&plaintext);
 
-		let final_buffer = base64::encode(plaintext);
-		return Ok(final_buffer.as_bytes().to_vec());
+		let encoded = base64::encode(ciphertext);
+		Ok(encoded.as_bytes().to_vec())
 	}
 
 	fn decrypt(
@@ -125,35 +110,13 @@ impl EntryEncryptor for LegacySdaCompatible {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
 		let mut iv = [0u8; IV_LENGTH];
 		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
-		let cipher = Aes256::new(&key);
-		let mut decoded = base64::decode(ciphertext)?;
-		let decoded_len = decoded.len();
-
-		let mut plaintext = Vec::with_capacity(decoded.len());
-		for chunk in decoded.chunks_mut(Aes256::block_size()) {
-			let mut chunkbuffer = GenericArray::from_mut_slice(chunk);
-			cipher.decrypt_block(&mut chunkbuffer);
-			if plaintext.len() == 0 {
-				xor_in_place(&mut chunkbuffer[0..IV_LENGTH], &iv);
-			}
-			if decoded_len - plaintext.len() <= Aes256::block_size()
-				|| decoded_len == Aes256::block_size()
-			{
-				debug!("decrypting last chunk");
-				match Pkcs7::unpad(&chunkbuffer) {
-					Ok(unpadded) => {
-						plaintext.extend(unpadded);
-					}
-					Err(_) => {
-						plaintext.extend(chunkbuffer.iter());
-					}
-				}
-			} else {
-				plaintext.extend(chunkbuffer.iter());
-			}
-		}
-
-		Ok(plaintext)
+		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
+		let decoded = base64::decode(ciphertext)?;
+		let size: usize = decoded.len() / 16 + (if decoded.len() % 16 == 0 { 0 } else { 1 });
+		let mut buffer = vec![0xffu8; 16 * size];
+		buffer[..decoded.len()].copy_from_slice(&decoded);
+		let decrypted = cipher.decrypt_padded_mut::<Pkcs7>(&mut buffer)?;
+		Ok(decrypted.to_vec())
 	}
 }
 
@@ -166,6 +129,12 @@ pub enum EntryEncryptionError {
 }
 
 /// For some reason, these errors do not get converted to `ManifestAccountLoadError`s, even though they get converted into `anyhow::Error` just fine. I am too lazy to figure out why right now.
+impl From<InvalidLength> for EntryEncryptionError {
+	fn from(error: InvalidLength) -> Self {
+		Self::Unknown(anyhow::Error::from(error))
+	}
+}
+
 impl From<inout::NotEqualError> for EntryEncryptionError {
 	fn from(error: inout::NotEqualError) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
@@ -235,6 +204,7 @@ mod tests {
 			"tactical glizzy",
 			"glizzy gladiator",
 			"shadow wizard money gang",
+			"shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells",
 		];
 		let passkey = "password";
 		let params = EntryEncryptionParams::generate();
