@@ -500,7 +500,7 @@ mod tests {
 
 	#[test]
 	fn test_should_save_and_load_manifest_encrypted() -> anyhow::Result<()> {
-		let passkey = Some("password".into());
+		let passkey = Some(SecretString::new("password".into()));
 		let tmp_dir = TempDir::new("steamguard-cli-test")?;
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let mut manager = AccountManager::new(manifest_path.as_path());
@@ -565,7 +565,7 @@ mod tests {
 
 	#[test]
 	fn test_should_save_and_load_manifest_encrypted_longer() -> anyhow::Result<()> {
-		let passkey = Some("password".into());
+		let passkey = Some(SecretString::new("password".into()));
 		let tmp_dir = TempDir::new("steamguard-cli-test")?;
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let mut manager = AccountManager::new(manifest_path.as_path());

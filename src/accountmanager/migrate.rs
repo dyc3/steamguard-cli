@@ -272,7 +272,7 @@ mod tests {
 		#[derive(Debug)]
 		struct Test {
 			manifest: &'static str,
-			passkey: Option<String>,
+			passkey: Option<SecretString>,
 		}
 		let cases = vec![
 			Test {
@@ -281,7 +281,7 @@ mod tests {
 			},
 			Test {
 				manifest: "src/fixtures/maFiles/compat/1-account-encrypted/manifest.json",
-				passkey: Some("password".into()),
+				passkey: Some(SecretString::new("password".into())),
 			},
 			Test {
 				manifest: "src/fixtures/maFiles/compat/2-account/manifest.json",
