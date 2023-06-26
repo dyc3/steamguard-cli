@@ -27,6 +27,7 @@ impl ManifestCommand for EncryptCommand {
 				}
 				error!("Passkeys do not match, try again.");
 			}
+			let passkey = passkey.map(SecretString::new);
 			manager.submit_passkey(passkey);
 		}
 		manager.load_accounts()?;

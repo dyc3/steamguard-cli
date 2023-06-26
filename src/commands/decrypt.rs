@@ -32,6 +32,7 @@ fn load_accounts_with_prompts(manager: &mut AccountManager) -> anyhow::Result<()
 					error!("Incorrect passkey");
 				}
 				let passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
+				let passkey = passkey.map(SecretString::new);
 				manager.submit_passkey(passkey);
 			}
 			Err(e) => {

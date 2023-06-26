@@ -1,6 +1,7 @@
 use std::{fs::File, io::Read, path::Path};
 
 use log::debug;
+use secrecy::SecretString;
 use serde::{de::Error, Deserialize};
 use steamguard::SteamGuardAccount;
 use thiserror::Error;
@@ -13,7 +14,7 @@ use super::{
 
 pub(crate) fn load_and_migrate(
 	manifest_path: &Path,
-	passkey: Option<&String>,
+	passkey: Option<&SecretString>,
 ) -> Result<(Manifest, Vec<SteamGuardAccount>), MigrationError> {
 	backup_file(manifest_path)?;
 	let parent = manifest_path.parent().unwrap();
@@ -32,7 +33,7 @@ pub(crate) fn load_and_migrate(
 
 fn do_migrate(
 	manifest_path: &Path,
-	passkey: Option<&String>,
+	passkey: Option<&SecretString>,
 ) -> Result<(Manifest, Vec<SteamGuardAccount>), MigrationError> {
 	let mut file = File::open(manifest_path)?;
 	let mut buffer = String::new();
@@ -117,7 +118,7 @@ impl MigratingManifest {
 	pub fn load_all_accounts(
 		&self,
 		folder: &Path,
-		passkey: Option<&String>,
+		passkey: Option<&SecretString>,
 	) -> anyhow::Result<Vec<MigratingAccount>> {
 		debug!("loading all accounts for migration");
 		let accounts = match self {

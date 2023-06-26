@@ -2,6 +2,7 @@ use crate::accountmanager::legacy::SdaManifest;
 pub use crate::encryption::EntryEncryptionParams;
 use crate::encryption::EntryEncryptor;
 use log::*;
+use secrecy::{ExposeSecret, SecretString};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
@@ -21,7 +22,7 @@ pub struct AccountManager {
 	manifest: Manifest,
 	accounts: HashMap<String, Arc<Mutex<SteamGuardAccount>>>,
 	folder: String,
-	passkey: Option<String>,
+	passkey: Option<SecretString>,
 }
 
 impl AccountManager {
@@ -73,9 +74,9 @@ impl AccountManager {
 	}
 
 	/// Tells the manager to keep track of the encryption passkey, and use it for encryption when loading or saving accounts.
-	pub fn submit_passkey(&mut self, passkey: Option<String>) {
+	pub fn submit_passkey(&mut self, passkey: Option<SecretString>) {
 		if let Some(p) = passkey.as_ref() {
-			if p.is_empty() {
+			if p.expose_secret().is_empty() {
 				panic!("Encryption passkey cannot be empty");
 			}
 		}
@@ -199,9 +200,11 @@ impl AccountManager {
 			);
 
 			let final_buffer: Vec<u8> = match (&self.passkey, entry.encryption.as_ref()) {
-				(Some(passkey), Some(params)) => {
-					crate::encryption::LegacySdaCompatible::encrypt(passkey, params, serialized)?
-				}
+				(Some(passkey), Some(params)) => crate::encryption::LegacySdaCompatible::encrypt(
+					passkey.expose_secret(),
+					params,
+					serialized,
+				)?,
 				(None, Some(_)) => {
 					bail!("maFiles are encrypted, but no passkey was provided.");
 				}
@@ -338,7 +341,7 @@ trait EntryLoader<T> {
 	fn load(
 		&self,
 		path: &Path,
-		passkey: Option<&String>,
+		passkey: Option<&SecretString>,
 		encryption_params: Option<&EntryEncryptionParams>,
 	) -> anyhow::Result<T, ManifestAccountLoadError>;
 }
@@ -347,7 +350,7 @@ impl EntryLoader<SteamGuardAccount> for ManifestEntry {
 	fn load(
 		&self,
 		path: &Path,
-		passkey: Option<&String>,
+		passkey: Option<&SecretString>,
 		encryption_params: Option<&EntryEncryptionParams>,
 	) -> anyhow::Result<SteamGuardAccount, ManifestAccountLoadError> {
 		debug!("loading entry: {:?}", path);
@@ -357,8 +360,11 @@ impl EntryLoader<SteamGuardAccount> for ManifestEntry {
 			(Some(passkey), Some(params)) => {
 				let mut ciphertext: Vec<u8> = vec![];
 				reader.read_to_end(&mut ciphertext)?;
-				let plaintext =
-					crate::encryption::LegacySdaCompatible::decrypt(passkey, params, ciphertext)?;
+				let plaintext = crate::encryption::LegacySdaCompatible::decrypt(
+					passkey.expose_secret(),
+					params,
+					ciphertext,
+				)?;
 				if plaintext[0] != b'{' && plaintext[plaintext.len() - 1] != b'}' {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
