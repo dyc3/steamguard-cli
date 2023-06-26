@@ -1,12 +1,6 @@
-use aes::cipher::{block_padding::Pkcs7, Key, KeyInit};
-use aes::cipher::{
-	BlockDecrypt, BlockDecryptMut, BlockEncrypt, BlockEncryptMut, BlockSizeUser, InvalidLength, Iv,
-	KeyIvInit,
-};
+use aes::cipher::block_padding::Pkcs7;
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut, InvalidLength, KeyIvInit};
 use aes::Aes256;
-use inout::block_padding::generic_array::GenericArray;
-use inout::block_padding::Padding;
-use log::debug;
 use ring::pbkdf2;
 use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
@@ -88,7 +82,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 	fn encrypt(
 		passkey: &str,
 		params: &EntryEncryptionParams,
-		mut plaintext: Vec<u8>,
+		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
 		let mut iv = [0u8; IV_LENGTH];
@@ -161,12 +155,6 @@ impl From<base64::DecodeError> for EntryEncryptionError {
 impl From<std::io::Error> for EntryEncryptionError {
 	fn from(error: std::io::Error) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
-	}
-}
-
-fn xor_in_place<const N: usize>(a: &mut [u8], b: &[u8; N]) {
-	for (i, byte) in a.iter_mut().enumerate() {
-		*byte ^= b[i];
 	}
 }
 
