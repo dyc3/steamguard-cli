@@ -412,18 +412,8 @@ pub enum ManifestAccountLoadError {
 	Unknown(#[from] anyhow::Error),
 }
 
-impl From<block_modes::BlockModeError> for ManifestAccountLoadError {
-	fn from(error: block_modes::BlockModeError) -> Self {
-		Self::Unknown(anyhow::Error::from(error))
-	}
-}
 impl From<base64::DecodeError> for ManifestAccountLoadError {
 	fn from(error: base64::DecodeError) -> Self {
-		Self::Unknown(anyhow::Error::from(error))
-	}
-}
-impl From<block_modes::InvalidKeyIvLength> for ManifestAccountLoadError {
-	fn from(error: block_modes::InvalidKeyIvLength) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
 	}
 }
