@@ -1,6 +1,6 @@
+use aes::cipher::block_padding::Pkcs7;
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut, InvalidLength, KeyIvInit};
 use aes::Aes256;
-use block_modes::block_padding::{NoPadding, Padding, Pkcs7};
-use block_modes::{BlockMode, Cbc};
 use ring::pbkdf2;
 use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
@@ -78,38 +78,22 @@ impl LegacySdaCompatible {
 	}
 }
 
-type Aes256Cbc = Cbc<Aes256, NoPadding>;
 impl EntryEncryptor for LegacySdaCompatible {
-	// ngl, this logic sucks ass. its kinda annoying that the logic is not completely symetric.
-
 	fn encrypt(
 		passkey: &str,
 		params: &EntryEncryptionParams,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
-		let iv = base64::decode(&params.iv)?;
-		let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
+		let mut iv = [0u8; IV_LENGTH];
+		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
 
-		let origsize = plaintext.len();
-		let buffersize: usize = (origsize / 16 + (if origsize % 16 == 0 { 0 } else { 1 })) * 16;
-		let mut buffer = vec![];
-		for chunk in plaintext.as_slice().chunks(128) {
-			let chunksize = chunk.len();
-			let buffersize = (chunksize / 16 + (if chunksize % 16 == 0 { 0 } else { 1 })) * 16;
-			let mut chunkbuffer = vec![0xffu8; buffersize];
-			chunkbuffer[..chunksize].copy_from_slice(chunk);
-			if buffersize != chunksize {
-				// pad the last chunk
-				chunkbuffer = Pkcs7::pad(&mut chunkbuffer, chunksize, buffersize)
-					.unwrap()
-					.to_vec();
-			}
-			buffer.append(&mut chunkbuffer);
-		}
-		let ciphertext = cipher.encrypt(&mut buffer, buffersize)?;
-		let final_buffer = base64::encode(ciphertext);
-		return Ok(final_buffer.as_bytes().to_vec());
+		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
+
+		let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&plaintext);
+
+		let encoded = base64::encode(ciphertext);
+		Ok(encoded.as_bytes().to_vec())
 	}
 
 	fn decrypt(
@@ -118,46 +102,51 @@ impl EntryEncryptor for LegacySdaCompatible {
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
-		let iv = base64::decode(&params.iv)?;
-		let cipher = Aes256Cbc::new_from_slices(&key, &iv)?;
-
+		let mut iv = [0u8; IV_LENGTH];
+		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
+		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
 		let decoded = base64::decode(ciphertext)?;
 		let size: usize = decoded.len() / 16 + (if decoded.len() % 16 == 0 { 0 } else { 1 });
 		let mut buffer = vec![0xffu8; 16 * size];
 		buffer[..decoded.len()].copy_from_slice(&decoded);
-		let decrypted = cipher.decrypt(&mut buffer)?;
-		let unpadded = Pkcs7::unpad(decrypted)?;
-		Ok(unpadded.to_vec())
+		let decrypted = cipher.decrypt_padded_mut::<Pkcs7>(&mut buffer)?;
+		Ok(decrypted.to_vec())
 	}
 }
 
 #[derive(Debug, Error)]
 pub enum EntryEncryptionError {
+	#[error("Invalid ciphertext length. The ciphertext must be a multiple of 16 bytes.")]
+	InvalidCipherTextLength,
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }
 
 /// For some reason, these errors do not get converted to `ManifestAccountLoadError`s, even though they get converted into `anyhow::Error` just fine. I am too lazy to figure out why right now.
-impl From<block_modes::BlockModeError> for EntryEncryptionError {
-	fn from(error: block_modes::BlockModeError) -> Self {
+impl From<InvalidLength> for EntryEncryptionError {
+	fn from(error: InvalidLength) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
 	}
 }
-impl From<block_modes::InvalidKeyIvLength> for EntryEncryptionError {
-	fn from(error: block_modes::InvalidKeyIvLength) -> Self {
+
+impl From<inout::NotEqualError> for EntryEncryptionError {
+	fn from(error: inout::NotEqualError) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
 	}
 }
-impl From<block_modes::block_padding::PadError> for EntryEncryptionError {
-	fn from(_error: block_modes::block_padding::PadError) -> Self {
-		Self::Unknown(anyhow!("PadError"))
+
+impl From<inout::PadError> for EntryEncryptionError {
+	fn from(error: inout::PadError) -> Self {
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
-impl From<block_modes::block_padding::UnpadError> for EntryEncryptionError {
-	fn from(_error: block_modes::block_padding::UnpadError) -> Self {
-		Self::Unknown(anyhow!("UnpadError"))
+
+impl From<inout::block_padding::UnpadError> for EntryEncryptionError {
+	fn from(error: inout::block_padding::UnpadError) -> Self {
+		Self::Unknown(anyhow::Error::from(error))
 	}
 }
+
 impl From<base64::DecodeError> for EntryEncryptionError {
 	fn from(error: base64::DecodeError) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
@@ -178,14 +167,18 @@ mod tests {
 	#[test]
 	fn test_encryption_key() {
 		assert_eq!(
-			LegacySdaCompatible::get_encryption_key("password", "GMhL0N2hqXg=").unwrap(),
+			LegacySdaCompatible::get_encryption_key("password", "GMhL0N2hqXg=")
+				.unwrap()
+				.as_slice(),
 			base64::decode("KtiRa4/OxW83MlB6URf+Z8rAGj7CBY+pDlwD/NuVo6Y=")
 				.unwrap()
 				.as_slice()
 		);
 
 		assert_eq!(
-			LegacySdaCompatible::get_encryption_key("password", "wTzTE9A6aN8=").unwrap(),
+			LegacySdaCompatible::get_encryption_key("password", "wTzTE9A6aN8=")
+				.unwrap()
+				.as_slice(),
 			base64::decode("Dqpej/3DqEat0roJaHmu3luYgDzRCUmzX94n4fqvWj8=")
 				.unwrap()
 				.as_slice()
@@ -194,12 +187,22 @@ mod tests {
 
 	#[test]
 	fn test_ensure_encryption_symmetric() -> anyhow::Result<()> {
+		let cases = [
+			"foo",
+			"tactical glizzy",
+			"glizzy gladiator",
+			"shadow wizard money gang",
+			"shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells",
+		];
 		let passkey = "password";
 		let params = EntryEncryptionParams::generate();
-		let orig = "tactical glizzy".as_bytes().to_vec();
-		let encrypted = LegacySdaCompatible::encrypt(passkey, &params, orig.clone()).unwrap();
-		let result = LegacySdaCompatible::decrypt(passkey, &params, encrypted).unwrap();
-		assert_eq!(orig, result.to_vec());
+		for case in cases {
+			eprintln!("testing case: {} (len {})", case, case.len());
+			let orig = case.as_bytes().to_vec();
+			let encrypted = LegacySdaCompatible::encrypt(passkey, &params, orig.clone()).unwrap();
+			let result = LegacySdaCompatible::decrypt(passkey, &params, encrypted).unwrap();
+			assert_eq!(orig, result.to_vec());
+		}
 		Ok(())
 	}
 

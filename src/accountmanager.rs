@@ -412,18 +412,8 @@ pub enum ManifestAccountLoadError {
 	Unknown(#[from] anyhow::Error),
 }
 
-impl From<block_modes::BlockModeError> for ManifestAccountLoadError {
-	fn from(error: block_modes::BlockModeError) -> Self {
-		Self::Unknown(anyhow::Error::from(error))
-	}
-}
 impl From<base64::DecodeError> for ManifestAccountLoadError {
 	fn from(error: base64::DecodeError) -> Self {
-		Self::Unknown(anyhow::Error::from(error))
-	}
-}
-impl From<block_modes::InvalidKeyIvLength> for ManifestAccountLoadError {
-	fn from(error: block_modes::InvalidKeyIvLength) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
 	}
 }
@@ -639,11 +629,10 @@ mod tests {
 				manifest: "src/fixtures/maFiles/manifest-v1/1-account/manifest.json",
 				passkey: None,
 			},
-			// FIXME: disabled because of #233
-			// Test {
-			// 	manifest: "src/fixtures/maFiles/manifest-v1/1-account-encrypted/manifest.json",
-			// 	passkey: Some(SecretString::new("password".into())),
-			// },
+			Test {
+				manifest: "src/fixtures/maFiles/manifest-v1/1-account-encrypted/manifest.json",
+				passkey: Some(SecretString::new("password".into())),
+			},
 			Test {
 				manifest: "src/fixtures/maFiles/manifest-v1/2-account/manifest.json",
 				passkey: None,

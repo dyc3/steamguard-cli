@@ -374,11 +374,10 @@ mod tests {
 				dir: "src/fixtures/maFiles/compat/1-account/",
 				passkey: None,
 			},
-			// FIXME: disabled because of #233
-			// Test {
-			// 	manifest: "src/fixtures/maFiles/compat/1-account-encrypted/",
-			// 	passkey: Some(SecretString::new("password".into())),
-			// },
+			Test {
+				dir: "src/fixtures/maFiles/compat/1-account-encrypted/",
+				passkey: Some(SecretString::new("password".into())),
+			},
 			Test {
 				dir: "src/fixtures/maFiles/compat/2-account/",
 				passkey: None,
@@ -402,9 +401,7 @@ mod tests {
 			for file in std::fs::read_dir(case.dir)? {
 				let file = file?;
 				let path = file.path();
-				eprintln!("copying {:?}", path);
 				let dest = temp.path().join(path.file_name().unwrap());
-				eprintln!("to {:?}", dest);
 				std::fs::copy(&path, dest)?;
 			}
 
