@@ -239,7 +239,7 @@ impl AccountManager {
 		self.manifest
 			.entries
 			.iter()
-			.find(|e| &e.account_name == account_name.as_ref())
+			.find(|e| e.account_name == account_name.as_ref())
 			.ok_or(ManifestAccountLoadError::MissingManifestEntry)
 	}
 
@@ -251,7 +251,7 @@ impl AccountManager {
 		self.manifest
 			.entries
 			.iter_mut()
-			.find(|e| &e.account_name == account_name.as_ref())
+			.find(|e| e.account_name == account_name.as_ref())
 			.ok_or(ManifestAccountLoadError::MissingManifestEntry)
 	}
 
@@ -468,32 +468,16 @@ mod tests {
 		manager.load_accounts()?;
 		assert_eq!(manager.manifest.entries.len(), manager.accounts.len());
 		let account_name = "asdf1234";
+		let account = manager.get_account(account_name)?;
+		let account = account.lock().unwrap();
+		assert_eq!(account.account_name, "asdf1234");
+		assert_eq!(account.revocation_code.expose_secret(), "R12345");
 		assert_eq!(
-			manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.account_name,
-			"asdf1234"
-		);
-		assert_eq!(
-			manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.revocation_code
-				.expose_secret(),
-			"R12345"
-		);
-		assert_eq!(
-			manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.shared_secret,
+			account.shared_secret,
 			steamguard::token::TwoFactorSecret::parse_shared_secret(
 				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
-			)?,
+			)
+			.unwrap(),
 		);
 		Ok(())
 	}
@@ -532,34 +516,18 @@ mod tests {
 			loaded_manager.accounts.len()
 		);
 		let account_name = "asdf1234";
+		let account = loaded_manager.get_account(account_name)?;
+		let account = account.lock().unwrap();
+		assert_eq!(account.account_name, "asdf1234");
+		assert_eq!(account.revocation_code.expose_secret(), "R12345");
 		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.account_name,
-			"asdf1234"
-		);
-		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.revocation_code
-				.expose_secret(),
-			"R12345"
-		);
-		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.shared_secret,
+			account.shared_secret,
 			steamguard::token::TwoFactorSecret::parse_shared_secret(
 				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
 			)
 			.unwrap(),
 		);
+
 		Ok(())
 	}
 
@@ -596,29 +564,12 @@ mod tests {
 			loaded_manager.accounts.len()
 		);
 		let account_name = "asdf1234";
+		let account = loaded_manager.get_account(account_name)?;
+		let account = account.lock().unwrap();
+		assert_eq!(account.account_name, "asdf1234");
+		assert_eq!(account.revocation_code.expose_secret(), "R12345");
 		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.account_name,
-			"asdf1234"
-		);
-		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.revocation_code
-				.expose_secret(),
-			"R12345"
-		);
-		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.shared_secret,
+			account.shared_secret,
 			steamguard::token::TwoFactorSecret::parse_shared_secret(
 				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
 			)
@@ -661,29 +612,12 @@ mod tests {
 			loaded_manager.accounts.len()
 		);
 		let account_name = "asdf1234";
+		let account = loaded_manager.get_account(account_name)?;
+		let account = account.lock().unwrap();
+		assert_eq!(account.account_name, "asdf1234");
+		assert_eq!(account.revocation_code.expose_secret(), "R12345");
 		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.account_name,
-			"asdf1234"
-		);
-		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.revocation_code
-				.expose_secret(),
-			"R12345"
-		);
-		assert_eq!(
-			loaded_manager
-				.get_account(&account_name)?
-				.lock()
-				.unwrap()
-				.shared_secret,
+			account.shared_secret,
 			steamguard::token::TwoFactorSecret::parse_shared_secret(
 				"zvIayp3JPvtvX/QGHqsqKBk/44s=".into()
 			)
