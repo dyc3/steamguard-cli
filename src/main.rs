@@ -15,7 +15,7 @@ use steamguard::{
 use steamguard::{steamapi, DeviceDetails, LoginError, SteamGuardAccount, UserLogin};
 use steamguard::{steamapi::AuthenticationClient, token::Tokens};
 
-use crate::accountmanager::migrate::load_and_migrate;
+use crate::accountmanager::migrate::{load_and_migrate, MigrationError};
 pub use crate::accountmanager::{AccountManager, ManifestAccountLoadError, ManifestLoadError};
 use crate::commands::{CommandType, Subcommands};
 
@@ -109,6 +109,8 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 	};
 	info!("reading manifest from {}", mafiles_dir);
 	let path = Path::new(&mafiles_dir).join("manifest.json");
+	let mut passkey = globalargs.passkey.clone();
+
 	let mut manager: accountmanager::AccountManager;
 	if !path.exists() {
 		error!("Did not find manifest in {}", mafiles_dir);
@@ -129,8 +131,29 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 			Ok(m) => m,
 			Err(ManifestLoadError::MigrationNeeded) => {
 				info!("Migrating manifest");
-				let (manifest, accounts) =
-					load_and_migrate(path.as_path(), globalargs.passkey.as_ref())?;
+				let manifest;
+				let accounts;
+				loop {
+					match load_and_migrate(path.as_path(), passkey.as_ref()) {
+						Ok((m, a)) => {
+							manifest = m;
+							accounts = a;
+							break;
+						}
+						Err(MigrationError::MissingPasskey) => {
+							if passkey.is_some() {
+								error!("Incorrect passkey");
+							}
+							let raw =
+								rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
+							passkey = Some(SecretString::new(raw));
+						}
+						Err(e) => {
+							error!("Failed to migrate manifest: {}", e);
+							return Err(e.into());
+						}
+					}
+				}
 				let mut manager = AccountManager::from_manifest(manifest, mafiles_dir);
 				manager.register_accounts(accounts);
 				manager.submit_passkey(globalargs.passkey.clone());
@@ -144,7 +167,6 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		}
 	}
 
-	let mut passkey = globalargs.passkey.clone();
 	manager.submit_passkey(passkey);
 
 	loop {
