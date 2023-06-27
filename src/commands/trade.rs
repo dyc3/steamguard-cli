@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crossterm::tty::IsTty;
 use log::*;
-use steamguard::Confirmation;
+use steamguard::{Confirmation, Confirmer, ConfirmerError};
 
 use crate::{tui, AccountManager};
 
@@ -42,15 +42,20 @@ impl AccountCommand for TradeCommand {
 			info!("{}: Checking for trade confirmations", account.account_name);
 			let confirmations: Vec<Confirmation>;
 			loop {
-				match account.get_trade_confirmations() {
+				let confirmer = Confirmer::new(&account);
+
+				match confirmer.get_trade_confirmations() {
 					Ok(confs) => {
 						confirmations = confs;
 						break;
 					}
-					Err(err) => {
-						error!("Failed to get trade confirmations: {:#?}", err);
-						info!("failed to get trade confirmations, asking user to log in");
+					Err(ConfirmerError::InvalidTokens) => {
+						info!("obtaining new tokens");
 						crate::do_login(&mut account)?;
+					}
+					Err(err) => {
+						error!("Failed to get trade confirmations: {}", err);
+						return Err(err.into());
 					}
 				}
 			}
@@ -60,46 +65,46 @@ impl AccountCommand for TradeCommand {
 				continue;
 			}
 
+			let confirmer = Confirmer::new(&account);
 			let mut any_failed = false;
 			if self.accept_all {
 				info!("accepting all confirmations");
 				for conf in &confirmations {
-					let result = account.accept_confirmation(conf);
-					if result.is_err() {
-						warn!("accept confirmation result: {:?}", result);
-						any_failed = true;
-						if self.fail_fast {
-							return result;
+					match confirmer.accept_confirmation(conf) {
+						Ok(_) => {}
+						Err(err) => {
+							warn!("accept confirmation result: {}", err);
+							any_failed = true;
+							if self.fail_fast {
+								return Err(err.into());
+							}
 						}
-					} else {
-						debug!("accept confirmation result: {:?}", result);
 					}
 				}
 			} else if std::io::stdout().is_tty() {
 				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
 				for conf in &accept {
-					let result = account.accept_confirmation(conf);
-					if result.is_err() {
-						warn!("accept confirmation result: {:?}", result);
-						any_failed = true;
-						if self.fail_fast {
-							return result;
+					match confirmer.accept_confirmation(conf) {
+						Ok(_) => {}
+						Err(err) => {
+							warn!("accept confirmation result: {}", err);
+							any_failed = true;
+							if self.fail_fast {
+								return Err(err.into());
+							}
 						}
-					} else {
-						debug!("accept confirmation result: {:?}", result);
 					}
 				}
 				for conf in &deny {
-					let result = account.deny_confirmation(conf);
-					debug!("deny confirmation result: {:?}", result);
-					if result.is_err() {
-						warn!("deny confirmation result: {:?}", result);
-						any_failed = true;
-						if self.fail_fast {
-							return result;
+					match confirmer.deny_confirmation(conf) {
+						Ok(_) => {}
+						Err(err) => {
+							warn!("deny confirmation result: {}", err);
+							any_failed = true;
+							if self.fail_fast {
+								return Err(err.into());
+							}
 						}
-					} else {
-						debug!("deny confirmation result: {:?}", result);
 					}
 				}
 			} else {
