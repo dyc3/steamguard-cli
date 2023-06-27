@@ -207,7 +207,7 @@ pub enum ConfirmationAction {
 }
 
 impl ConfirmationAction {
-	fn to_operation(&self) -> &'static str {
+	fn to_operation(self) -> &'static str {
 		match self {
 			ConfirmationAction::Accept => "allow",
 			ConfirmationAction::Deny => "cancel",
