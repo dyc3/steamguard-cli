@@ -92,7 +92,7 @@ impl<'a> Confirmer<'a> {
 		let mut deser = serde_json::Deserializer::from_str(text.as_str());
 		let body: ConfirmationListResponse = serde_path_to_error::deserialize(&mut deser)?;
 
-		if body.needsauth.unwrap_or(false) {
+		if body.needauth.unwrap_or(false) {
 			return Err(ConfirmerError::InvalidTokens);
 		}
 		if !body.success {
@@ -276,6 +276,7 @@ impl From<u32> for ConfirmationType {
 			1 => ConfirmationType::Generic,
 			2 => ConfirmationType::Trade,
 			3 => ConfirmationType::MarketSell,
+			5 => ConfirmationType::AccountDetails,
 			6 => ConfirmationType::AccountRecovery,
 			v => ConfirmationType::Unknown(v),
 		}
@@ -286,7 +287,8 @@ impl From<u32> for ConfirmationType {
 pub struct ConfirmationListResponse {
 	pub success: bool,
 	#[serde(default)]
-	pub needsauth: Option<bool>,
+	pub needauth: Option<bool>,
+	#[serde(default)]
 	pub conf: Vec<Confirmation>,
 }
 
@@ -342,6 +344,24 @@ mod tests {
 			let confirmation = &confirmations.conf[0];
 
 			assert_eq!(confirmation.conf_type, case.confirmation_type);
+		}
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_parse_confirmations_2() -> anyhow::Result<()> {
+		struct Test {
+			text: &'static str,
+		}
+		let cases = [Test {
+			text: include_str!("fixtures/confirmations/need-auth.json"),
+		}];
+		for case in cases.iter() {
+			let confirmations = serde_json::from_str::<ConfirmationListResponse>(case.text)?;
+
+			assert_eq!(confirmations.conf.len(), 0);
+			assert_eq!(confirmations.needauth, Some(true));
 		}
 
 		Ok(())
