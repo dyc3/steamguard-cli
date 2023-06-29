@@ -64,7 +64,7 @@ fn main() {
 			Ok(Some(version)) => {
 				eprintln!();
 				info!(
-					"steamguard-cli v{} is available. Download it here: https://github.com/dyc3/steamguard-cli/releases",
+					"steamguard-cli {} is available. Download it here: https://github.com/dyc3/steamguard-cli/releases",
 					version
 				);
 			}
