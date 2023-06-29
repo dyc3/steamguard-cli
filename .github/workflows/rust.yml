@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,3 +28,18 @@ jobs:
         run: cargo doc --workspace --no-deps --all-features
       - name: Run tests
         run: cargo test --verbose
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x86_64-unknown-linux-musl, x86_64-pc-windows-gnu]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.2.1
+      - name: Install Cross
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cross
+      - name: Check
+        run: cross check --verbose --all-targets --all-features --target ${{ matrix.target }}
