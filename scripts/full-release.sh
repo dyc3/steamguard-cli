@@ -93,6 +93,10 @@ fi
 VERSION="v$RAW_VERSION"
 
 if [[ $DRY_RUN == false ]]; then
+  git push
+fi
+
+if [[ $DRY_RUN == false ]]; then
   if [[ $(gh release list | grep -i "Draft" | grep -i "$VERSION" && echo "true" || echo "false") == "true" ]]; then
     gh release delete --yes "$VERSION"
   fi
