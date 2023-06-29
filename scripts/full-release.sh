@@ -78,8 +78,9 @@ fi
 
 BUILD_TARGET="x86_64-unknown-linux-musl"
 BUILD_TARGET2="x86_64-pc-windows-gnu"
-cross build --release "--target=$BUILD_TARGET"
+# HACK: build targets in this order to avoid a bug in cross
 cross build --release "--target=$BUILD_TARGET2"
+cross build --release "--target=$BUILD_TARGET"
 
 ./scripts/package-deb.sh
 
