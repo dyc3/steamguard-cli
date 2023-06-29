@@ -69,41 +69,35 @@ impl AccountCommand for TradeCommand {
 			let mut any_failed = false;
 			if self.accept_all {
 				info!("accepting all confirmations");
-				for conf in &confirmations {
-					match confirmer.accept_confirmation(conf) {
-						Ok(_) => {}
-						Err(err) => {
-							warn!("accept confirmation result: {}", err);
-							any_failed = true;
-							if self.fail_fast {
-								return Err(err.into());
-							}
+				match confirmer.accept_confirmations(&confirmations) {
+					Ok(_) => {}
+					Err(err) => {
+						warn!("accept confirmation result: {}", err);
+						any_failed = true;
+						if self.fail_fast {
+							return Err(err.into());
 						}
 					}
 				}
 			} else if std::io::stdout().is_tty() {
 				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
-				for conf in &accept {
-					match confirmer.accept_confirmation(conf) {
-						Ok(_) => {}
-						Err(err) => {
-							warn!("accept confirmation result: {}", err);
-							any_failed = true;
-							if self.fail_fast {
-								return Err(err.into());
-							}
+				match confirmer.accept_confirmations(&accept) {
+					Ok(_) => {}
+					Err(err) => {
+						warn!("accept confirmation result: {}", err);
+						any_failed = true;
+						if self.fail_fast {
+							return Err(err.into());
 						}
 					}
 				}
-				for conf in &deny {
-					match confirmer.deny_confirmation(conf) {
-						Ok(_) => {}
-						Err(err) => {
-							warn!("deny confirmation result: {}", err);
-							any_failed = true;
-							if self.fail_fast {
-								return Err(err.into());
-							}
+				match confirmer.deny_confirmations(&deny) {
+					Ok(_) => {}
+					Err(err) => {
+						warn!("deny confirmation result: {}", err);
+						any_failed = true;
+						if self.fail_fast {
+							return Err(err.into());
 						}
 					}
 				}
