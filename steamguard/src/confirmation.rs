@@ -247,7 +247,7 @@ impl<'a> Confirmer<'a> {
 
 	fn build_multi_conf_query_string(&self, params: &[(&str, Cow<str>)]) -> String {
 		params
-			.into_iter()
+			.iter()
 			.map(|(k, v)| format!("{}={}", k, v))
 			.collect::<Vec<_>>()
 			.join("&")
