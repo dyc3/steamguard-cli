@@ -17,7 +17,7 @@ jobs:
       - run: rustup component add clippy rustfmt
       - uses: actions/checkout@v3
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.2.1
+        uses: Swatinem/rust-cache@v2.5
       - name: Check format
         run: cargo fmt --all -- --check
       - name: Check
@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.2.1
+        uses: Swatinem/rust-cache@v2.5
       - name: Install Cross
         uses: baptiste0928/cargo-install@v1
         with:
