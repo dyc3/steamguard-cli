@@ -350,11 +350,13 @@ impl Confirmation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[repr(u32)]
 #[serde(from = "u32")]
+/// Source: https://github.com/SteamDatabase/SteamTracking/blob/6e7797e69b714c59f4b5784780b24753c17732ba/Structs/enums.steamd#L1607-L1616
 pub enum ConfirmationType {
-	Generic = 1,
+	Test = 1,
 	Trade = 2,
 	MarketSell = 3,
-	AccountDetails = 5,
+	FeatureOptOut = 4,
+	PhoneNumberChange = 5,
 	AccountRecovery = 6,
 	Unknown(u32),
 }
@@ -362,10 +364,11 @@ pub enum ConfirmationType {
 impl From<u32> for ConfirmationType {
 	fn from(text: u32) -> Self {
 		match text {
-			1 => ConfirmationType::Generic,
+			1 => ConfirmationType::Test,
 			2 => ConfirmationType::Trade,
 			3 => ConfirmationType::MarketSell,
-			5 => ConfirmationType::AccountDetails,
+			4 => ConfirmationType::FeatureOptOut,
+			5 => ConfirmationType::PhoneNumberChange,
 			6 => ConfirmationType::AccountRecovery,
 			v => ConfirmationType::Unknown(v),
 		}
@@ -422,7 +425,7 @@ mod tests {
 			},
 			Test {
 				text: include_str!("fixtures/confirmations/phone-number-change.json"),
-				confirmation_type: ConfirmationType::AccountDetails,
+				confirmation_type: ConfirmationType::PhoneNumberChange,
 			},
 		];
 		for case in cases.iter() {
