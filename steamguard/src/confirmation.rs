@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::borrow::Cow;
 
 use hmacsha1::hmac_sha1;
 use log::*;
 use reqwest::{
 	cookie::CookieStore,
-	header::{COOKIE, USER_AGENT},
+	header::{CONTENT_TYPE, COOKIE, USER_AGENT},
 	Url,
 };
 use secrecy::ExposeSecret;
@@ -26,30 +26,33 @@ impl<'a> Confirmer<'a> {
 		Self { account }
 	}
 
-	fn get_confirmation_query_params(&self, tag: &str, time: u64) -> HashMap<&str, String> {
-		let mut params: HashMap<&str, String> = HashMap::new();
-		params.insert("p", self.account.device_id.clone());
-		params.insert("a", self.account.steam_id.to_string());
-		params.insert(
-			"k",
-			generate_confirmation_hash_for_time(
-				time,
-				tag,
-				self.account.identity_secret.expose_secret(),
+	fn get_confirmation_query_params<'q>(
+		&'q self,
+		tag: &'q str,
+		time: u64,
+	) -> Vec<(&'static str, Cow<'q, str>)> {
+		[
+			("p", self.account.device_id.as_str().into()),
+			("a", self.account.steam_id.to_string().into()),
+			(
+				"k",
+				generate_confirmation_hash_for_time(
+					time,
+					tag,
+					self.account.identity_secret.expose_secret(),
+				)
+				.into(),
 			),
-		);
-		params.insert("t", time.to_string());
-		params.insert("m", String::from("react"));
-		params.insert("tag", String::from(tag));
-		params
+			("t", time.to_string().into()),
+			("m", "react".into()),
+			("tag", tag.into()),
+		]
+		.into()
 	}
 
 	fn build_cookie_jar(&self) -> reqwest::cookie::Jar {
 		let cookies = reqwest::cookie::Jar::default();
 		let tokens = self.account.tokens.as_ref().unwrap();
-		// cookies.add_cookie_str("mobileClientVersion=0 (2.1.3)", &url);
-		// cookies.add_cookie_str("mobileClient=android", &url);
-		// cookies.add_cookie_str("Steam_Language=english", &url);
 		cookies.add_cookie_str("dob=", &STEAM_COOKIE_URL);
 		cookies.add_cookie_str(
 			format!("steamid={}", self.account.steam_id).as_str(),
@@ -110,6 +113,7 @@ impl<'a> Confirmer<'a> {
 		conf: &Confirmation,
 		action: ConfirmationAction,
 	) -> Result<(), ConfirmerError> {
+		debug!("responding to a single confirmation: send_confirmation_ajax()");
 		let operation = action.to_operation();
 
 		let cookies = self.build_cookie_jar();
@@ -119,9 +123,9 @@ impl<'a> Confirmer<'a> {
 
 		let time = steamapi::get_server_time()?.server_time();
 		let mut query_params = self.get_confirmation_query_params("conf", time);
-		query_params.insert("op", operation.to_owned());
-		query_params.insert("cid", conf.id.to_string());
-		query_params.insert("ck", conf.nonce.to_string());
+		query_params.push(("op", operation.into()));
+		query_params.push(("cid", Cow::Borrowed(&conf.id)));
+		query_params.push(("ck", Cow::Borrowed(&conf.nonce)));
 
 		let resp = client
 			.get(
@@ -162,6 +166,94 @@ impl<'a> Confirmer<'a> {
 
 	pub fn deny_confirmation(&self, conf: &Confirmation) -> Result<(), ConfirmerError> {
 		self.send_confirmation_ajax(conf, ConfirmationAction::Deny)
+	}
+
+	/// Respond to more than 1 confirmation.
+	///
+	/// Host: https://steamcommunity.com
+	/// Steam Endpoint: `GET /mobileconf/multiajaxop`
+	fn send_multi_confirmation_ajax(
+		&self,
+		confs: &[Confirmation],
+		action: ConfirmationAction,
+	) -> Result<(), ConfirmerError> {
+		debug!("responding to bulk confirmations: send_multi_confirmation_ajax()");
+		if confs.is_empty() {
+			debug!("confs is empty, nothing to do.");
+			return Ok(());
+		}
+		let operation = action.to_operation();
+
+		let cookies = self.build_cookie_jar();
+		let client = reqwest::blocking::ClientBuilder::new()
+			.cookie_store(true)
+			.build()?;
+
+		let time = steamapi::get_server_time()?.server_time();
+		let mut query_params = self.get_confirmation_query_params("conf", time);
+		query_params.push(("op", operation.into()));
+		for conf in confs.iter() {
+			query_params.push(("cid[]", Cow::Borrowed(&conf.id)));
+			query_params.push(("ck[]", Cow::Borrowed(&conf.nonce)));
+		}
+		let query_params = self.build_multi_conf_query_string(&query_params);
+		// despite being called query parameters, they will actually go in the body
+		debug!("query_params: {}", &query_params);
+
+		let resp = client
+			.post(
+				format!(
+					"https://steamcommunity.com/mobileconf/multiajaxop?{}",
+					query_params
+				)
+				.parse::<Url>()
+				.unwrap(),
+			)
+			.header(USER_AGENT, "steamguard-cli")
+			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
+			.header(
+				CONTENT_TYPE,
+				"application/x-www-form-urlencoded; charset=UTF-8",
+			)
+			.body(query_params)
+			.send()?;
+
+		trace!("send_multi_confirmation_ajax() response: {:?}", &resp);
+		debug!(
+			"send_multi_confirmation_ajax() response status code: {}",
+			&resp.status()
+		);
+
+		let raw = resp.text()?;
+		debug!("send_multi_confirmation_ajax() response body: {:?}", &raw);
+
+		let mut deser = serde_json::Deserializer::from_str(raw.as_str());
+		let body: SendConfirmationResponse = serde_path_to_error::deserialize(&mut deser)?;
+
+		if body.needsauth.unwrap_or(false) {
+			return Err(ConfirmerError::InvalidTokens);
+		}
+		if !body.success {
+			return Err(anyhow!("Server responded with failure.").into());
+		}
+
+		Ok(())
+	}
+
+	pub fn accept_confirmations(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+		self.send_multi_confirmation_ajax(confs, ConfirmationAction::Accept)
+	}
+
+	pub fn deny_confirmations(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+		self.send_multi_confirmation_ajax(confs, ConfirmationAction::Deny)
+	}
+
+	fn build_multi_conf_query_string(&self, params: &[(&str, Cow<str>)]) -> String {
+		params
+			.into_iter()
+			.map(|(k, v)| format!("{}={}", k, v))
+			.collect::<Vec<_>>()
+			.join("&")
 	}
 
 	/// Steam Endpoint: `GET /mobileconf/details/:id`
