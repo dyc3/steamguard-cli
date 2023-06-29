@@ -37,6 +37,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.5.0
+        with:
+          prefix-key: v0-rust-${{ matrix.target }}
       - name: Install Cross
         uses: baptiste0928/cargo-install@v1
         with:
