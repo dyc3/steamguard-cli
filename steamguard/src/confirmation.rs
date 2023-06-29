@@ -202,12 +202,9 @@ impl<'a> Confirmer<'a> {
 
 		let resp = client
 			.post(
-				format!(
-					"https://steamcommunity.com/mobileconf/multiajaxop?{}",
-					query_params
-				)
-				.parse::<Url>()
-				.unwrap(),
+				"https://steamcommunity.com/mobileconf/multiajaxop"
+					.parse::<Url>()
+					.unwrap(),
 			)
 			.header(USER_AGENT, "steamguard-cli")
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
