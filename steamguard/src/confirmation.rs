@@ -350,7 +350,7 @@ impl Confirmation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[repr(u32)]
 #[serde(from = "u32")]
-/// Source: https://github.com/SteamDatabase/SteamTracking/blob/6e7797e69b714c59f4b5784780b24753c17732ba/Structs/enums.steamd#L1607-L1616
+/// Source: <https://github.com/SteamDatabase/SteamTracking/blob/6e7797e69b714c59f4b5784780b24753c17732ba/Structs/enums.steamd#L1607-L1616>
 pub enum ConfirmationType {
 	Test = 1,
 	Trade = 2,
