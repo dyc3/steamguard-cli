@@ -22,7 +22,10 @@ pub(crate) fn load_and_migrate(
 		let entry = e.unwrap();
 		if entry.file_type().unwrap().is_file() {
 			let path = entry.path();
-			if path.extension().unwrap() == "maFile" {
+			let Some(ext) = path.extension() else {
+				return;
+			};
+			if ext == "maFile" {
 				backup_file(&path).unwrap();
 			}
 		}
