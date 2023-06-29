@@ -66,7 +66,7 @@ fi
 if [[ $SKIP_CRATE_PUBLISH == true ]]; then
 	params+=(--no-publish)
 fi
-cargo smart-release --update-crates-index --no-changelog --no-publish --no-push "${params[@]}"
+cargo smart-release --update-crates-index --no-changelog --no-publish "${params[@]}"
 
 #echo "Verify that the publish succeeded, and Press any key to continue..."
 # read -n 1 -s -r
@@ -91,10 +91,6 @@ if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
   echo "Version mismatch: $RAW_VERSION != $TAGGED_VERSION"
 fi
 VERSION="v$RAW_VERSION"
-
-if [[ $DRY_RUN == false ]]; then
-  git push
-fi
 
 if [[ $DRY_RUN == false ]]; then
   if [[ $(gh release list | grep -i "Draft" | grep -i "$VERSION" && echo "true" || echo "false") == "true" ]]; then
