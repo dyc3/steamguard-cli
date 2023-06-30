@@ -10,6 +10,7 @@ pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use token::Tokens;
+use transport::TransportError;
 pub use userlogin::{DeviceDetails, LoginError, UserLogin};
 
 #[macro_use]
@@ -98,24 +99,56 @@ impl SteamGuardAccount {
 
 	/// Removes the mobile authenticator from the steam account. If this operation succeeds, this object can no longer be considered valid.
 	/// Returns whether or not the operation was successful.
-	pub fn remove_authenticator(&self, revocation_code: Option<String>) -> anyhow::Result<bool> {
-		ensure!(
-			matches!(revocation_code, Some(_)) || !self.revocation_code.expose_secret().is_empty(),
-			"Revocation code not provided."
-		);
+	pub fn remove_authenticator(
+		&self,
+		revocation_code: Option<&String>,
+	) -> Result<(), RemoveAuthenticatorError> {
+		if !matches!(revocation_code, Some(_)) && self.revocation_code.expose_secret().is_empty() {
+			return Err(RemoveAuthenticatorError::MissingRevocationCode);
+		}
 		let Some(tokens) = &self.tokens else {
-			return Err(anyhow!("Tokens not set, login required"));
+			return Err(RemoveAuthenticatorError::TransportError(TransportError::Unauthorized));
 		};
 		let mut client = TwoFactorClient::new(WebApiTransport::new());
 		let mut req = CTwoFactor_RemoveAuthenticator_Request::new();
 		req.set_revocation_code(
-			revocation_code.unwrap_or(self.revocation_code.expose_secret().to_owned()),
+			revocation_code
+				.unwrap_or(self.revocation_code.expose_secret())
+				.to_owned(),
 		);
 		let resp = client.remove_authenticator(req, tokens.access_token())?;
-		if resp.result != EResult::OK {
-			Err(anyhow!("Failed to remove authenticator: {:?}", resp.result))
-		} else {
-			Ok(true)
+
+		// returns EResult::TwoFactorCodeMismatch if the revocation code is incorrect
+		if resp.result != EResult::OK && resp.result != EResult::TwoFactorCodeMismatch {
+			return Err(resp.result.into());
 		}
+		let resp = resp.into_response_data();
+		if !resp.success() {
+			return Err(RemoveAuthenticatorError::IncorrectRevocationCode {
+				attempts_remaining: resp.revocation_attempts_remaining(),
+			});
+		}
+
+		Ok(())
+	}
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RemoveAuthenticatorError {
+	#[error("Missing revocation code")]
+	MissingRevocationCode,
+	#[error("Incorrect revocation code, {attempts_remaining} attempts remaining")]
+	IncorrectRevocationCode { attempts_remaining: u32 },
+	#[error("Transport error: {0}")]
+	TransportError(#[from] TransportError),
+	#[error("Steam returned an enexpected result: {0:?}")]
+	UnknownEResult(EResult),
+	#[error("Unexpected error: {0}")]
+	Unknown(#[from] anyhow::Error),
+}
+
+impl From<EResult> for RemoveAuthenticatorError {
+	fn from(e: EResult) -> Self {
+		Self::UnknownEResult(e)
 	}
 }
