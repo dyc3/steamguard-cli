@@ -93,6 +93,7 @@ pub(crate) struct GlobalArgs {
 	#[clap(
 		short,
 		long,
+		env = "STEAMGUARD_CLI_MAFILES",
 		help = "Specify which folder your maFiles are in. This should be a path to a folder that contains manifest.json. Default: ~/.config/steamguard-cli/maFiles"
 	)]
 	pub mafiles_path: Option<String>,
