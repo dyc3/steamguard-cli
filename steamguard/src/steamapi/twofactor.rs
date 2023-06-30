@@ -1,5 +1,5 @@
 use crate::token::Jwt;
-use crate::transport::Transport;
+use crate::transport::{Transport, TransportError};
 
 use super::{ApiRequest, ApiResponse, BuildableRequest};
 
@@ -59,7 +59,7 @@ where
 		&mut self,
 		req: CTwoFactor_RemoveAuthenticator_Request,
 		access_token: &Jwt,
-	) -> anyhow::Result<ApiResponse<CTwoFactor_RemoveAuthenticator_Response>> {
+	) -> Result<ApiResponse<CTwoFactor_RemoveAuthenticator_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "RemoveAuthenticator", 1, req)
 			.with_access_token(access_token);
 		let resp = self

@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use log::*;
+use steamguard::{transport::TransportError, RemoveAuthenticatorError};
 
 use crate::{errors::UserError, tui, AccountManager};
 
@@ -37,35 +38,51 @@ impl AccountCommand for RemoveCommand {
 		let mut successful = vec![];
 		for a in accounts {
 			let mut account = a.lock().unwrap();
-			if !account.is_logged_in() {
-				info!("Account does not have tokens, logging in");
-				crate::do_login(&mut account)?;
-			}
 
-			match account.remove_authenticator(None) {
-				Ok(success) => {
-					if success {
-						println!("Removed authenticator from {}", account.account_name);
+			let mut revocation: Option<String> = None;
+			loop {
+				match account.remove_authenticator(revocation.as_ref()) {
+					Ok(_) => {
+						info!("Removed authenticator from {}", account.account_name);
 						successful.push(account.account_name.clone());
-					} else {
-						println!(
-							"Failed to remove authenticator from {}",
+						break;
+					}
+					Err(RemoveAuthenticatorError::TransportError(TransportError::Unauthorized)) => {
+						error!("Account {} is not logged in", account.account_name);
+						crate::do_login(&mut account)?;
+						continue;
+					}
+					Err(RemoveAuthenticatorError::IncorrectRevocationCode {
+						attempts_remaining,
+					}) => {
+						error!(
+							"Revocation code was incorrect for {} ({} attempts remaining)",
+							account.account_name, attempts_remaining
+						);
+						if attempts_remaining == 0 {
+							error!("No attempts remaining, aborting!");
+							break;
+						}
+						eprint!("Enter the revocation code for {}: ", account.account_name);
+						let code = tui::prompt();
+						revocation = Some(code);
+					}
+					Err(RemoveAuthenticatorError::MissingRevocationCode) => {
+						error!(
+							"Account {} does not have a revocation code",
 							account.account_name
 						);
-						if tui::prompt_char(
-							"Would you like to remove it from the manifest anyway?",
-							"yN",
-						) == 'y'
-						{
-							successful.push(account.account_name.clone());
-						}
+						eprint!("Enter the revocation code for {}: ", account.account_name);
+						let code = tui::prompt();
+						revocation = Some(code);
 					}
-				}
-				Err(err) => {
-					error!(
-						"Unexpected error when removing authenticator from {}: {}",
-						account.account_name, err
-					);
+					Err(err) => {
+						error!(
+							"Unexpected error when removing authenticator from {}: {}",
+							account.account_name, err
+						);
+						break;
+					}
 				}
 			}
 		}
