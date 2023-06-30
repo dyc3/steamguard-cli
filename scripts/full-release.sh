@@ -66,7 +66,7 @@ fi
 if [[ $SKIP_CRATE_PUBLISH == true ]]; then
 	params+=(--no-publish)
 fi
-cargo smart-release --update-crates-index --no-changelog --no-publish "${params[@]}"
+cargo smart-release --update-crates-index --no-changelog --no-push --no-publish "${params[@]}"
 
 #echo "Verify that the publish succeeded, and Press any key to continue..."
 # read -n 1 -s -r
@@ -90,8 +90,18 @@ RAW_VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
 TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
 if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
   echo "Version mismatch: $RAW_VERSION != $TAGGED_VERSION"
+  if [[ $DRY_RUN == false ]]; then
+    echo "Aborting."
+    exit 2
+  fi
 fi
 VERSION="v$RAW_VERSION"
+
+echo "It's now safe to push tags and publish for the affected crates."
+
+if [[ $DRY_RUN == false ]]; then
+  cargo smart-release --update-crates-index --no-changelog
+fi
 
 if [[ $DRY_RUN == false ]]; then
   if [[ $(gh release list | grep -i "Draft" | grep -i "$VERSION" && echo "true" || echo "false") == "true" ]]; then
@@ -99,5 +109,3 @@ if [[ $DRY_RUN == false ]]; then
   fi
 	gh release create "$VERSION" --title "$VERSION" --draft "$BIN_PATH" "$BIN_PATH2" "./steamguard-cli_$RAW_VERSION-0.deb"
 fi
-
-echo "It's now safe to run cargo publish for the affected crates."
