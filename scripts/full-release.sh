@@ -66,7 +66,7 @@ fi
 if [[ $SKIP_CRATE_PUBLISH == true ]]; then
 	params+=(--no-publish)
 fi
-cargo smart-release --update-crates-index --no-changelog --no-push --no-publish "${params[@]}"
+cargo smart-release --update-crates-index --no-changelog --no-tag --no-push --no-publish "${params[@]}"
 
 #echo "Verify that the publish succeeded, and Press any key to continue..."
 # read -n 1 -s -r
