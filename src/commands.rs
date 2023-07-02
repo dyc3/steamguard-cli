@@ -127,6 +127,7 @@ pub(crate) struct GlobalArgs {
 
 	#[clap(
 		long,
+		env = "HTTP_PROXY",
 		help = "Use a proxy for HTTP requests.",
 		long_help = "Use a proxy for HTTP requests. This is useful if you are behind a firewall and need to use a proxy to access the internet."
 	)]
