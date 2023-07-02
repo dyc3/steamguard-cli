@@ -88,6 +88,10 @@ impl AccountManager {
 		self.passkey = passkey;
 	}
 
+	pub fn keyring_id(&self) -> Option<&String> {
+		self.manifest.keyring_id.as_ref()
+	}
+
 	/// Loads all accounts, and registers them.
 	pub fn load_accounts(&mut self) -> anyhow::Result<(), ManifestAccountLoadError> {
 		let mut accounts = vec![];
