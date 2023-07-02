@@ -27,7 +27,7 @@ pub struct TradeCommand {
 
 impl<T> AccountCommand<T> for TradeCommand
 where
-	T: Transport,
+	T: Transport + Clone,
 {
 	fn execute(
 		&self,
@@ -40,13 +40,13 @@ where
 
 			if !account.is_logged_in() {
 				info!("Account does not have tokens, logging in");
-				crate::do_login(&mut account)?;
+				crate::do_login(transport, &mut account)?;
 			}
 
 			info!("{}: Checking for trade confirmations", account.account_name);
 			let confirmations: Vec<Confirmation>;
 			loop {
-				let confirmer = Confirmer::new(&account);
+				let confirmer = Confirmer::new(transport, &account);
 
 				match confirmer.get_trade_confirmations() {
 					Ok(confs) => {
@@ -55,7 +55,7 @@ where
 					}
 					Err(ConfirmerError::InvalidTokens) => {
 						info!("obtaining new tokens");
-						crate::do_login(&mut account)?;
+						crate::do_login(transport, &mut account)?;
 					}
 					Err(err) => {
 						error!("Failed to get trade confirmations: {}", err);

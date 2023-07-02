@@ -16,7 +16,7 @@ pub struct SetupCommand;
 
 impl<T> ManifestCommand<T> for SetupCommand
 where
-	T: Transport,
+	T: Transport + Clone,
 {
 	fn execute(&self, transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
 		eprintln!("Log in to the account that you want to link to steamguard-cli");
@@ -30,8 +30,8 @@ where
 			);
 		}
 		info!("Logging in to {}", username);
-		let tokens =
-			crate::do_login_raw(username).expect("Failed to log in. Account has not been linked.");
+		let tokens = crate::do_login_raw(transport, username)
+			.expect("Failed to log in. Account has not been linked.");
 
 		info!("Adding authenticator...");
 		let mut linker = AccountLinker::new(transport, tokens);

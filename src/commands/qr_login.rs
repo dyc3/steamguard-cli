@@ -22,7 +22,7 @@ pub struct QrLoginCommand {
 
 impl<T> AccountCommand<T> for QrLoginCommand
 where
-	T: Transport,
+	T: Transport + Clone,
 {
 	fn execute(
 		&self,
@@ -40,7 +40,7 @@ where
 		info!("Approving login to {}", account.account_name);
 
 		if account.tokens.is_none() {
-			crate::do_login(&mut account)?;
+			crate::do_login(transport, &mut account)?;
 		}
 
 		loop {
@@ -57,7 +57,7 @@ where
 				}
 				Err(QrApproverError::Unauthorized) => {
 					warn!("tokens are invalid. Attempting to log in again.");
-					crate::do_login(&mut account)?;
+					crate::do_login(transport, &mut account)?;
 				}
 				Err(e) => {
 					error!("Failed to approve login: {}", e);
