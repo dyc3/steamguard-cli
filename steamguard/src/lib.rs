@@ -1,8 +1,6 @@
 use crate::protobufs::service_twofactor::CTwoFactor_RemoveAuthenticator_Request;
 use crate::steamapi::EResult;
-use crate::{
-	steamapi::twofactor::TwoFactorClient, token::TwoFactorSecret, transport::WebApiTransport,
-};
+use crate::{steamapi::twofactor::TwoFactorClient, token::TwoFactorSecret};
 pub use accountlinker::{AccountLinkError, AccountLinker, FinalizeLinkError};
 pub use confirmation::*;
 pub use qrapprover::{QrApprover, QrApproverError};
@@ -10,7 +8,7 @@ pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use token::Tokens;
-use transport::TransportError;
+use transport::{Transport, TransportError};
 pub use userlogin::{DeviceDetails, LoginError, UserLogin};
 
 #[macro_use]
@@ -99,8 +97,9 @@ impl SteamGuardAccount {
 
 	/// Removes the mobile authenticator from the steam account. If this operation succeeds, this object can no longer be considered valid.
 	/// Returns whether or not the operation was successful.
-	pub fn remove_authenticator(
+	pub fn remove_authenticator<T: Transport>(
 		&self,
+		client: &TwoFactorClient<T>,
 		revocation_code: Option<&String>,
 	) -> Result<(), RemoveAuthenticatorError> {
 		if !matches!(revocation_code, Some(_)) && self.revocation_code.expose_secret().is_empty() {
@@ -109,7 +108,6 @@ impl SteamGuardAccount {
 		let Some(tokens) = &self.tokens else {
 			return Err(RemoveAuthenticatorError::TransportError(TransportError::Unauthorized));
 		};
-		let mut client = TwoFactorClient::new(WebApiTransport::default());
 		let mut req = CTwoFactor_RemoveAuthenticator_Request::new();
 		req.set_revocation_code(
 			revocation_code
