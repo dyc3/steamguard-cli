@@ -1,7 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use log::*;
-use steamguard::{transport::WebApiTransport, QrApprover, QrApproverError};
+use steamguard::{
+	transport::{self, WebApiTransport},
+	QrApprover, QrApproverError,
+};
 
 use crate::AccountManager;
 
@@ -17,9 +20,13 @@ pub struct QrLoginCommand {
 	pub url: String,
 }
 
-impl AccountCommand for QrLoginCommand {
+impl<T> AccountCommand<T> for QrLoginCommand
+where
+	T: Transport,
+{
 	fn execute(
 		&self,
+		transport: T,
 		_manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {
@@ -42,7 +49,7 @@ impl AccountCommand for QrLoginCommand {
 				return Err(anyhow!("No tokens found for {}", account.account_name));
 			};
 
-			let mut approver = QrApprover::new(WebApiTransport::default(), tokens);
+			let mut approver = QrApprover::new(transport, tokens);
 			match approver.approve(&account, &self.url) {
 				Ok(_) => {
 					info!("Login approved.");

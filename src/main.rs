@@ -83,7 +83,7 @@ fn main() {
 fn run(args: commands::Args) -> anyhow::Result<()> {
 	let globalargs = args.global;
 
-	let cmd: CommandType = match args.sub.unwrap_or(Subcommands::Code(args.code)) {
+	let cmd: CommandType<WebApiTransport> = match args.sub.unwrap_or(Subcommands::Code(args.code)) {
 		Subcommands::Debug(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Completion(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Setup(args) => CommandType::Manifest(Box::new(args)),
@@ -198,8 +198,16 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		}
 	}
 
+	let mut http_client = reqwest::blocking::Client::builder();
+	if let Some(proxy) = &globalargs.http_proxy {
+		let proxy = reqwest::Proxy::all(proxy)?;
+		http_client = http_client.proxy(proxy);
+	}
+	let http_client = http_client.build()?;
+	let transport = WebApiTransport::new(http_client);
+
 	if let CommandType::Manifest(cmd) = cmd {
-		cmd.execute(&mut manager)?;
+		cmd.execute(transport, &mut manager)?;
 		return Ok(());
 	}
 
@@ -237,7 +245,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 	);
 
 	if let CommandType::Account(cmd) = cmd {
-		return cmd.execute(&mut manager, selected_accounts);
+		return cmd.execute(transport, &mut manager, selected_accounts);
 	}
 
 	Ok(())

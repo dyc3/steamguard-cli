@@ -20,9 +20,13 @@ pub struct CodeCommand {
 	pub offline: bool,
 }
 
-impl AccountCommand for CodeCommand {
+impl<T> AccountCommand<T> for CodeCommand
+where
+	T: Transport,
+{
 	fn execute(
 		&self,
+		transport: T,
 		_manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {

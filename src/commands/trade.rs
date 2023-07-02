@@ -25,9 +25,13 @@ pub struct TradeCommand {
 	pub fail_fast: bool,
 }
 
-impl AccountCommand for TradeCommand {
+impl<T> AccountCommand<T> for TradeCommand
+where
+	T: Transport,
+{
 	fn execute(
 		&self,
+		transport: T,
 		manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {

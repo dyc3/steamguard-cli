@@ -11,9 +11,13 @@ use super::*;
 #[clap(about = "Remove the authenticator from an account.")]
 pub struct RemoveCommand;
 
-impl AccountCommand for RemoveCommand {
+impl<T> AccountCommand<T> for RemoveCommand
+where
+	T: Transport,
+{
 	fn execute(
 		&self,
+		transport: T,
 		manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {

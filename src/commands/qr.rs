@@ -18,9 +18,13 @@ pub struct QrCommand {
 	pub ascii: bool,
 }
 
-impl AccountCommand for QrCommand {
+impl<T> AccountCommand<T> for QrCommand
+where
+	T: Transport,
+{
 	fn execute(
 		&self,
+		_transport: T,
 		_manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {

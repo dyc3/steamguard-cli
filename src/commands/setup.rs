@@ -14,8 +14,11 @@ use super::*;
 #[clap(about = "Set up a new account with steamguard-cli")]
 pub struct SetupCommand;
 
-impl ManifestCommand for SetupCommand {
-	fn execute(&self, manager: &mut AccountManager) -> anyhow::Result<()> {
+impl<T> ManifestCommand<T> for SetupCommand
+where
+	T: Transport,
+{
+	fn execute(&self, transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
 		eprintln!("Log in to the account that you want to link to steamguard-cli");
 		eprint!("Username: ");
 		let username = tui::prompt().to_lowercase();
@@ -31,7 +34,7 @@ impl ManifestCommand for SetupCommand {
 			crate::do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
 		info!("Adding authenticator...");
-		let mut linker = AccountLinker::new(WebApiTransport::default(), tokens);
+		let mut linker = AccountLinker::new(transport, tokens);
 		let link: AccountLinkSuccess;
 		loop {
 			match linker.link() {
