@@ -140,10 +140,22 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 							accounts = a;
 							break;
 						}
-						Err(MigrationError::MissingPasskey) => {
+						Err(MigrationError::MissingPasskey { keyring_id }) => {
 							if passkey.is_some() {
 								error!("Incorrect passkey");
 							}
+
+							#[cfg(feature = "keyring")]
+							if let Some(keyring_id) = keyring_id {
+								if passkey.is_none() {
+									info!("Attempting to load encryption passkey from keyring");
+									let entry = encryption::init_keyring(keyring_id)?;
+									let raw = entry.get_password()?;
+									passkey = Some(SecretString::new(raw));
+									continue;
+								}
+							}
+
 							let raw =
 								rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
 							passkey = Some(SecretString::new(raw));
@@ -163,6 +175,19 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 			Err(err) => {
 				error!("Failed to load manifest: {}", err);
 				return Err(err.into());
+			}
+		}
+	}
+
+	#[cfg(feature = "keyring")]
+	if let Some(keyring_id) = manager.keyring_id() {
+		if passkey.is_none() {
+			info!("Attempting to load encryption passkey from keyring");
+			match encryption::try_passkey_from_keyring(keyring_id.clone()) {
+				Ok(k) => passkey = k,
+				Err(e) => {
+					warn!("Failed to load encryption passkey from keyring: {}", e);
+				}
 			}
 		}
 	}
@@ -219,7 +244,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 				break;
 			}
 			Err(
-				accountmanager::ManifestAccountLoadError::MissingPasskey
+				accountmanager::ManifestAccountLoadError::MissingPasskey { .. }
 				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
 			) => {
 				if manager.has_passkey() {

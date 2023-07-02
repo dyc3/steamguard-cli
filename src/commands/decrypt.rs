@@ -14,6 +14,17 @@ where
 {
 	fn execute(&self, _transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
 		load_accounts_with_prompts(manager)?;
+
+		#[cfg(feature = "keyring")]
+		if let Some(keyring_id) = manager.keyring_id() {
+			match crate::encryption::clear_passkey(keyring_id.clone()) {
+				Ok(_) => {
+					info!("Cleared passkey from keyring");
+					manager.clear_keyring_id();
+				}
+				Err(e) => warn!("Failed to clear passkey from keyring: {}", e),
+			}
+		}
 		for mut entry in manager.iter_mut() {
 			entry.encryption = None;
 		}

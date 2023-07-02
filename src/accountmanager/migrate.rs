@@ -45,7 +45,7 @@ fn do_migrate(
 		deserialize_manifest(buffer).map_err(MigrationError::ManifestDeserializeFailed)?;
 
 	if manifest.is_encrypted() && passkey.is_none() {
-		return Err(MigrationError::MissingPasskey);
+		return Err(MigrationError::MissingPasskey { keyring_id: None });
 	} else if !manifest.is_encrypted() && passkey.is_some() {
 		// no custom error because this is an edge case, mostly user error
 		return Err(MigrationError::UnexpectedError(anyhow::anyhow!("A passkey was provided but the manifest is not encrypted. Aborting migration because it would encrypt the maFiles, and you probably didn't mean to do that.")));
@@ -84,7 +84,7 @@ fn backup_file(path: &Path) -> anyhow::Result<()> {
 #[derive(Debug, Error)]
 pub(crate) enum MigrationError {
 	#[error("Passkey is required to decrypt manifest")]
-	MissingPasskey,
+	MissingPasskey { keyring_id: Option<String> },
 	#[error("Failed to deserialize manifest: {0}")]
 	ManifestDeserializeFailed(serde_path_to_error::Error<serde_json::Error>),
 	#[error("IO error when upgrading manifest: {0}")]
