@@ -44,6 +44,7 @@ impl From<SdaManifest> for ManifestV1 {
 		Self {
 			version: 1,
 			entries: sda.entries.into_iter().map(|e| e.into()).collect(),
+			keyring_id: None,
 		}
 	}
 }

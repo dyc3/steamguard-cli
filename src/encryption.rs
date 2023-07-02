@@ -6,6 +6,12 @@ use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[cfg(feature = "keyring")]
+mod keyring;
+
+#[cfg(feature = "keyring")]
+pub use crate::encryption::keyring::*;
+
 const SALT_LENGTH: usize = 8;
 const IV_LENGTH: usize = 16;
 
