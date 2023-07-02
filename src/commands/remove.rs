@@ -54,7 +54,7 @@ where
 					}
 					Err(RemoveAuthenticatorError::TransportError(TransportError::Unauthorized)) => {
 						error!("Account {} is not logged in", account.account_name);
-						crate::do_login(transport, &mut account)?;
+						crate::do_login(transport.clone(), &mut account)?;
 						continue;
 					}
 					Err(RemoveAuthenticatorError::IncorrectRevocationCode {

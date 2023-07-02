@@ -40,13 +40,13 @@ where
 
 			if !account.is_logged_in() {
 				info!("Account does not have tokens, logging in");
-				crate::do_login(transport, &mut account)?;
+				crate::do_login(transport.clone(), &mut account)?;
 			}
 
 			info!("{}: Checking for trade confirmations", account.account_name);
 			let confirmations: Vec<Confirmation>;
 			loop {
-				let confirmer = Confirmer::new(transport, &account);
+				let confirmer = Confirmer::new(transport.clone(), &account);
 
 				match confirmer.get_trade_confirmations() {
 					Ok(confs) => {
@@ -55,7 +55,7 @@ where
 					}
 					Err(ConfirmerError::InvalidTokens) => {
 						info!("obtaining new tokens");
-						crate::do_login(transport, &mut account)?;
+						crate::do_login(transport.clone(), &mut account)?;
 					}
 					Err(err) => {
 						error!("Failed to get trade confirmations: {}", err);
@@ -69,7 +69,7 @@ where
 				continue;
 			}
 
-			let confirmer = Confirmer::new(transport, &account);
+			let confirmer = Confirmer::new(transport.clone(), &account);
 			let mut any_failed = false;
 			if self.accept_all {
 				info!("accepting all confirmations");

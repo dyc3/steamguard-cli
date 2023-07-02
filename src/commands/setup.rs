@@ -30,11 +30,11 @@ where
 			);
 		}
 		info!("Logging in to {}", username);
-		let tokens = crate::do_login_raw(transport, username)
+		let tokens = crate::do_login_raw(transport.clone(), username)
 			.expect("Failed to log in. Account has not been linked.");
 
 		info!("Adding authenticator...");
-		let mut linker = AccountLinker::new(transport, tokens);
+		let mut linker = AccountLinker::new(transport.clone(), tokens);
 		let link: AccountLinkSuccess;
 		loop {
 			match linker.link() {
