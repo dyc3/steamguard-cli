@@ -13,7 +13,7 @@ pub trait Transport {
 
 	fn close(&mut self);
 
-	fn into_http_client(&self) -> anyhow::Result<reqwest::blocking::Client> {
+	fn innner_http_client(&self) -> anyhow::Result<reqwest::blocking::Client> {
 		bail!("Transport does not support extracting HTTP client")
 	}
 }

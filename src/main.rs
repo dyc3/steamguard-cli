@@ -392,7 +392,7 @@ fn do_login_impl<T: Transport + Clone>(
 			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => {
 				let code = if let Some(account) = account {
 					debug!("Generating 2fa code...");
-					let time = steamapi::get_server_time(transport.clone())?.server_time();
+					let time = steamapi::get_server_time(transport)?.server_time();
 					account.generate_code(time)
 				} else {
 					eprint!("Enter the 2fa code from your device: ");

@@ -12,7 +12,7 @@ impl<T> ManifestCommand<T> for EncryptCommand
 where
 	T: Transport,
 {
-	fn execute(&self, transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
+	fn execute(&self, _transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
 		if !manager.has_passkey() {
 			let mut passkey;
 			loop {

@@ -3,9 +3,7 @@ pub mod phone;
 pub mod twofactor;
 
 use crate::transport::Transport;
-use crate::{
-	protobufs::service_twofactor::CTwoFactor_Time_Response, token::Jwt, transport::WebApiTransport,
-};
+use crate::{protobufs::service_twofactor::CTwoFactor_Time_Response, token::Jwt};
 use reqwest::Url;
 use serde::Deserialize;
 

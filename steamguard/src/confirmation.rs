@@ -11,7 +11,7 @@ use secrecy::ExposeSecret;
 use serde::Deserialize;
 
 use crate::{
-	steamapi::{self, TwoFactorClient},
+	steamapi::{self},
 	transport::Transport,
 	SteamGuardAccount,
 };
@@ -82,7 +82,7 @@ where
 
 	pub fn get_trade_confirmations(&self) -> Result<Vec<Confirmation>, ConfirmerError> {
 		let cookies = self.build_cookie_jar();
-		let client = self.transport.into_http_client()?;
+		let client = self.transport.innner_http_client()?;
 
 		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let resp = client
@@ -125,7 +125,7 @@ where
 		let operation = action.to_operation();
 
 		let cookies = self.build_cookie_jar();
-		let client = self.transport.into_http_client()?;
+		let client = self.transport.innner_http_client()?;
 
 		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let mut query_params = self.get_confirmation_query_params("conf", time);
@@ -191,7 +191,7 @@ where
 		let operation = action.to_operation();
 
 		let cookies = self.build_cookie_jar();
-		let client = self.transport.into_http_client()?;
+		let client = self.transport.innner_http_client()?;
 
 		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let mut query_params = self.get_confirmation_query_params("conf", time);
@@ -266,7 +266,7 @@ where
 		}
 
 		let cookies = self.build_cookie_jar();
-		let client = self.transport.into_http_client()?;
+		let client = self.transport.innner_http_client()?;
 
 		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let query_params = self.get_confirmation_query_params("details", time);
