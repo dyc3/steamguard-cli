@@ -87,20 +87,22 @@ cross build --release "--target=$BUILD_TARGET"
 BIN_PATH="target/$BUILD_TARGET/release/steamguard"
 BIN_PATH2="target/$BUILD_TARGET2/release/steamguard.exe"
 RAW_VERSION="$("$BIN_PATH" --version | cut -d " " -f 2)"
-TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
-if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
-  echo "Version mismatch: $RAW_VERSION != $TAGGED_VERSION"
-  if [[ $DRY_RUN == false ]]; then
-    echo "Aborting."
-    exit 2
-  fi
-fi
+
+# TODO: can't compare with the tag anymore because it doesn't exist yet. maybe get a better condition?
+# TAGGED_VERSION="$(git tag | grep "^v" | tail -n 1 | tr -d v)"
+# if [[ "v$RAW_VERSION" != "v$TAGGED_VERSION" ]]; then
+#   echo "Version mismatch: $RAW_VERSION != $TAGGED_VERSION"
+#   if [[ $DRY_RUN == false ]]; then
+#     echo "Aborting."
+#     exit 2
+#   fi
+# fi
 VERSION="v$RAW_VERSION"
 
 echo "It's now safe to push tags and publish for the affected crates."
 
 if [[ $DRY_RUN == false ]]; then
-  cargo smart-release --update-crates-index --no-changelog
+  cargo smart-release --update-crates-index --no-changelog --execute
 fi
 
 if [[ $DRY_RUN == false ]]; then
