@@ -2,15 +2,21 @@ use crate::{
 	protobufs::steammessages_auth_steamclient::CAuthentication_AccessToken_GenerateForApp_Request,
 	steamapi::{AuthenticationClient, EResult},
 	token::{Jwt, Tokens},
-	transport::WebApiTransport,
+	transport::Transport,
 };
 
-pub struct TokenRefresher {
-	client: AuthenticationClient<WebApiTransport>,
+pub struct TokenRefresher<T>
+where
+	T: Transport,
+{
+	client: AuthenticationClient<T>,
 }
 
-impl TokenRefresher {
-	pub fn new(client: AuthenticationClient<WebApiTransport>) -> Self {
+impl<T> TokenRefresher<T>
+where
+	T: Transport,
+{
+	pub fn new(client: AuthenticationClient<T>) -> Self {
 		Self { client }
 	}
 

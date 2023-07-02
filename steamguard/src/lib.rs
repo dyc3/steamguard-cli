@@ -109,7 +109,7 @@ impl SteamGuardAccount {
 		let Some(tokens) = &self.tokens else {
 			return Err(RemoveAuthenticatorError::TransportError(TransportError::Unauthorized));
 		};
-		let mut client = TwoFactorClient::new(WebApiTransport::new());
+		let mut client = TwoFactorClient::new(WebApiTransport::default());
 		let mut req = CTwoFactor_RemoveAuthenticator_Request::new();
 		req.set_revocation_code(
 			revocation_code

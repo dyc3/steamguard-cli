@@ -17,21 +17,24 @@ pub struct WebApiTransport {
 
 impl Default for WebApiTransport {
 	fn default() -> Self {
-		Self::new()
+		Self::new(reqwest::blocking::Client::new())
 	}
 }
 
 impl WebApiTransport {
-	pub fn new() -> WebApiTransport {
-		Self {
-			client: reqwest::blocking::Client::new(),
-			// client: reqwest::blocking::Client::builder()
-			// 	.danger_accept_invalid_certs(true)
-			// 	.proxy(reqwest::Proxy::all("http://localhost:8080").unwrap())
-			// 	.build()
-			// 	.unwrap(),
-		}
+	pub fn new(client: reqwest::blocking::Client) -> Self {
+		Self { client }
 	}
+
+	// pub fn new_with_proxy(proxy: &str) -> Self {
+	// 	Self {
+	// 		client: reqwest::blocking::Client::builder()
+	// 			// .danger_accept_invalid_certs(true)
+	// 			.proxy(reqwest::Proxy::all(proxy).unwrap())
+	// 			.build()
+	// 			.unwrap(),
+	// 	}
+	// }
 }
 
 impl Transport for WebApiTransport {

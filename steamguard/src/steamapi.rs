@@ -21,7 +21,7 @@ lazy_static! {
 ///
 /// Endpoint: `/ITwoFactorService/QueryTime/v0001`
 pub fn get_server_time() -> anyhow::Result<CTwoFactor_Time_Response> {
-	let mut client = TwoFactorClient::new(WebApiTransport::new());
+	let mut client = TwoFactorClient::new(WebApiTransport::default());
 	let resp = client.query_time()?;
 	if resp.result != EResult::OK {
 		return Err(anyhow::anyhow!("QueryTime failed: {:?}", resp));

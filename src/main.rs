@@ -274,7 +274,7 @@ fn get_selected_accounts(
 fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	if let Some(tokens) = account.tokens.as_mut() {
 		info!("Refreshing access token...");
-		let client = AuthenticationClient::new(WebApiTransport::new());
+		let client = AuthenticationClient::new(WebApiTransport::default());
 		let mut refresher = TokenRefresher::new(client);
 		match refresher.refresh(account.steam_id, tokens) {
 			Ok(token) => {
@@ -327,7 +327,7 @@ fn do_login_impl(
 	password: String,
 	account: Option<&SteamGuardAccount>,
 ) -> anyhow::Result<Tokens> {
-	let mut login = UserLogin::new(build_device_details());
+	let mut login = UserLogin::new(WebApiTransport::default(), build_device_details());
 
 	let mut password = password;
 	let confirmation_methods;
