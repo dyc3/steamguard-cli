@@ -92,6 +92,14 @@ impl AccountManager {
 		self.manifest.keyring_id.as_ref()
 	}
 
+	pub fn set_keyring_id(&mut self, keyring_id: String) {
+		self.manifest.keyring_id = Some(keyring_id);
+	}
+
+	pub fn clear_keyring_id(&mut self) {
+		self.manifest.keyring_id = None;
+	}
+
 	/// Loads all accounts, and registers them.
 	pub fn load_accounts(&mut self) -> anyhow::Result<(), ManifestAccountLoadError> {
 		let mut accounts = vec![];
