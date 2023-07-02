@@ -6,20 +6,17 @@ use crate::protobufs::steammessages_auth_steamclient::{
 	CAuthentication_PollAuthSessionStatus_Request, CAuthentication_PollAuthSessionStatus_Response,
 	EAuthSessionGuardType,
 };
+use crate::protobufs::steammessages_auth_steamclient::{
+	CAuthentication_BeginAuthSessionViaCredentials_Response,
+	CAuthentication_BeginAuthSessionViaQR_Request, CAuthentication_BeginAuthSessionViaQR_Response,
+	CAuthentication_GetPasswordRSAPublicKey_Response,
+	CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
+	CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthTokenPlatformType,
+};
 use crate::steamapi::authentication::AuthenticationClient;
 use crate::steamapi::EResult;
 use crate::token::Tokens;
-use crate::{
-	protobufs::steammessages_auth_steamclient::{
-		CAuthentication_BeginAuthSessionViaCredentials_Response,
-		CAuthentication_BeginAuthSessionViaQR_Request,
-		CAuthentication_BeginAuthSessionViaQR_Response,
-		CAuthentication_GetPasswordRSAPublicKey_Response,
-		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
-		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthTokenPlatformType,
-	},
-	transport::WebApiTransport,
-};
+use crate::transport::Transport;
 use log::*;
 use rsa::{PublicKey, RsaPublicKey};
 use std::time::Duration;
@@ -82,17 +79,23 @@ impl BeginQrLoginResponse {
 
 /// Handles the user login flow.
 #[derive(Debug)]
-pub struct UserLogin {
-	client: AuthenticationClient<WebApiTransport>,
+pub struct UserLogin<T>
+where
+	T: Transport,
+{
+	client: AuthenticationClient<T>,
 	device_details: DeviceDetails,
 
 	started_auth: Option<StartAuth>,
 }
 
-impl UserLogin {
-	pub fn new(device_details: DeviceDetails) -> Self {
+impl<T> UserLogin<T>
+where
+	T: Transport,
+{
+	pub fn new(transport: T, device_details: DeviceDetails) -> Self {
 		Self {
-			client: AuthenticationClient::new(WebApiTransport::new()),
+			client: AuthenticationClient::new(transport),
 			device_details,
 			started_auth: None,
 		}

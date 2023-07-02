@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use log::*;
-use steamguard::{QrApprover, QrApproverError};
+use steamguard::{transport::WebApiTransport, QrApprover, QrApproverError};
 
 use crate::AccountManager;
 
@@ -42,7 +42,7 @@ impl AccountCommand for QrLoginCommand {
 				return Err(anyhow!("No tokens found for {}", account.account_name));
 			};
 
-			let mut approver = QrApprover::new(tokens);
+			let mut approver = QrApprover::new(WebApiTransport::default(), tokens);
 			match approver.approve(&account, &self.url) {
 				Ok(_) => {
 					info!("Login approved.");

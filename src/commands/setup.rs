@@ -31,7 +31,7 @@ impl ManifestCommand for SetupCommand {
 			crate::do_login_raw(username).expect("Failed to log in. Account has not been linked.");
 
 		info!("Adding authenticator...");
-		let mut linker = AccountLinker::new(tokens);
+		let mut linker = AccountLinker::new(WebApiTransport::default(), tokens);
 		let link: AccountLinkSuccess;
 		loop {
 			match linker.link() {
@@ -130,7 +130,7 @@ impl ManifestCommand for SetupCommand {
 }
 
 pub fn do_add_phone_number(tokens: &Tokens) -> anyhow::Result<()> {
-	let client = PhoneClient::new(WebApiTransport::new());
+	let client = PhoneClient::new(WebApiTransport::default());
 
 	let linker = PhoneLinker::new(client, tokens.clone());
 

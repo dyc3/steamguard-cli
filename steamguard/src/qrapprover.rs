@@ -5,21 +5,27 @@ use crate::{
 	protobufs::steammessages_auth_steamclient::CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
 	steamapi::{AuthenticationClient, EResult},
 	token::{Tokens, TwoFactorSecret},
-	transport::WebApiTransport,
+	transport::Transport,
 	SteamGuardAccount,
 };
 
 /// QR code login approver
 ///
 /// This can be used to approve a login request from another device that is displaying a QR code.
-pub struct QrApprover<'a> {
+pub struct QrApprover<'a, T>
+where
+	T: Transport,
+{
 	tokens: &'a Tokens,
-	client: AuthenticationClient<WebApiTransport>,
+	client: AuthenticationClient<T>,
 }
 
-impl<'a> QrApprover<'a> {
-	pub fn new(tokens: &'a Tokens) -> Self {
-		let client = AuthenticationClient::new(WebApiTransport::new());
+impl<'a, T> QrApprover<'a, T>
+where
+	T: Transport,
+{
+	pub fn new(transport: T, tokens: &'a Tokens) -> Self {
+		let client = AuthenticationClient::new(transport);
 		Self { tokens, client }
 	}
 

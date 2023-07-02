@@ -1,20 +1,25 @@
 use crate::protobufs::service_phone::*;
-use crate::transport::TransportError;
+use crate::transport::{Transport, TransportError};
 use crate::{
 	steamapi::{EResult, PhoneClient},
 	token::Tokens,
-	transport::WebApiTransport,
 };
 
 pub use phonenumber::PhoneNumber;
 
-pub struct PhoneLinker {
-	client: PhoneClient<WebApiTransport>,
+pub struct PhoneLinker<T>
+where
+	T: Transport,
+{
+	client: PhoneClient<T>,
 	tokens: Tokens,
 }
 
-impl PhoneLinker {
-	pub fn new(client: PhoneClient<WebApiTransport>, tokens: Tokens) -> Self {
+impl<T> PhoneLinker<T>
+where
+	T: Transport,
+{
+	pub fn new(client: PhoneClient<T>, tokens: Tokens) -> Self {
 		Self { client, tokens }
 	}
 

@@ -3,28 +3,34 @@ use crate::protobufs::service_twofactor::{
 };
 use crate::steamapi::twofactor::TwoFactorClient;
 use crate::token::TwoFactorSecret;
-use crate::transport::WebApiTransport;
+use crate::transport::Transport;
 use crate::{steamapi::EResult, token::Tokens, SteamGuardAccount};
 use log::*;
 use thiserror::Error;
 
 #[derive(Debug)]
-pub struct AccountLinker {
+pub struct AccountLinker<T>
+where
+	T: Transport,
+{
 	device_id: String,
 	pub account: Option<SteamGuardAccount>,
 	pub finalized: bool,
 	tokens: Tokens,
-	client: TwoFactorClient<WebApiTransport>,
+	client: TwoFactorClient<T>,
 }
 
-impl AccountLinker {
-	pub fn new(tokens: Tokens) -> AccountLinker {
+impl<T> AccountLinker<T>
+where
+	T: Transport,
+{
+	pub fn new(transport: T, tokens: Tokens) -> Self {
 		Self {
 			device_id: generate_device_id(),
 			account: None,
 			finalized: false,
 			tokens,
-			client: TwoFactorClient::new(WebApiTransport::new()),
+			client: TwoFactorClient::new(transport),
 		}
 	}
 
