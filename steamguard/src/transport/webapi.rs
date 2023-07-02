@@ -10,15 +10,9 @@ lazy_static! {
 	static ref STEAM_API_BASE: String = "https://api.steampowered.com".into();
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebApiTransport {
 	client: reqwest::blocking::Client,
-}
-
-impl Default for WebApiTransport {
-	fn default() -> Self {
-		Self::new(reqwest::blocking::Client::new())
-	}
 }
 
 impl WebApiTransport {
