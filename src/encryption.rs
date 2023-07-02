@@ -166,7 +166,7 @@ impl From<std::io::Error> for EntryEncryptionError {
 }
 
 pub fn generate_keyring_id() -> String {
-	let mut rng = rand::thread_rng();
+	let rng = rand::thread_rng();
 	rng.sample_iter(rand::distributions::Alphanumeric)
 		.take(32)
 		.map(char::from)
