@@ -69,7 +69,7 @@ where
 				continue;
 			}
 
-			let confirmer = Confirmer::new(&account);
+			let confirmer = Confirmer::new(transport, &account);
 			let mut any_failed = false;
 			if self.accept_all {
 				info!("accepting all confirmations");
