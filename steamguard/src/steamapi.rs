@@ -2,6 +2,7 @@ pub mod authentication;
 pub mod phone;
 pub mod twofactor;
 
+use crate::transport::Transport;
 use crate::{
 	protobufs::service_twofactor::CTwoFactor_Time_Response, token::Jwt, transport::WebApiTransport,
 };
@@ -20,8 +21,8 @@ lazy_static! {
 /// Queries Steam for the current time. A convenience function around TwoFactorClient.
 ///
 /// Endpoint: `/ITwoFactorService/QueryTime/v0001`
-pub fn get_server_time() -> anyhow::Result<CTwoFactor_Time_Response> {
-	let mut client = TwoFactorClient::new(WebApiTransport::default());
+pub fn get_server_time<T: Transport>(client: T) -> anyhow::Result<CTwoFactor_Time_Response> {
+	let client = TwoFactorClient::new(client);
 	let resp = client.query_time()?;
 	if resp.result != EResult::OK {
 		return Err(anyhow::anyhow!("QueryTime failed: {:?}", resp));
