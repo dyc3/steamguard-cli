@@ -3,7 +3,7 @@ use phonenumber::PhoneNumber;
 use secrecy::ExposeSecret;
 use steamguard::{
 	accountlinker::AccountLinkSuccess, phonelinker::PhoneLinker, steamapi::PhoneClient,
-	token::Tokens, transport::WebApiTransport, AccountLinkError, AccountLinker, FinalizeLinkError,
+	token::Tokens, AccountLinkError, AccountLinker, FinalizeLinkError,
 };
 
 use crate::{tui, AccountManager};
@@ -44,7 +44,7 @@ where
 				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
 					eprintln!("Looks like you don't have a phone number on this account.");
-					do_add_phone_number(linker.tokens())?;
+					do_add_phone_number(transport.clone(), linker.tokens())?;
 				}
 				Err(AccountLinkError::MustConfirmEmail) => {
 					println!("Check your email and click the link.");
@@ -132,8 +132,8 @@ where
 	}
 }
 
-pub fn do_add_phone_number(tokens: &Tokens) -> anyhow::Result<()> {
-	let client = PhoneClient::new(WebApiTransport::default());
+pub fn do_add_phone_number<T: Transport>(transport: T, tokens: &Tokens) -> anyhow::Result<()> {
+	let client = PhoneClient::new(transport);
 
 	let linker = PhoneLinker::new(client, tokens.clone());
 
