@@ -19,16 +19,6 @@ impl WebApiTransport {
 	pub fn new(client: reqwest::blocking::Client) -> Self {
 		Self { client }
 	}
-
-	// pub fn new_with_proxy(proxy: &str) -> Self {
-	// 	Self {
-	// 		client: reqwest::blocking::Client::builder()
-	// 			// .danger_accept_invalid_certs(true)
-	// 			.proxy(reqwest::Proxy::all(proxy).unwrap())
-	// 			.build()
-	// 			.unwrap(),
-	// 	}
-	// }
 }
 
 impl Transport for WebApiTransport {
