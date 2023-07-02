@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use log::*;
-use steamguard::{transport::TransportError, RemoveAuthenticatorError};
+use steamguard::{steamapi::TwoFactorClient, transport::TransportError, RemoveAuthenticatorError};
 
 use crate::{errors::UserError, tui, AccountManager};
 
@@ -13,7 +13,7 @@ pub struct RemoveCommand;
 
 impl<T> AccountCommand<T> for RemoveCommand
 where
-	T: Transport,
+	T: Transport + Clone,
 {
 	fn execute(
 		&self,
@@ -42,10 +42,11 @@ where
 		let mut successful = vec![];
 		for a in accounts {
 			let mut account = a.lock().unwrap();
+			let client = TwoFactorClient::new(transport.clone());
 
 			let mut revocation: Option<String> = None;
 			loop {
-				match account.remove_authenticator(revocation.as_ref()) {
+				match account.remove_authenticator(&client, revocation.as_ref()) {
 					Ok(_) => {
 						info!("Removed authenticator from {}", account.account_name);
 						successful.push(account.account_name.clone());
