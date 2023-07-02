@@ -14,6 +14,18 @@ A command line utility for setting up and using Steam Mobile Authenticator (AKA 
 
 If you have no idea what the rest of this document is talking about, go read the [quickstart](docs/quickstart.md).
 
+# Features
+
+- Generate 2FA codes
+- Respond to trade, market or any other confirmations
+- Encrypted storage of your 2FA secrets
+  - With the option to store your encryption passkey in the system keyring
+- Special memory-clearing data structures to prevent leaking secrets
+- QR code generation for importing 2FA secrets into other applications, like KeeWeb
+- QR code logins for quickly logging into Steam on a new device, like the Steam Deck
+- Able to read Steam Desktop Authenticator's `maFiles` format
+- Uses as many official Steam APIs as possible, unlikely to break
+
 # Install
 
 If you have the Rust toolchain installed:
