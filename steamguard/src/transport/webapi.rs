@@ -129,6 +129,10 @@ impl Transport for WebApiTransport {
 	}
 
 	fn close(&mut self) {}
+
+	fn into_http_client(&self) -> anyhow::Result<reqwest::blocking::Client> {
+		Ok(self.client.clone())
+	}
 }
 
 fn encode_msg<T: MessageFull>(msg: &T, config: base64::Config) -> anyhow::Result<String> {
