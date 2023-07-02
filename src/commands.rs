@@ -4,7 +4,7 @@ use clap::{clap_derive::ArgEnum, Parser};
 use clap_complete::Shell;
 use secrecy::SecretString;
 use std::str::FromStr;
-use steamguard::SteamGuardAccount;
+use steamguard::{transport::Transport, SteamGuardAccount};
 
 use crate::AccountManager;
 
@@ -40,23 +40,33 @@ pub(crate) trait ConstCommand {
 }
 
 /// A command that operates the manifest as a whole
-pub(crate) trait ManifestCommand {
-	fn execute(&self, manager: &mut AccountManager) -> anyhow::Result<()>;
+pub(crate) trait ManifestCommand<T>
+where
+	T: Transport,
+{
+	fn execute(&self, transport: T, manager: &mut AccountManager) -> anyhow::Result<()>;
 }
 
 /// A command that operates on individual accounts.
-pub(crate) trait AccountCommand {
+pub(crate) trait AccountCommand<T>
+where
+	T: Transport,
+{
 	fn execute(
 		&self,
+		transport: T,
 		manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()>;
 }
 
-pub(crate) enum CommandType {
+pub(crate) enum CommandType<T>
+where
+	T: Transport,
+{
 	Const(Box<dyn ConstCommand>),
-	Manifest(Box<dyn ManifestCommand>),
-	Account(Box<dyn AccountCommand>),
+	Manifest(Box<dyn ManifestCommand<T>>),
+	Account(Box<dyn AccountCommand<T>>),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -114,6 +124,14 @@ pub(crate) struct GlobalArgs {
 		long_help = "Disable checking for updates. By default, steamguard-cli will check for updates every now and then. This can be disabled with this flag."
 	)]
 	pub no_update_check: bool,
+
+	#[clap(
+		long,
+		env = "HTTP_PROXY",
+		help = "Use a proxy for HTTP requests.",
+		long_help = "Use a proxy for HTTP requests. This is useful if you are behind a firewall and need to use a proxy to access the internet."
+	)]
+	pub http_proxy: Option<String>,
 }
 
 #[derive(Debug, Clone, Parser)]

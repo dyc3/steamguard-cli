@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use log::*;
-use steamguard::{transport::WebApiTransport, QrApprover, QrApproverError};
+use steamguard::{QrApprover, QrApproverError};
 
 use crate::AccountManager;
 
@@ -17,9 +17,13 @@ pub struct QrLoginCommand {
 	pub url: String,
 }
 
-impl AccountCommand for QrLoginCommand {
+impl<T> AccountCommand<T> for QrLoginCommand
+where
+	T: Transport + Clone,
+{
 	fn execute(
 		&self,
+		transport: T,
 		_manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {
@@ -33,7 +37,7 @@ impl AccountCommand for QrLoginCommand {
 		info!("Approving login to {}", account.account_name);
 
 		if account.tokens.is_none() {
-			crate::do_login(&mut account)?;
+			crate::do_login(transport.clone(), &mut account)?;
 		}
 
 		loop {
@@ -42,7 +46,7 @@ impl AccountCommand for QrLoginCommand {
 				return Err(anyhow!("No tokens found for {}", account.account_name));
 			};
 
-			let mut approver = QrApprover::new(WebApiTransport::default(), tokens);
+			let mut approver = QrApprover::new(transport.clone(), tokens);
 			match approver.approve(&account, &self.url) {
 				Ok(_) => {
 					info!("Login approved.");
@@ -50,7 +54,7 @@ impl AccountCommand for QrLoginCommand {
 				}
 				Err(QrApproverError::Unauthorized) => {
 					warn!("tokens are invalid. Attempting to log in again.");
-					crate::do_login(&mut account)?;
+					crate::do_login(transport.clone(), &mut account)?;
 				}
 				Err(e) => {
 					error!("Failed to approve login: {}", e);

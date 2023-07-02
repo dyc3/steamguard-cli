@@ -20,16 +20,20 @@ pub struct CodeCommand {
 	pub offline: bool,
 }
 
-impl AccountCommand for CodeCommand {
+impl<T> AccountCommand<T> for CodeCommand
+where
+	T: Transport,
+{
 	fn execute(
 		&self,
+		transport: T,
 		_manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {
 		let server_time = if self.offline {
 			SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
 		} else {
-			steamapi::get_server_time()?.server_time()
+			steamapi::get_server_time(transport)?.server_time()
 		};
 		debug!("Time used to generate codes: {}", server_time);
 

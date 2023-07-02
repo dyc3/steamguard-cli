@@ -26,7 +26,7 @@ where
 	}
 
 	pub fn add_authenticator(
-		&mut self,
+		&self,
 		req: CTwoFactor_AddAuthenticator_Request,
 		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_AddAuthenticator_Response>> {
@@ -41,7 +41,7 @@ where
 	}
 
 	pub fn finalize_authenticator(
-		&mut self,
+		&self,
 		req: CTwoFactor_FinalizeAddAuthenticator_Request,
 		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_FinalizeAddAuthenticator_Response>> {
@@ -56,7 +56,7 @@ where
 	}
 
 	pub fn remove_authenticator(
-		&mut self,
+		&self,
 		req: CTwoFactor_RemoveAuthenticator_Request,
 		access_token: &Jwt,
 	) -> Result<ApiResponse<CTwoFactor_RemoveAuthenticator_Response>, TransportError> {
@@ -71,7 +71,7 @@ where
 	}
 
 	pub fn query_status(
-		&mut self,
+		&self,
 		req: CTwoFactor_Status_Request,
 		access_token: &Jwt,
 	) -> anyhow::Result<ApiResponse<CTwoFactor_Status_Response>> {
@@ -83,7 +83,7 @@ where
 		Ok(resp)
 	}
 
-	pub fn query_time(&mut self) -> anyhow::Result<ApiResponse<CTwoFactor_Time_Response>> {
+	pub fn query_time(&self) -> anyhow::Result<ApiResponse<CTwoFactor_Time_Response>> {
 		let req = ApiRequest::new(SERVICE_NAME, "QueryTime", 1, CTwoFactor_Time_Request::new());
 		let resp = self
 			.transport

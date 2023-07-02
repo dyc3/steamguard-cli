@@ -12,6 +12,10 @@ pub trait Transport {
 	) -> Result<ApiResponse<Res>, TransportError>;
 
 	fn close(&mut self);
+
+	fn innner_http_client(&self) -> anyhow::Result<reqwest::blocking::Client> {
+		bail!("Transport does not support extracting HTTP client")
+	}
 }
 
 #[derive(Debug, thiserror::Error)]

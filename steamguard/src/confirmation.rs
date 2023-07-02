@@ -10,20 +10,30 @@ use reqwest::{
 use secrecy::ExposeSecret;
 use serde::Deserialize;
 
-use crate::{steamapi, SteamGuardAccount};
+use crate::{
+	steamapi::{self},
+	transport::Transport,
+	SteamGuardAccount,
+};
 
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
 }
 
 /// Provides an interface that wraps the Steam mobile confirmation API.
-pub struct Confirmer<'a> {
+///
+/// Only compatible with WebApiTransport.
+pub struct Confirmer<'a, T> {
 	account: &'a SteamGuardAccount,
+	transport: T,
 }
 
-impl<'a> Confirmer<'a> {
-	pub fn new(account: &'a SteamGuardAccount) -> Self {
-		Self { account }
+impl<'a, T> Confirmer<'a, T>
+where
+	T: Transport + Clone,
+{
+	pub fn new(transport: T, account: &'a SteamGuardAccount) -> Self {
+		Self { account, transport }
 	}
 
 	fn get_confirmation_query_params<'q>(
@@ -72,11 +82,9 @@ impl<'a> Confirmer<'a> {
 
 	pub fn get_trade_confirmations(&self) -> Result<Vec<Confirmation>, ConfirmerError> {
 		let cookies = self.build_cookie_jar();
-		let client = reqwest::blocking::ClientBuilder::new()
-			.cookie_store(true)
-			.build()?;
+		let client = self.transport.innner_http_client()?;
 
-		let time = steamapi::get_server_time()?.server_time();
+		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let resp = client
 			.get(
 				"https://steamcommunity.com/mobileconf/getlist"
@@ -117,11 +125,9 @@ impl<'a> Confirmer<'a> {
 		let operation = action.to_operation();
 
 		let cookies = self.build_cookie_jar();
-		let client = reqwest::blocking::ClientBuilder::new()
-			.cookie_store(true)
-			.build()?;
+		let client = self.transport.innner_http_client()?;
 
-		let time = steamapi::get_server_time()?.server_time();
+		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let mut query_params = self.get_confirmation_query_params("conf", time);
 		query_params.push(("op", operation.into()));
 		query_params.push(("cid", Cow::Borrowed(&conf.id)));
@@ -185,11 +191,9 @@ impl<'a> Confirmer<'a> {
 		let operation = action.to_operation();
 
 		let cookies = self.build_cookie_jar();
-		let client = reqwest::blocking::ClientBuilder::new()
-			.cookie_store(true)
-			.build()?;
+		let client = self.transport.innner_http_client()?;
 
-		let time = steamapi::get_server_time()?.server_time();
+		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let mut query_params = self.get_confirmation_query_params("conf", time);
 		query_params.push(("op", operation.into()));
 		for conf in confs.iter() {
@@ -262,11 +266,9 @@ impl<'a> Confirmer<'a> {
 		}
 
 		let cookies = self.build_cookie_jar();
-		let client = reqwest::blocking::ClientBuilder::new()
-			.cookie_store(true)
-			.build()?;
+		let client = self.transport.innner_http_client()?;
 
-		let time = steamapi::get_server_time()?.server_time();
+		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let query_params = self.get_confirmation_query_params("details", time);
 
 		let resp = client

@@ -3,7 +3,7 @@ use phonenumber::PhoneNumber;
 use secrecy::ExposeSecret;
 use steamguard::{
 	accountlinker::AccountLinkSuccess, phonelinker::PhoneLinker, steamapi::PhoneClient,
-	token::Tokens, transport::WebApiTransport, AccountLinkError, AccountLinker, FinalizeLinkError,
+	token::Tokens, AccountLinkError, AccountLinker, FinalizeLinkError,
 };
 
 use crate::{tui, AccountManager};
@@ -14,8 +14,11 @@ use super::*;
 #[clap(about = "Set up a new account with steamguard-cli")]
 pub struct SetupCommand;
 
-impl ManifestCommand for SetupCommand {
-	fn execute(&self, manager: &mut AccountManager) -> anyhow::Result<()> {
+impl<T> ManifestCommand<T> for SetupCommand
+where
+	T: Transport + Clone,
+{
+	fn execute(&self, transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
 		eprintln!("Log in to the account that you want to link to steamguard-cli");
 		eprint!("Username: ");
 		let username = tui::prompt().to_lowercase();
@@ -27,11 +30,11 @@ impl ManifestCommand for SetupCommand {
 			);
 		}
 		info!("Logging in to {}", username);
-		let tokens =
-			crate::do_login_raw(username).expect("Failed to log in. Account has not been linked.");
+		let tokens = crate::do_login_raw(transport.clone(), username)
+			.expect("Failed to log in. Account has not been linked.");
 
 		info!("Adding authenticator...");
-		let mut linker = AccountLinker::new(WebApiTransport::default(), tokens);
+		let mut linker = AccountLinker::new(transport.clone(), tokens);
 		let link: AccountLinkSuccess;
 		loop {
 			match linker.link() {
@@ -41,7 +44,7 @@ impl ManifestCommand for SetupCommand {
 				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
 					eprintln!("Looks like you don't have a phone number on this account.");
-					do_add_phone_number(linker.tokens())?;
+					do_add_phone_number(transport.clone(), linker.tokens())?;
 				}
 				Err(AccountLinkError::MustConfirmEmail) => {
 					println!("Check your email and click the link.");
@@ -129,8 +132,8 @@ impl ManifestCommand for SetupCommand {
 	}
 }
 
-pub fn do_add_phone_number(tokens: &Tokens) -> anyhow::Result<()> {
-	let client = PhoneClient::new(WebApiTransport::default());
+pub fn do_add_phone_number<T: Transport>(transport: T, tokens: &Tokens) -> anyhow::Result<()> {
+	let client = PhoneClient::new(transport);
 
 	let linker = PhoneLinker::new(client, tokens.clone());
 

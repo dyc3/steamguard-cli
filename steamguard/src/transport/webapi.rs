@@ -10,31 +10,15 @@ lazy_static! {
 	static ref STEAM_API_BASE: String = "https://api.steampowered.com".into();
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebApiTransport {
 	client: reqwest::blocking::Client,
-}
-
-impl Default for WebApiTransport {
-	fn default() -> Self {
-		Self::new(reqwest::blocking::Client::new())
-	}
 }
 
 impl WebApiTransport {
 	pub fn new(client: reqwest::blocking::Client) -> Self {
 		Self { client }
 	}
-
-	// pub fn new_with_proxy(proxy: &str) -> Self {
-	// 	Self {
-	// 		client: reqwest::blocking::Client::builder()
-	// 			// .danger_accept_invalid_certs(true)
-	// 			.proxy(reqwest::Proxy::all(proxy).unwrap())
-	// 			.build()
-	// 			.unwrap(),
-	// 	}
-	// }
 }
 
 impl Transport for WebApiTransport {
@@ -129,6 +113,10 @@ impl Transport for WebApiTransport {
 	}
 
 	fn close(&mut self) {}
+
+	fn innner_http_client(&self) -> anyhow::Result<reqwest::blocking::Client> {
+		Ok(self.client.clone())
+	}
 }
 
 fn encode_msg<T: MessageFull>(msg: &T, config: base64::Config) -> anyhow::Result<String> {

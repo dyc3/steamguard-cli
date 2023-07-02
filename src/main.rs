@@ -10,7 +10,7 @@ use std::{
 use steamguard::{
 	protobufs::steammessages_auth_steamclient::{EAuthSessionGuardType, EAuthTokenPlatformType},
 	refresher::TokenRefresher,
-	transport::WebApiTransport,
+	transport::{Transport, WebApiTransport},
 };
 use steamguard::{steamapi, DeviceDetails, LoginError, SteamGuardAccount, UserLogin};
 use steamguard::{steamapi::AuthenticationClient, token::Tokens};
@@ -83,7 +83,7 @@ fn main() {
 fn run(args: commands::Args) -> anyhow::Result<()> {
 	let globalargs = args.global;
 
-	let cmd: CommandType = match args.sub.unwrap_or(Subcommands::Code(args.code)) {
+	let cmd: CommandType<WebApiTransport> = match args.sub.unwrap_or(Subcommands::Code(args.code)) {
 		Subcommands::Debug(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Completion(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Setup(args) => CommandType::Manifest(Box::new(args)),
@@ -198,8 +198,16 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		}
 	}
 
+	let mut http_client = reqwest::blocking::Client::builder();
+	if let Some(proxy) = &globalargs.http_proxy {
+		let proxy = reqwest::Proxy::all(proxy)?;
+		http_client = http_client.proxy(proxy);
+	}
+	let http_client = http_client.build()?;
+	let transport = WebApiTransport::new(http_client);
+
 	if let CommandType::Manifest(cmd) = cmd {
-		cmd.execute(&mut manager)?;
+		cmd.execute(transport, &mut manager)?;
 		return Ok(());
 	}
 
@@ -237,7 +245,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 	);
 
 	if let CommandType::Account(cmd) = cmd {
-		return cmd.execute(&mut manager, selected_accounts);
+		return cmd.execute(transport, &mut manager, selected_accounts);
 	}
 
 	Ok(())
@@ -271,10 +279,13 @@ fn get_selected_accounts(
 	Ok(selected_accounts)
 }
 
-fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
+fn do_login<T: Transport + Clone>(
+	transport: T,
+	account: &mut SteamGuardAccount,
+) -> anyhow::Result<()> {
 	if let Some(tokens) = account.tokens.as_mut() {
 		info!("Refreshing access token...");
-		let client = AuthenticationClient::new(WebApiTransport::default());
+		let client = AuthenticationClient::new(transport.clone());
 		let mut refresher = TokenRefresher::new(client);
 		match refresher.refresh(account.steam_id, tokens) {
 			Ok(token) => {
@@ -304,14 +315,19 @@ fn do_login(account: &mut SteamGuardAccount) -> anyhow::Result<()> {
 	} else {
 		debug!("password is empty");
 	}
-	let tokens = do_login_impl(account.account_name.clone(), password, Some(account))?;
+	let tokens = do_login_impl(
+		transport,
+		account.account_name.clone(),
+		password,
+		Some(account),
+	)?;
 	let steam_id = tokens.access_token().decode()?.steam_id();
 	account.set_tokens(tokens);
 	account.steam_id = steam_id;
 	Ok(())
 }
 
-fn do_login_raw(username: String) -> anyhow::Result<Tokens> {
+fn do_login_raw<T: Transport + Clone>(transport: T, username: String) -> anyhow::Result<Tokens> {
 	let _ = std::io::stdout().flush();
 	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
 	if !password.is_empty() {
@@ -319,15 +335,16 @@ fn do_login_raw(username: String) -> anyhow::Result<Tokens> {
 	} else {
 		debug!("password is empty");
 	}
-	do_login_impl(username, password, None)
+	do_login_impl(transport, username, password, None)
 }
 
-fn do_login_impl(
+fn do_login_impl<T: Transport + Clone>(
+	transport: T,
 	username: String,
 	password: String,
 	account: Option<&SteamGuardAccount>,
 ) -> anyhow::Result<Tokens> {
-	let mut login = UserLogin::new(WebApiTransport::default(), build_device_details());
+	let mut login = UserLogin::new(transport.clone(), build_device_details());
 
 	let mut password = password;
 	let confirmation_methods;
@@ -375,7 +392,7 @@ fn do_login_impl(
 			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => {
 				let code = if let Some(account) = account {
 					debug!("Generating 2fa code...");
-					let time = steamapi::get_server_time()?.server_time();
+					let time = steamapi::get_server_time(transport)?.server_time();
 					account.generate_code(time)
 				} else {
 					eprint!("Enter the 2fa code from your device: ");

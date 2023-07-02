@@ -8,8 +8,11 @@ use super::*;
 #[clap(about = "Decrypt all maFiles")]
 pub struct DecryptCommand;
 
-impl ManifestCommand for DecryptCommand {
-	fn execute(&self, manager: &mut AccountManager) -> anyhow::Result<()> {
+impl<T> ManifestCommand<T> for DecryptCommand
+where
+	T: Transport,
+{
+	fn execute(&self, _transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
 		load_accounts_with_prompts(manager)?;
 		for mut entry in manager.iter_mut() {
 			entry.encryption = None;

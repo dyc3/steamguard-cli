@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use log::*;
-use steamguard::{transport::TransportError, RemoveAuthenticatorError};
+use steamguard::{steamapi::TwoFactorClient, transport::TransportError, RemoveAuthenticatorError};
 
 use crate::{errors::UserError, tui, AccountManager};
 
@@ -11,9 +11,13 @@ use super::*;
 #[clap(about = "Remove the authenticator from an account.")]
 pub struct RemoveCommand;
 
-impl AccountCommand for RemoveCommand {
+impl<T> AccountCommand<T> for RemoveCommand
+where
+	T: Transport + Clone,
+{
 	fn execute(
 		&self,
+		transport: T,
 		manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {
@@ -38,10 +42,11 @@ impl AccountCommand for RemoveCommand {
 		let mut successful = vec![];
 		for a in accounts {
 			let mut account = a.lock().unwrap();
+			let client = TwoFactorClient::new(transport.clone());
 
 			let mut revocation: Option<String> = None;
 			loop {
-				match account.remove_authenticator(revocation.as_ref()) {
+				match account.remove_authenticator(&client, revocation.as_ref()) {
 					Ok(_) => {
 						info!("Removed authenticator from {}", account.account_name);
 						successful.push(account.account_name.clone());
@@ -49,7 +54,7 @@ impl AccountCommand for RemoveCommand {
 					}
 					Err(RemoveAuthenticatorError::TransportError(TransportError::Unauthorized)) => {
 						error!("Account {} is not logged in", account.account_name);
-						crate::do_login(&mut account)?;
+						crate::do_login(transport.clone(), &mut account)?;
 						continue;
 					}
 					Err(RemoveAuthenticatorError::IncorrectRevocationCode {

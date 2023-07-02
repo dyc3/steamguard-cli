@@ -25,9 +25,13 @@ pub struct TradeCommand {
 	pub fail_fast: bool,
 }
 
-impl AccountCommand for TradeCommand {
+impl<T> AccountCommand<T> for TradeCommand
+where
+	T: Transport + Clone,
+{
 	fn execute(
 		&self,
+		transport: T,
 		manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
 	) -> anyhow::Result<()> {
@@ -36,13 +40,13 @@ impl AccountCommand for TradeCommand {
 
 			if !account.is_logged_in() {
 				info!("Account does not have tokens, logging in");
-				crate::do_login(&mut account)?;
+				crate::do_login(transport.clone(), &mut account)?;
 			}
 
 			info!("{}: Checking for trade confirmations", account.account_name);
 			let confirmations: Vec<Confirmation>;
 			loop {
-				let confirmer = Confirmer::new(&account);
+				let confirmer = Confirmer::new(transport.clone(), &account);
 
 				match confirmer.get_trade_confirmations() {
 					Ok(confs) => {
@@ -51,7 +55,7 @@ impl AccountCommand for TradeCommand {
 					}
 					Err(ConfirmerError::InvalidTokens) => {
 						info!("obtaining new tokens");
-						crate::do_login(&mut account)?;
+						crate::do_login(transport.clone(), &mut account)?;
 					}
 					Err(err) => {
 						error!("Failed to get trade confirmations: {}", err);
@@ -65,7 +69,7 @@ impl AccountCommand for TradeCommand {
 				continue;
 			}
 
-			let confirmer = Confirmer::new(&account);
+			let confirmer = Confirmer::new(transport.clone(), &account);
 			let mut any_failed = false;
 			if self.accept_all {
 				info!("accepting all confirmations");
