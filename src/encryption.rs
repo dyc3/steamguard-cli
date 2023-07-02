@@ -1,6 +1,7 @@
 use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, InvalidLength, KeyIvInit};
 use aes::Aes256;
+use rand::Rng;
 use ring::pbkdf2;
 use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
@@ -162,6 +163,14 @@ impl From<std::io::Error> for EntryEncryptionError {
 	fn from(error: std::io::Error) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
 	}
+}
+
+pub fn generate_keyring_id() -> String {
+	let mut rng = rand::thread_rng();
+	rng.sample_iter(rand::distributions::Alphanumeric)
+		.take(32)
+		.map(char::from)
+		.collect()
 }
 
 #[cfg(test)]
