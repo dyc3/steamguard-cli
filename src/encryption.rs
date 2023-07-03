@@ -17,11 +17,6 @@ pub use legacy::*;
 #[cfg(feature = "keyring")]
 pub use crate::encryption::keyring::*;
 
-#[deprecated = "Salt length needs to be provided by the scheme"]
-const SALT_LENGTH: usize = 8;
-#[deprecated = "IV length needs to be provided by the scheme"]
-const IV_LENGTH: usize = 16;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "scheme")]
 pub enum EncryptionScheme {
