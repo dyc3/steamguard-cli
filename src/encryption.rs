@@ -6,16 +6,20 @@ use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+mod argon2id_aes;
 #[cfg(feature = "keyring")]
 mod keyring;
 mod legacy;
 
+pub use argon2id_aes::*;
 pub use legacy::*;
 
 #[cfg(feature = "keyring")]
 pub use crate::encryption::keyring::*;
 
+#[deprecated = "Salt length needs to be provided by the scheme"]
 const SALT_LENGTH: usize = 8;
+#[deprecated = "IV length needs to be provided by the scheme"]
 const IV_LENGTH: usize = 16;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,8 +46,9 @@ impl EntryEncryptionParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EncryptionScheme {
+	Argon2idAes256,
 	/// Encryption scheme that is compatible with SteamDesktopAuthenticator.
-	LegacySdaCompatible = -1,
+	LegacySdaCompatible,
 }
 
 impl Default for EncryptionScheme {
