@@ -33,9 +33,9 @@ impl Argon2idAes256 {
 
 	fn config() -> argon2::Params {
 		argon2::Params::new(
-			62500, // 64MB
+			12 * 1024, // 12MB
 			3,
-			4,
+			12,
 			Some(Self::KEY_SIZE_BYTES),
 		)
 		.expect("Unable to create Argon2 config.")
@@ -109,16 +109,19 @@ mod tests {
 					.unwrap()
 					.as_slice()
 			),
-			"cLn73uBZWFMeXyGbG3IfJj/OgGjQAAwQoWedUdSoQXI="
+			"DTm3hc95aKyAGmyVMZdLUPfcPjcXN1i1zYObYJg2GzY="
 		);
+	}
 
+	#[test]
+	fn test_encryption_key2() {
 		assert_eq!(
 			base64::encode(
 				Argon2idAes256::get_encryption_key("password", "wTzTE9A6aN8=")
 					.unwrap()
 					.as_slice()
 			),
-			"Puvpv6HExFpanhtNtTVuC2K7oSKey3tW96wsZJSwzWQ="
+			"zwMjXhwggpJWCvkouG/xrSPZRWn2cUUyph3PAViRONA="
 		);
 	}
 
