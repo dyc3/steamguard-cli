@@ -2,6 +2,7 @@ use crate::accountmanager::legacy::SdaManifest;
 pub use crate::encryption::EncryptionScheme;
 use crate::encryption::EntryEncryptor;
 use log::*;
+use rayon::prelude::*;
 use secrecy::{ExposeSecret, SecretString};
 use std::collections::HashMap;
 use std::fs::File;
@@ -102,13 +103,14 @@ impl AccountManager {
 
 	/// Loads all accounts, and registers them.
 	pub fn load_accounts(&mut self) -> anyhow::Result<(), ManifestAccountLoadError> {
-		let mut accounts = vec![];
-		for entry in &self.manifest.entries {
-			let account = self.load_account_by_entry(entry)?;
-			accounts.push(account);
-		}
+		let accounts = self
+			.manifest
+			.entries
+			.par_iter()
+			.map(|entry| self.load_account_by_entry(entry))
+			.collect::<Vec<_>>();
 		for account in accounts {
-			self.register_loaded_account(account);
+			self.register_loaded_account(account?);
 		}
 		Ok(())
 	}

@@ -3078,6 +3078,7 @@ dependencies = [
  "proptest",
  "qrcode",
  "rand 0.8.5",
+ "rayon",
  "regex",
  "reqwest",
  "rpassword",
