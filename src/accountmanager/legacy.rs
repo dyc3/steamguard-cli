@@ -12,7 +12,7 @@ use serde::Deserialize;
 use steamguard::{token::TwoFactorSecret, SecretString, SteamGuardAccount};
 use zeroize::Zeroize;
 
-use crate::encryption::{EncryptionScheme, EntryEncryptor};
+use crate::encryption::EntryEncryptor;
 
 use super::{
 	EntryEncryptionParams, EntryLoader, ManifestAccountLoadError, ManifestEntry, ManifestV1,
@@ -117,10 +117,9 @@ pub struct SdaEntryEncryptionParams {
 
 impl From<SdaEntryEncryptionParams> for EntryEncryptionParams {
 	fn from(sda: SdaEntryEncryptionParams) -> Self {
-		Self {
+		EntryEncryptionParams::LegacySdaCompatible {
 			iv: sda.iv,
 			salt: sda.salt,
-			scheme: EncryptionScheme::LegacySdaCompatible,
 		}
 	}
 }

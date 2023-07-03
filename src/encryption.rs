@@ -23,49 +23,22 @@ const SALT_LENGTH: usize = 8;
 const IV_LENGTH: usize = 16;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EntryEncryptionParams {
-	pub iv: String,
-	pub salt: String,
-	pub scheme: EncryptionScheme,
-}
-
-impl EntryEncryptionParams {
-	pub fn generate() -> EntryEncryptionParams {
-		let rng = ring::rand::SystemRandom::new();
-		let mut salt = [0u8; SALT_LENGTH];
-		let mut iv = [0u8; IV_LENGTH];
-		rng.fill(&mut salt).expect("Unable to generate salt.");
-		rng.fill(&mut iv).expect("Unable to generate IV.");
-		EntryEncryptionParams {
-			salt: base64::encode(salt),
-			iv: base64::encode(iv),
-			scheme: Default::default(),
-		}
-	}
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "scheme")]
 pub enum EncryptionScheme {
-	Argon2idAes256,
-	/// Encryption scheme that is compatible with SteamDesktopAuthenticator.
-	LegacySdaCompatible,
-}
-
-impl Default for EncryptionScheme {
-	fn default() -> Self {
-		Self::LegacySdaCompatible
-	}
+	Argon2idAes256(Argon2idAes256),
+	LegacySdaCompatible(LegacySdaCompatible),
 }
 
 pub trait EntryEncryptor {
+	fn generate() -> Self;
 	fn encrypt(
+		&self,
 		passkey: &str,
-		params: &EntryEncryptionParams,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError>;
 	fn decrypt(
+		&self,
 		passkey: &str,
-		params: &EntryEncryptionParams,
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError>;
 }
@@ -120,39 +93,4 @@ pub fn generate_keyring_id() -> String {
 		.take(32)
 		.map(char::from)
 		.collect()
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use proptest::prelude::*;
-
-	prop_compose! {
-		/// An insecure but reproducible strategy for generating encryption params.
-		fn encryption_params()(salt in any::<[u8; SALT_LENGTH]>(), iv in any::<[u8; IV_LENGTH]>()) -> EntryEncryptionParams {
-			EntryEncryptionParams {
-				salt: base64::encode(salt),
-				iv: base64::encode(iv),
-				scheme: EncryptionScheme::LegacySdaCompatible,
-			}
-		}
-	}
-
-	// proptest! {
-	// 	#[test]
-	// 	fn ensure_encryption_symmetric(
-	// 		passkey in ".{1,}",
-	// 		params in encryption_params(),
-	// 		data in any::<Vec<u8>>(),
-	// 	) {
-	// 		prop_assume!(data.len() >= 2);
-	// 		let mut orig = data;
-	// 		orig[0] = '{' as u8;
-	// 		let n = orig.len() - 1;
-	// 		orig[n] = '}' as u8;
-	// 		let encrypted = LegacySdaCompatible::encrypt(&passkey.clone().into(), &params, orig.clone()).unwrap();
-	// 		let result = LegacySdaCompatible::decrypt(&passkey.into(), &params, encrypted).unwrap();
-	// 		prop_assert_eq!(orig, result.to_vec());
-	// 	}
-	// }
 }

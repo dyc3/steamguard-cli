@@ -5,7 +5,11 @@ use argon2::Argon2;
 
 use super::*;
 
-pub struct Argon2idAes256;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Argon2idAes256 {
+	iv: String,
+	salt: String,
+}
 
 impl Argon2idAes256 {
 	const KEY_SIZE_BYTES: usize = 32;
@@ -38,14 +42,26 @@ impl Argon2idAes256 {
 }
 
 impl EntryEncryptor for Argon2idAes256 {
+	fn generate() -> Self {
+		let rng = ring::rand::SystemRandom::new();
+		let mut salt = [0u8; Self::SALT_LENGTH];
+		let mut iv = [0u8; Self::IV_LENGTH];
+		rng.fill(&mut salt).expect("Unable to generate salt.");
+		rng.fill(&mut iv).expect("Unable to generate IV.");
+		Argon2idAes256 {
+			iv: base64::encode(iv),
+			salt: base64::encode(salt),
+		}
+	}
+
 	fn encrypt(
+		&self,
 		passkey: &str,
-		params: &EntryEncryptionParams,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = Self::get_encryption_key(passkey, &params.salt)?;
+		let key = Self::get_encryption_key(passkey, &self.salt)?;
 		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
+		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
 
 		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
 
@@ -56,13 +72,13 @@ impl EntryEncryptor for Argon2idAes256 {
 	}
 
 	fn decrypt(
+		&self,
 		passkey: &str,
-		params: &EntryEncryptionParams,
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = Self::get_encryption_key(passkey, &params.salt)?;
+		let key = Self::get_encryption_key(passkey, &self.salt)?;
 		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
+		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
 		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
 		let decoded = base64::decode(ciphertext)?;
 		let size: usize = decoded.len() / 16 + (if decoded.len() % 16 == 0 { 0 } else { 1 });
@@ -108,12 +124,12 @@ mod tests {
 			"shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells",
 		];
 		let passkey = "password";
-		let params = EntryEncryptionParams::generate();
+		let scheme = Argon2idAes256::generate();
 		for case in cases {
 			eprintln!("testing case: {} (len {})", case, case.len());
 			let orig = case.as_bytes().to_vec();
-			let encrypted = Argon2idAes256::encrypt(passkey, &params, orig.clone()).unwrap();
-			let result = Argon2idAes256::decrypt(passkey, &params, encrypted).unwrap();
+			let encrypted = scheme.encrypt(passkey, orig.clone()).unwrap();
+			let result = scheme.decrypt(passkey, encrypted).unwrap();
 			assert_eq!(orig, result.to_vec());
 		}
 		Ok(())

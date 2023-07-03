@@ -7,11 +7,16 @@ use ring::pbkdf2;
 use super::*;
 
 /// Encryption scheme that is compatible with SteamDesktopAuthenticator.
-pub struct LegacySdaCompatible;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LegacySdaCompatible {
+	iv: String,
+	salt: String,
+}
 
 impl LegacySdaCompatible {
 	const PBKDF2_ITERATIONS: u32 = 50000; // This is necessary to maintain compatibility with SteamDesktopAuthenticator.
 	const KEY_SIZE_BYTES: usize = 32;
+	const SALT_LENGTH: usize = 8;
 	const IV_LENGTH: usize = 16;
 
 	fn get_encryption_key(passkey: &str, salt: &str) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
@@ -30,14 +35,26 @@ impl LegacySdaCompatible {
 }
 
 impl EntryEncryptor for LegacySdaCompatible {
+	fn generate() -> LegacySdaCompatible {
+		let rng = ring::rand::SystemRandom::new();
+		let mut salt = [0u8; Self::SALT_LENGTH];
+		let mut iv = [0u8; Self::IV_LENGTH];
+		rng.fill(&mut salt).expect("Unable to generate salt.");
+		rng.fill(&mut iv).expect("Unable to generate IV.");
+		LegacySdaCompatible {
+			iv: base64::encode(iv),
+			salt: base64::encode(salt),
+		}
+	}
+
 	fn encrypt(
+		&self,
 		passkey: &str,
-		params: &EntryEncryptionParams,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = Self::get_encryption_key(passkey, &params.salt)?;
+		let key = Self::get_encryption_key(passkey, &self.salt)?;
 		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
+		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
 
 		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
 
@@ -48,13 +65,13 @@ impl EntryEncryptor for LegacySdaCompatible {
 	}
 
 	fn decrypt(
+		&self,
 		passkey: &str,
-		params: &EntryEncryptionParams,
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
-		let key = Self::get_encryption_key(passkey, &params.salt)?;
+		let key = Self::get_encryption_key(passkey, &self.salt)?;
 		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
+		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
 		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
 		let decoded = base64::decode(ciphertext)?;
 		let size: usize = decoded.len() / 16 + (if decoded.len() % 16 == 0 { 0 } else { 1 });
@@ -68,6 +85,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use proptest::prelude::*;
 
 	/// This test ensures compatibility with SteamDesktopAuthenticator and with previous versions of steamguard-cli
 	#[test]
@@ -101,14 +119,42 @@ mod tests {
 			"shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells",
 		];
 		let passkey = "password";
-		let params = EntryEncryptionParams::generate();
+		let scheme = LegacySdaCompatible::generate();
 		for case in cases {
 			eprintln!("testing case: {} (len {})", case, case.len());
 			let orig = case.as_bytes().to_vec();
-			let encrypted = LegacySdaCompatible::encrypt(passkey, &params, orig.clone()).unwrap();
-			let result = LegacySdaCompatible::decrypt(passkey, &params, encrypted).unwrap();
+			let encrypted = scheme.encrypt(passkey, orig.clone()).unwrap();
+			let result = scheme.decrypt(passkey, encrypted).unwrap();
 			assert_eq!(orig, result.to_vec());
 		}
 		Ok(())
 	}
+
+	prop_compose! {
+		/// An insecure but reproducible strategy for generating encryption params.
+		fn encryption_params()(salt in any::<[u8; SALT_LENGTH]>(), iv in any::<[u8; IV_LENGTH]>()) -> LegacySdaCompatible {
+			LegacySdaCompatible {
+				salt: base64::encode(salt),
+				iv: base64::encode(iv),
+			}
+		}
+	}
+
+	// proptest! {
+	// 	#[test]
+	// 	fn ensure_encryption_symmetric(
+	// 		passkey in ".{1,}",
+	// 		params in encryption_params(),
+	// 		data in any::<Vec<u8>>(),
+	// 	) {
+	// 		prop_assume!(data.len() >= 2);
+	// 		let mut orig = data;
+	// 		orig[0] = '{' as u8;
+	// 		let n = orig.len() - 1;
+	// 		orig[n] = '}' as u8;
+	// 		let encrypted = LegacySdaCompatible::encrypt(&passkey.clone().into(), &params, orig.clone()).unwrap();
+	// 		let result = LegacySdaCompatible::decrypt(&passkey.into(), &params, encrypted).unwrap();
+	// 		prop_assert_eq!(orig, result.to_vec());
+	// 	}
+	// }
 }
