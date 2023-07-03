@@ -10,7 +10,7 @@ use log::debug;
 use secrecy::{CloneableSecret, DebugSecret, ExposeSecret};
 use serde::Deserialize;
 use steamguard::{token::TwoFactorSecret, SecretString, SteamGuardAccount};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::encryption::{EntryEncryptor, LegacySdaCompatible};
 
@@ -139,8 +139,7 @@ pub struct SdaAccount {
 	pub session: Option<secrecy::Secret<Session>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Zeroize)]
-#[zeroize(drop)]
+#[derive(Debug, Clone, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[deprecated(note = "this is not used anymore, the closest equivalent is `Tokens`")]
 pub struct Session {
 	#[serde(default, rename = "SessionID")]

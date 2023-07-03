@@ -38,7 +38,7 @@ rpassword = "5.0"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "cookies", "gzip", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rsa = "0.5.0"
+rsa = "0.9.2"
 rand = "0.8.4"
 standback = "0.2.17" # required to fix a compilation error on a transient dependency
 clap = { version = "3.1.18", features = ["derive", "cargo", "env"] }
@@ -58,7 +58,7 @@ crossterm = { version = "0.23.2", features = ["event-stream"] }
 qrcode = { version = "0.12.0", optional = true }
 gethostname = "0.4.3"
 secrecy = { version = "0.8", features = ["serde"] }
-zeroize = "^1.4.3"
+zeroize = { version = "^1.6.0", features = ["std", "zeroize_derive"] }
 serde_path_to_error = "0.1.11"
 update-informer = { version = "1.0.0", optional = true, default-features = false, features = ["github"] }
 phonenumber = "0.3"
