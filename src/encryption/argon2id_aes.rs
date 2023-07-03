@@ -2,6 +2,7 @@ use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use aes::Aes256;
 use argon2::Argon2;
+use log::*;
 
 use super::*;
 
@@ -59,15 +60,17 @@ impl EntryEncryptor for Argon2idAes256 {
 		passkey: &str,
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
+		let start = std::time::Instant::now();
 		let key = Self::get_encryption_key(passkey, &self.salt)?;
+		debug!("key derivation took: {:?}", start.elapsed());
+
+		let start = std::time::Instant::now();
 		let mut iv = [0u8; Self::IV_LENGTH];
 		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
-
 		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
-
 		let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&plaintext);
-
 		let encoded = base64::encode(ciphertext);
+		debug!("encryption took: {:?}", start.elapsed());
 		Ok(encoded.as_bytes().to_vec())
 	}
 
@@ -76,7 +79,11 @@ impl EntryEncryptor for Argon2idAes256 {
 		passkey: &str,
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
+		let start = std::time::Instant::now();
 		let key = Self::get_encryption_key(passkey, &self.salt)?;
+		debug!("key derivation took: {:?}", start.elapsed());
+
+		let start = std::time::Instant::now();
 		let mut iv = [0u8; Self::IV_LENGTH];
 		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
 		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
@@ -85,6 +92,7 @@ impl EntryEncryptor for Argon2idAes256 {
 		let mut buffer = vec![0xffu8; 16 * size];
 		buffer[..decoded.len()].copy_from_slice(&decoded);
 		let decrypted = cipher.decrypt_padded_mut::<Pkcs7>(&mut buffer)?;
+		debug!("decryption took: {:?}", start.elapsed());
 		Ok(decrypted.to_vec())
 	}
 }
