@@ -122,27 +122,6 @@ mod tests {
 	use super::*;
 	use proptest::prelude::*;
 
-	#[test]
-	fn test_ensure_encryption_symmetric() -> anyhow::Result<()> {
-		let cases = [
-			"foo",
-			"tactical glizzy",
-			"glizzy gladiator",
-			"shadow wizard money gang",
-			"shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells",
-		];
-		let passkey = "password";
-		let params = EntryEncryptionParams::generate();
-		for case in cases {
-			eprintln!("testing case: {} (len {})", case, case.len());
-			let orig = case.as_bytes().to_vec();
-			let encrypted = LegacySdaCompatible::encrypt(passkey, &params, orig.clone()).unwrap();
-			let result = LegacySdaCompatible::decrypt(passkey, &params, encrypted).unwrap();
-			assert_eq!(orig, result.to_vec());
-		}
-		Ok(())
-	}
-
 	prop_compose! {
 		/// An insecure but reproducible strategy for generating encryption params.
 		fn encryption_params()(salt in any::<[u8; SALT_LENGTH]>(), iv in any::<[u8; IV_LENGTH]>()) -> EntryEncryptionParams {

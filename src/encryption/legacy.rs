@@ -12,6 +12,7 @@ pub struct LegacySdaCompatible;
 impl LegacySdaCompatible {
 	const PBKDF2_ITERATIONS: u32 = 50000; // This is necessary to maintain compatibility with SteamDesktopAuthenticator.
 	const KEY_SIZE_BYTES: usize = 32;
+	const IV_LENGTH: usize = 16;
 
 	fn get_encryption_key(passkey: &str, salt: &str) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
 		let password_bytes = passkey.as_bytes();
@@ -35,7 +36,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 		plaintext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
-		let mut iv = [0u8; IV_LENGTH];
+		let mut iv = [0u8; Self::IV_LENGTH];
 		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
 
 		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
@@ -52,7 +53,7 @@ impl EntryEncryptor for LegacySdaCompatible {
 		ciphertext: Vec<u8>,
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
 		let key = Self::get_encryption_key(passkey, &params.salt)?;
-		let mut iv = [0u8; IV_LENGTH];
+		let mut iv = [0u8; Self::IV_LENGTH];
 		base64::decode_config_slice(&params.iv, base64::STANDARD, &mut iv)?;
 		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
 		let decoded = base64::decode(ciphertext)?;
@@ -88,5 +89,26 @@ mod tests {
 				.unwrap()
 				.as_slice()
 		);
+	}
+
+	#[test]
+	fn test_ensure_encryption_symmetric() -> anyhow::Result<()> {
+		let cases = [
+			"foo",
+			"tactical glizzy",
+			"glizzy gladiator",
+			"shadow wizard money gang",
+			"shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells, shadow wizard money gang, we love casting spells",
+		];
+		let passkey = "password";
+		let params = EntryEncryptionParams::generate();
+		for case in cases {
+			eprintln!("testing case: {} (len {})", case, case.len());
+			let orig = case.as_bytes().to_vec();
+			let encrypted = LegacySdaCompatible::encrypt(passkey, &params, orig.clone()).unwrap();
+			let result = LegacySdaCompatible::decrypt(passkey, &params, encrypted).unwrap();
+			assert_eq!(orig, result.to_vec());
+		}
+		Ok(())
 	}
 }
