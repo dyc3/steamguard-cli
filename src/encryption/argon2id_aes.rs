@@ -44,11 +44,11 @@ impl Argon2idAes256 {
 
 impl EntryEncryptor for Argon2idAes256 {
 	fn generate() -> Self {
-		let rng = ring::rand::SystemRandom::new();
+		let mut rng = rand::rngs::OsRng;
 		let mut salt = [0u8; Self::SALT_LENGTH];
 		let mut iv = [0u8; Self::IV_LENGTH];
-		rng.fill(&mut salt).expect("Unable to generate salt.");
-		rng.fill(&mut iv).expect("Unable to generate IV.");
+		rng.fill(&mut salt);
+		rng.fill(&mut iv);
 		Argon2idAes256 {
 			iv: base64::encode(iv),
 			salt: base64::encode(salt),

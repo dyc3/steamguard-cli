@@ -21,7 +21,6 @@ extern crate base64;
 extern crate dirs;
 #[cfg(test)]
 extern crate proptest;
-extern crate ring;
 mod accountmanager;
 mod commands;
 mod debug;

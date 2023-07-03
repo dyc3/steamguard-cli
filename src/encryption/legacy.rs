@@ -2,7 +2,7 @@ use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use aes::Aes256;
 use log::*;
-use ring::pbkdf2;
+use sha1::Sha1;
 
 use super::*;
 
@@ -23,11 +23,10 @@ impl LegacySdaCompatible {
 		let password_bytes = passkey.as_bytes();
 		let salt_bytes = base64::decode(salt)?;
 		let mut full_key: [u8; Self::KEY_SIZE_BYTES] = [0u8; Self::KEY_SIZE_BYTES];
-		pbkdf2::derive(
-			pbkdf2::PBKDF2_HMAC_SHA1,
-			std::num::NonZeroU32::new(Self::PBKDF2_ITERATIONS).unwrap(),
-			&salt_bytes,
+		pbkdf2::pbkdf2_hmac::<Sha1>(
 			password_bytes,
+			&salt_bytes,
+			Self::PBKDF2_ITERATIONS,
 			&mut full_key,
 		);
 		Ok(full_key)
@@ -36,11 +35,11 @@ impl LegacySdaCompatible {
 
 impl EntryEncryptor for LegacySdaCompatible {
 	fn generate() -> LegacySdaCompatible {
-		let rng = ring::rand::SystemRandom::new();
+		let mut rng = rand::rngs::OsRng;
 		let mut salt = [0u8; Self::SALT_LENGTH];
 		let mut iv = [0u8; Self::IV_LENGTH];
-		rng.fill(&mut salt).expect("Unable to generate salt.");
-		rng.fill(&mut iv).expect("Unable to generate IV.");
+		rng.fill(&mut salt);
+		rng.fill(&mut iv);
 		LegacySdaCompatible {
 			iv: base64::encode(iv),
 			salt: base64::encode(salt),
