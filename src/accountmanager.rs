@@ -2,6 +2,7 @@ use crate::accountmanager::legacy::SdaManifest;
 pub use crate::encryption::EncryptionScheme;
 use crate::encryption::EntryEncryptor;
 use log::*;
+use rayon::prelude::*;
 use secrecy::{ExposeSecret, SecretString};
 use std::collections::HashMap;
 use std::fs::File;
@@ -102,13 +103,14 @@ impl AccountManager {
 
 	/// Loads all accounts, and registers them.
 	pub fn load_accounts(&mut self) -> anyhow::Result<(), ManifestAccountLoadError> {
-		let mut accounts = vec![];
-		for entry in &self.manifest.entries {
-			let account = self.load_account_by_entry(entry)?;
-			accounts.push(account);
-		}
+		let accounts = self
+			.manifest
+			.entries
+			.par_iter()
+			.map(|entry| self.load_account_by_entry(entry))
+			.collect::<Vec<_>>();
 		for account in accounts {
-			self.register_loaded_account(account);
+			self.register_loaded_account(account?);
 		}
 		Ok(())
 	}
@@ -198,33 +200,40 @@ impl AccountManager {
 	/// Saves the manifest and all loaded accounts.
 	pub fn save(&self) -> anyhow::Result<()> {
 		info!("Saving manifest and accounts...");
-		for account in self
+		let save_results: Vec<_> = self
 			.accounts
 			.values()
-			.map(|a| a.clone().lock().unwrap().clone())
-		{
-			let entry = self.get_entry(&account.account_name)?.clone();
-			debug!("saving {}", entry.filename);
-			let serialized = serde_json::to_vec(&account)?;
-			ensure!(
-				serialized.len() > 2,
-				"Something extra weird happened and the account was serialized into nothing."
-			);
+			.par_bridge()
+			.map(|account| -> anyhow::Result<()> {
+				let account = account.lock().unwrap();
+				let entry = self.get_entry(&account.account_name)?.clone();
+				debug!("saving {}", entry.filename);
+				let serialized = serde_json::to_vec(&account.clone())?;
+				ensure!(
+					serialized.len() > 2,
+					"Something extra weird happened and the account was serialized into nothing."
+				);
 
-			let final_buffer: Vec<u8> = match (&self.passkey, entry.encryption.as_ref()) {
-				(Some(passkey), Some(scheme)) => {
-					scheme.encrypt(passkey.expose_secret(), serialized)?
-				}
-				(None, Some(_)) => {
-					bail!("maFiles are encrypted, but no passkey was provided.");
-				}
-				(_, None) => serialized,
-			};
+				let final_buffer: Vec<u8> = match (&self.passkey, entry.encryption.as_ref()) {
+					(Some(passkey), Some(scheme)) => {
+						scheme.encrypt(passkey.expose_secret(), serialized)?
+					}
+					(None, Some(_)) => {
+						bail!("maFiles are encrypted, but no passkey was provided.");
+					}
+					(_, None) => serialized,
+				};
 
-			let path = Path::new(&self.folder).join(&entry.filename);
-			let mut file = File::create(path)?;
-			file.write_all(final_buffer.as_slice())?;
-			file.sync_data()?;
+				let path = Path::new(&self.folder).join(&entry.filename);
+				let mut file = File::create(path)?;
+				file.write_all(final_buffer.as_slice())?;
+				file.sync_data()?;
+
+				Ok(())
+			})
+			.collect();
+		for result in save_results {
+			result?;
 		}
 		debug!("saving manifest");
 		let manifest_serialized = serde_json::to_string(&self.manifest)?;
