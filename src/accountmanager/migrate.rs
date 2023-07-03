@@ -6,10 +6,12 @@ use serde::{de::Error, Deserialize};
 use steamguard::SteamGuardAccount;
 use thiserror::Error;
 
+use crate::encryption::EncryptionScheme;
+
 use super::{
 	legacy::{SdaAccount, SdaManifest},
 	manifest::ManifestV1,
-	EntryEncryptionParams, EntryLoader, Manifest,
+	EntryLoader, Manifest,
 };
 
 pub(crate) fn load_and_migrate(
@@ -130,7 +132,7 @@ impl MigratingManifest {
 					.entries
 					.iter()
 					.map(|e| {
-						let params: Option<EntryEncryptionParams> =
+						let params: Option<EncryptionScheme> =
 							e.encryption.clone().map(|e| e.into());
 						e.load(&Path::join(folder, &e.filename), passkey, params.as_ref())
 					})

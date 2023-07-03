@@ -43,6 +43,34 @@ pub trait EntryEncryptor {
 	) -> anyhow::Result<Vec<u8>, EntryEncryptionError>;
 }
 
+impl EntryEncryptor for EncryptionScheme {
+	fn generate() -> Self {
+		EncryptionScheme::Argon2idAes256(Argon2idAes256::generate())
+	}
+
+	fn encrypt(
+		&self,
+		passkey: &str,
+		plaintext: Vec<u8>,
+	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
+		match self {
+			EncryptionScheme::Argon2idAes256(scheme) => scheme.encrypt(passkey, plaintext),
+			EncryptionScheme::LegacySdaCompatible(scheme) => scheme.encrypt(passkey, plaintext),
+		}
+	}
+
+	fn decrypt(
+		&self,
+		passkey: &str,
+		ciphertext: Vec<u8>,
+	) -> anyhow::Result<Vec<u8>, EntryEncryptionError> {
+		match self {
+			EncryptionScheme::Argon2idAes256(scheme) => scheme.decrypt(passkey, ciphertext),
+			EncryptionScheme::LegacySdaCompatible(scheme) => scheme.decrypt(passkey, ciphertext),
+		}
+	}
+}
+
 #[derive(Debug, Error)]
 pub enum EntryEncryptionError {
 	#[error("Invalid ciphertext length. The ciphertext must be a multiple of 16 bytes.")]

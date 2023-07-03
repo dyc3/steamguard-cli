@@ -12,11 +12,9 @@ use serde::Deserialize;
 use steamguard::{token::TwoFactorSecret, SecretString, SteamGuardAccount};
 use zeroize::Zeroize;
 
-use crate::encryption::EntryEncryptor;
+use crate::encryption::{EntryEncryptor, LegacySdaCompatible};
 
-use super::{
-	EntryEncryptionParams, EntryLoader, ManifestAccountLoadError, ManifestEntry, ManifestV1,
-};
+use super::{EncryptionScheme, EntryLoader, ManifestAccountLoadError, ManifestEntry, ManifestV1};
 
 #[derive(Debug, Deserialize)]
 pub struct SdaManifest {
@@ -74,20 +72,16 @@ impl EntryLoader<SdaAccount> for SdaManifestEntry {
 		&self,
 		path: &Path,
 		passkey: Option<&SecretString>,
-		encryption_params: Option<&EntryEncryptionParams>,
+		encryption_params: Option<&EncryptionScheme>,
 	) -> anyhow::Result<SdaAccount, ManifestAccountLoadError> {
 		debug!("loading entry: {:?}", path);
 		let file = File::open(path)?;
 		let mut reader = BufReader::new(file);
 		let account: SdaAccount = match (&passkey, encryption_params.as_ref()) {
-			(Some(passkey), Some(params)) => {
+			(Some(passkey), Some(scheme)) => {
 				let mut ciphertext: Vec<u8> = vec![];
 				reader.read_to_end(&mut ciphertext)?;
-				let plaintext = crate::encryption::LegacySdaCompatible::decrypt(
-					passkey.expose_secret(),
-					params,
-					ciphertext,
-				)?;
+				let plaintext = scheme.decrypt(passkey.expose_secret(), ciphertext)?;
 				if plaintext[0] != b'{' && plaintext[plaintext.len() - 1] != b'}' {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
@@ -115,12 +109,12 @@ pub struct SdaEntryEncryptionParams {
 	pub salt: String,
 }
 
-impl From<SdaEntryEncryptionParams> for EntryEncryptionParams {
+impl From<SdaEntryEncryptionParams> for EncryptionScheme {
 	fn from(sda: SdaEntryEncryptionParams) -> Self {
-		EntryEncryptionParams::LegacySdaCompatible {
+		EncryptionScheme::LegacySdaCompatible(LegacySdaCompatible {
 			iv: sda.iv,
 			salt: sda.salt,
-		}
+		})
 	}
 }
 

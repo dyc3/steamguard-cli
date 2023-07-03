@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::EntryEncryptionParams;
+use super::EncryptionScheme;
 
 pub const CURRENT_MANIFEST_VERSION: u32 = 1;
 pub type Manifest = ManifestV1;
@@ -19,7 +19,7 @@ pub struct ManifestEntryV1 {
 	pub filename: String,
 	pub steam_id: u64,
 	pub account_name: String,
-	pub encryption: Option<EntryEncryptionParams>,
+	pub encryption: Option<EncryptionScheme>,
 }
 
 impl Default for ManifestV1 {

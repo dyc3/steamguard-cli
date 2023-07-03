@@ -7,8 +7,8 @@ use super::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Argon2idAes256 {
-	iv: String,
-	salt: String,
+	pub iv: String,
+	pub salt: String,
 }
 
 impl Argon2idAes256 {

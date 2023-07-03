@@ -9,8 +9,8 @@ use super::*;
 /// Encryption scheme that is compatible with SteamDesktopAuthenticator.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LegacySdaCompatible {
-	iv: String,
-	salt: String,
+	pub iv: String,
+	pub salt: String,
 }
 
 impl LegacySdaCompatible {
@@ -132,7 +132,7 @@ mod tests {
 
 	prop_compose! {
 		/// An insecure but reproducible strategy for generating encryption params.
-		fn encryption_params()(salt in any::<[u8; SALT_LENGTH]>(), iv in any::<[u8; IV_LENGTH]>()) -> LegacySdaCompatible {
+		fn encryption_params()(salt in any::<[u8; LegacySdaCompatible::SALT_LENGTH]>(), iv in any::<[u8; LegacySdaCompatible::IV_LENGTH]>()) -> LegacySdaCompatible {
 			LegacySdaCompatible {
 				salt: base64::encode(salt),
 				iv: base64::encode(iv),
