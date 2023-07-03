@@ -1,6 +1,6 @@
 [package]
 name = "steamguard"
-version = "0.9.5"
+version = "0.10.0"
 authors = ["Carson McManus <carson.mcmanus1@gmail.com>"]
 edition = "2018"
 description = "Library for generating 2fa codes for Steam and responding to mobile confirmations."
