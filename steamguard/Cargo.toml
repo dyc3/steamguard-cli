@@ -17,7 +17,7 @@ base64 = "0.13.0"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "cookies", "gzip", "rustls-tls", "multipart"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rsa = "0.5.0"
+rsa = "0.9.2"
 rand = "0.8.4"
 standback = "0.2.17" # required to fix a compilation error on a transient dependency
 cookie = "0.14"

@@ -18,7 +18,7 @@ use crate::steamapi::EResult;
 use crate::token::Tokens;
 use crate::transport::Transport;
 use log::*;
-use rsa::{PublicKey, RsaPublicKey};
+use rsa::{Pkcs1v15Encrypt, RsaPublicKey};
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -272,13 +272,12 @@ fn encrypt_password(
 	let rsa_modulus = rsa::BigUint::parse_bytes(rsa_resp.publickey_mod().as_bytes(), 16).unwrap();
 	let public_key = RsaPublicKey::new(rsa_modulus, rsa_exponent).unwrap();
 	#[cfg(test)]
-	let mut rng = rand::rngs::mock::StepRng::new(2, 1);
+	let mut rng = tests::MockStepRng(rand::rngs::mock::StepRng::new(2, 1));
 	#[cfg(not(test))]
 	let mut rng = rand::rngs::OsRng;
-	let padding = rsa::PaddingScheme::new_pkcs1v15_encrypt();
 	base64::encode(
 		public_key
-			.encrypt(&mut rng, padding, password.as_ref())
+			.encrypt(&mut rng, Pkcs1v15Encrypt, password.as_ref())
 			.unwrap(),
 	)
 }
@@ -405,6 +404,26 @@ impl From<anyhow::Error> for UpdateAuthSessionError {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	pub(crate) struct MockStepRng(pub rand::rngs::mock::StepRng);
+	impl rand::RngCore for MockStepRng {
+		fn next_u32(&mut self) -> u32 {
+			self.0.next_u32()
+		}
+
+		fn next_u64(&mut self) -> u64 {
+			self.0.next_u64()
+		}
+
+		fn fill_bytes(&mut self, dest: &mut [u8]) {
+			self.0.fill_bytes(dest)
+		}
+
+		fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+			self.0.try_fill_bytes(dest)
+		}
+	}
+	impl rand::CryptoRng for MockStepRng {}
 
 	#[test]
 	fn test_encrypt_password() {
