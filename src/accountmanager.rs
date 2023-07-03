@@ -1,5 +1,5 @@
 use crate::accountmanager::legacy::SdaManifest;
-pub use crate::encryption::EntryEncryptionParams;
+pub use crate::encryption::EncryptionScheme;
 use crate::encryption::EntryEncryptor;
 use log::*;
 use secrecy::{ExposeSecret, SecretString};
@@ -212,11 +212,9 @@ impl AccountManager {
 			);
 
 			let final_buffer: Vec<u8> = match (&self.passkey, entry.encryption.as_ref()) {
-				(Some(passkey), Some(params)) => crate::encryption::LegacySdaCompatible::encrypt(
-					passkey.expose_secret(),
-					params,
-					serialized,
-				)?,
+				(Some(passkey), Some(scheme)) => {
+					scheme.encrypt(passkey.expose_secret(), serialized)?
+				}
 				(None, Some(_)) => {
 					bail!("maFiles are encrypted, but no passkey was provided.");
 				}
@@ -354,7 +352,7 @@ trait EntryLoader<T> {
 		&self,
 		path: &Path,
 		passkey: Option<&SecretString>,
-		encryption_params: Option<&EntryEncryptionParams>,
+		encryption_params: Option<&EncryptionScheme>,
 	) -> anyhow::Result<T, ManifestAccountLoadError>;
 }
 
@@ -363,20 +361,16 @@ impl EntryLoader<SteamGuardAccount> for ManifestEntry {
 		&self,
 		path: &Path,
 		passkey: Option<&SecretString>,
-		encryption_params: Option<&EntryEncryptionParams>,
+		encryption_params: Option<&EncryptionScheme>,
 	) -> anyhow::Result<SteamGuardAccount, ManifestAccountLoadError> {
 		debug!("loading entry: {:?}", path);
 		let file = File::open(path)?;
 		let mut reader = BufReader::new(file);
 		let account: SteamGuardAccount = match (&passkey, encryption_params.as_ref()) {
-			(Some(passkey), Some(params)) => {
+			(Some(passkey), Some(scheme)) => {
 				let mut ciphertext: Vec<u8> = vec![];
 				reader.read_to_end(&mut ciphertext)?;
-				let plaintext = crate::encryption::LegacySdaCompatible::decrypt(
-					passkey.expose_secret(),
-					params,
-					ciphertext,
-				)?;
+				let plaintext = scheme.decrypt(passkey.expose_secret(), ciphertext)?;
 				if plaintext[0] != b'{' && plaintext[plaintext.len() - 1] != b'}' {
 					return Err(ManifestAccountLoadError::IncorrectPasskey);
 				}
@@ -497,7 +491,7 @@ mod tests {
 			"zvIayp3JPvtvX/QGHqsqKBk/44s=".into(),
 		)?;
 		manager.add_account(account);
-		manager.manifest.entries[0].encryption = Some(EntryEncryptionParams::generate());
+		manager.manifest.entries[0].encryption = Some(EncryptionScheme::generate());
 		manager.submit_passkey(passkey.clone());
 		assert!(matches!(manager.save(), Ok(_)));
 
@@ -550,7 +544,7 @@ mod tests {
 		account.token_gid = "asdf1234".into();
 		manager.add_account(account);
 		manager.submit_passkey(passkey.clone());
-		manager.manifest.entries[0].encryption = Some(EntryEncryptionParams::generate());
+		manager.manifest.entries[0].encryption = Some(EncryptionScheme::generate());
 		manager.save()?;
 
 		let mut loaded_manager = AccountManager::load(manifest_path.as_path())?;

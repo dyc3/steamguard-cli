@@ -1,6 +1,9 @@
 use log::*;
 
-use crate::{tui, AccountManager};
+use crate::{
+	encryption::{EncryptionScheme, EntryEncryptor},
+	tui, AccountManager,
+};
 
 use super::*;
 
@@ -60,7 +63,7 @@ where
 		}
 		manager.load_accounts()?;
 		for entry in manager.iter_mut() {
-			entry.encryption = Some(crate::accountmanager::EntryEncryptionParams::generate());
+			entry.encryption = Some(EncryptionScheme::generate());
 		}
 		manager.save()?;
 		Ok(())
