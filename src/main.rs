@@ -152,9 +152,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 								}
 							}
 
-							let raw =
-								rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
-							passkey = Some(SecretString::new(raw));
+							passkey = Some(tui::prompt_passkey()?);
 						}
 						Err(e) => {
 							error!("Failed to migrate manifest: {}", e);
@@ -208,8 +206,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 				if manager.has_passkey() {
 					error!("Incorrect passkey");
 				}
-				let raw = rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
-				passkey = Some(SecretString::new(raw));
+				passkey = Some(tui::prompt_passkey()?);
 				manager.submit_passkey(passkey);
 			}
 			Err(e) => {
@@ -253,8 +250,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 				if manager.has_passkey() {
 					error!("Incorrect passkey");
 				}
-				let raw = rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
-				passkey = Some(SecretString::new(raw));
+				passkey = Some(tui::prompt_passkey()?);
 				manager.submit_passkey(passkey);
 			}
 			Err(e) => {

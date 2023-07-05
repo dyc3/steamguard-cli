@@ -6,6 +6,7 @@ use crossterm::{
 	terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 	QueueableCommand,
 };
+use secrecy::SecretString;
 use std::collections::HashSet;
 use std::io::{stderr, stdout, Write};
 use steamguard::Confirmation;
@@ -240,6 +241,24 @@ pub(crate) fn pause() {
 				..
 			}) => break,
 			_ => continue,
+		}
+	}
+}
+
+pub(crate) fn prompt_passkey() -> std::io::Result<SecretString> {
+	loop {
+		let raw = rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
+		if !raw.is_empty() {
+			return Ok(SecretString::new(raw));
+		}
+	}
+}
+
+pub(crate) fn prompt_password() -> std::io::Result<SecretString> {
+	loop {
+		let raw = rpassword::prompt_password_stdout("Password: ")?;
+		if !raw.is_empty() {
+			return Ok(SecretString::new(raw));
 		}
 	}
 }

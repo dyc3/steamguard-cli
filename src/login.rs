@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use log::*;
+use secrecy::{ExposeSecret, SecretString};
 use steamguard::{
 	protobufs::steammessages_auth_steamclient::{EAuthSessionGuardType, EAuthTokenPlatformType},
 	refresher::TokenRefresher,
@@ -42,8 +43,8 @@ pub fn do_login<T: Transport + Clone>(
 		account.account_name = tui::prompt();
 	}
 	let _ = std::io::stdout().flush();
-	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
-	if !password.is_empty() {
+	let password = tui::prompt_password()?;
+	if !password.expose_secret().is_empty() {
 		debug!("password is present");
 	} else {
 		debug!("password is empty");
@@ -65,8 +66,8 @@ pub fn do_login_raw<T: Transport + Clone>(
 	username: String,
 ) -> anyhow::Result<Tokens> {
 	let _ = std::io::stdout().flush();
-	let password = rpassword::prompt_password_stdout("Password: ").unwrap();
-	if !password.is_empty() {
+	let password = tui::prompt_password()?;
+	if !password.expose_secret().is_empty() {
 		debug!("password is present");
 	} else {
 		debug!("password is empty");
@@ -77,7 +78,7 @@ pub fn do_login_raw<T: Transport + Clone>(
 fn do_login_impl<T: Transport + Clone>(
 	transport: T,
 	username: String,
-	password: String,
+	password: SecretString,
 	account: Option<&SteamGuardAccount>,
 ) -> anyhow::Result<Tokens> {
 	let mut login = UserLogin::new(transport.clone(), build_device_details());
@@ -85,7 +86,7 @@ fn do_login_impl<T: Transport + Clone>(
 	let mut password = password;
 	let confirmation_methods;
 	loop {
-		match login.begin_auth_via_credentials(&username, &password) {
+		match login.begin_auth_via_credentials(&username, &password.expose_secret()) {
 			Ok(methods) => {
 				confirmation_methods = methods;
 				break;
@@ -95,11 +96,8 @@ fn do_login_impl<T: Transport + Clone>(
 				return Err(LoginError::TooManyAttempts.into());
 			}
 			Err(LoginError::BadCredentials) => {
-				error!("Incorrect password.");
-				password = rpassword::prompt_password_stdout("Password: ")
-					.unwrap()
-					.trim()
-					.to_owned();
+				error!("Incorrect password for {username}");
+				password = tui::prompt_password()?;
 				continue;
 			}
 			Err(err) => {

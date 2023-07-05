@@ -45,8 +45,7 @@ fn load_accounts_with_prompts(manager: &mut AccountManager) -> anyhow::Result<()
 				if manager.has_passkey() {
 					error!("Incorrect passkey");
 				}
-				let passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
-				let passkey = passkey.map(SecretString::new);
+				let passkey = Some(crate::tui::prompt_passkey()?);
 				manager.submit_passkey(passkey);
 			}
 			Err(e) => {
