@@ -37,8 +37,4 @@ mod parse_tests {
 		let s = base64::encode_config(bytes, base64::URL_SAFE);
 		assert_eq!(s, "CgpoeWRyYXN0YXIy");
 	}
-
-	fn foo() {
-		let event = crate::protobufs::steammessages_auth_steamclient::cauthentication_refresh_token_enumerate_response::TokenUsageEvent::new();
-	}
 }
