@@ -3055,7 +3055,7 @@ dependencies = [
 
 [[package]]
 name = "steamguard-cli"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "aes 0.8.3",
  "anyhow",
