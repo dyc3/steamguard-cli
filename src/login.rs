@@ -86,7 +86,7 @@ fn do_login_impl<T: Transport + Clone>(
 	let mut password = password;
 	let confirmation_methods;
 	loop {
-		match login.begin_auth_via_credentials(&username, &password.expose_secret()) {
+		match login.begin_auth_via_credentials(&username, password.expose_secret()) {
 			Ok(methods) => {
 				confirmation_methods = methods;
 				break;
