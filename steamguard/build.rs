@@ -61,12 +61,7 @@ impl CustomizeCallback for GenSerde {
 		// 	eprintln!("type_: {:?}", field.proto().type_());
 		// 	eprintln!("{:?}", field.proto());
 		// }
-		if field.proto().type_() == Type::TYPE_ENUM {
-			// `EnumOrUnknown` is not a part of rust-protobuf, so external serializer is needed.
-			// Customize::default().before(
-			// 	"#[serde(serialize_with = \"crate::protobufs::serialize_enum_or_unknown\", deserialize_with = \"crate::protobufs::deserialize_enum_or_unknown\")]")
-			Customize::default().before("#[zeroize(skip)]")
-		} else if field.proto().type_() == Type::TYPE_MESSAGE {
+		if field.proto().type_() == Type::TYPE_ENUM || field.proto().type_() == Type::TYPE_MESSAGE {
 			Customize::default().before("#[zeroize(skip)]")
 		} else {
 			Customize::default()
