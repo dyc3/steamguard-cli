@@ -1,4 +1,26 @@
+use zeroize::Zeroize;
+
+use self::steammessages_base::{cmsg_ipaddress::Ip, cmsg_proto_buf_header::Ip_addr};
+
 include!(concat!(env!("OUT_DIR"), "/protobufs/mod.rs"));
+
+impl Zeroize for Ip {
+	fn zeroize(&mut self) {
+		match self {
+			Ip::V4(ip) => ip.zeroize(),
+			Ip::V6(ip) => ip.zeroize(),
+		}
+	}
+}
+
+impl Zeroize for Ip_addr {
+	fn zeroize(&mut self) {
+		match self {
+			Ip_addr::Ip(ip) => ip.zeroize(),
+			Ip_addr::IpV6(ip) => ip.zeroize(),
+		}
+	}
+}
 
 #[cfg(test)]
 mod parse_tests {
@@ -14,5 +36,9 @@ mod parse_tests {
 		let bytes = req.write_to_bytes().unwrap();
 		let s = base64::encode_config(bytes, base64::URL_SAFE);
 		assert_eq!(s, "CgpoeWRyYXN0YXIy");
+	}
+
+	fn foo() {
+		let event = crate::protobufs::steammessages_auth_steamclient::cauthentication_refresh_token_enumerate_response::TokenUsageEvent::new();
 	}
 }
