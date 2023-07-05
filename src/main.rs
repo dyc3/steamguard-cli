@@ -221,7 +221,11 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 
 	let mut http_client = reqwest::blocking::Client::builder();
 	if let Some(proxy) = &globalargs.http_proxy {
-		let proxy = reqwest::Proxy::all(proxy)?;
+		let mut proxy = reqwest::Proxy::all(proxy)?;
+		if let Some(proxy_creds) = &globalargs.proxy_credentials {
+			let mut creds = proxy_creds.splitn(2, ':');
+			proxy = proxy.basic_auth(creds.next().unwrap(), creds.next().unwrap());
+		}
 		http_client = http_client.proxy(proxy);
 	}
 	let http_client = http_client.build()?;
