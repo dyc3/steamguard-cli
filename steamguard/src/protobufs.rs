@@ -1,4 +1,26 @@
+use zeroize::Zeroize;
+
+use self::steammessages_base::{cmsg_ipaddress::Ip, cmsg_proto_buf_header::Ip_addr};
+
 include!(concat!(env!("OUT_DIR"), "/protobufs/mod.rs"));
+
+impl Zeroize for Ip {
+	fn zeroize(&mut self) {
+		match self {
+			Ip::V4(ip) => ip.zeroize(),
+			Ip::V6(ip) => ip.zeroize(),
+		}
+	}
+}
+
+impl Zeroize for Ip_addr {
+	fn zeroize(&mut self) {
+		match self {
+			Ip_addr::Ip(ip) => ip.zeroize(),
+			Ip_addr::IpV6(ip) => ip.zeroize(),
+		}
+	}
+}
 
 #[cfg(test)]
 mod parse_tests {
