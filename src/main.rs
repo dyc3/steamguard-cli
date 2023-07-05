@@ -228,6 +228,9 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		}
 		http_client = http_client.proxy(proxy);
 	}
+	if globalargs.danger_accept_invalid_certs {
+		http_client = http_client.danger_accept_invalid_certs(true);
+	}
 	let http_client = http_client.build()?;
 	let transport = WebApiTransport::new(http_client);
 

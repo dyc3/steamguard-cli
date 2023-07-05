@@ -138,6 +138,13 @@ pub(crate) struct GlobalArgs {
 		help = "Credentials to use for proxy authentication in the format username:password."
 	)]
 	pub proxy_credentials: Option<String>,
+
+	#[clap(
+		long,
+		help = "Accept invalid TLS certificates.",
+		long_help = "Accept invalid TLS certificates. Be warned, this is insecure and enables man-in-the-middle attacks."
+	)]
+	pub danger_accept_invalid_certs: bool,
 }
 
 #[derive(Debug, Clone, Parser)]
