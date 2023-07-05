@@ -301,10 +301,13 @@ fn get_selected_accounts(
 }
 
 fn get_mafiles_dir() -> String {
-	let paths = vec![
+	let mut paths = vec![
 		Path::new(&dirs::config_dir().unwrap()).join("steamguard-cli/maFiles"),
 		Path::new(&dirs::home_dir().unwrap()).join("maFiles"),
 	];
+	if let Ok(current_exe) = std::env::current_exe() {
+		paths.push(current_exe.parent().unwrap().join("maFiles"));
+	}
 
 	for path in &paths {
 		if path.join("manifest.json").is_file() {
