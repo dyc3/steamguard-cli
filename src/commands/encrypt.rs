@@ -1,4 +1,5 @@
 use log::*;
+use secrecy::ExposeSecret;
 
 use crate::{
 	encryption::{EncryptionScheme, EntryEncryptor},
@@ -17,23 +18,22 @@ where
 {
 	fn execute(&self, _transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
 		if !manager.has_passkey() {
-			let mut passkey;
+			let passkey: Option<SecretString>;
 			loop {
-				passkey = rpassword::prompt_password_stdout("Enter encryption passkey: ").ok();
-				if let Some(p) = passkey.as_ref() {
-					if p.is_empty() {
-						error!("Passkey cannot be empty, try again.");
-						continue;
-					}
+				let passkey1 = tui::prompt_passkey()?;
+				if passkey1.expose_secret().is_empty() {
+					error!("Passkey cannot be empty, try again.");
+					continue;
 				}
 				let passkey_confirm =
-					rpassword::prompt_password_stdout("Confirm encryption passkey: ").ok();
-				if passkey == passkey_confirm {
+					rpassword::prompt_password_stdout("Confirm encryption passkey: ")
+						.map(SecretString::new)?;
+				if passkey1.expose_secret() == passkey_confirm.expose_secret() {
+					passkey = Some(passkey1);
 					break;
 				}
 				error!("Passkeys do not match, try again.");
 			}
-			let passkey = passkey.map(SecretString::new);
 
 			#[cfg(feature = "keyring")]
 			{
