@@ -1,0 +1,83 @@
+{
+	"encrypted": false,
+	"first_run": true,
+	"entries": [
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "missing-OAuthToken.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "missing-SessionID.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "missing-SteamID.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "missing-SteamLogin.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "missing-SteamLoginSecure.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "missing-WebCookie.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "null-OAuthToken.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "null-SessionID.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "null-SteamID.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "null-SteamLogin.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "null-SteamLoginSecure.maFile",
+			"steamid": 1234
+		},
+		{
+			"encryption_iv": null,
+			"encryption_salt": null,
+			"filename": "null-WebCookie.maFile",
+			"steamid": 1234
+		}
+	],
+	"periodic_checking": false,
+	"periodic_checking_interval": 5,
+	"periodic_checking_checkall": false,
+	"auto_confirm_market_transactions": false,
+	"auto_confirm_trades": false
+}
