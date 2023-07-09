@@ -164,8 +164,7 @@ impl From<SdaAccount> for SteamGuardAccount {
 		let steam_id = value
 			.session
 			.as_ref()
-			.map(|s| s.expose_secret().steam_id)
-			.flatten()
+			.and_then(|s| s.expose_secret().steam_id)
 			.unwrap_or(0);
 		Self {
 			account_name: value.account_name,
