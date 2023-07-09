@@ -109,5 +109,5 @@ if [[ $DRY_RUN == false ]]; then
   if [[ $(gh release list | grep -i "Draft" | grep -i "$VERSION" && echo "true" || echo "false") == "true" ]]; then
     gh release delete --yes "$VERSION"
   fi
-	gh release create "$VERSION" --discussion-category "General" --title "$VERSION" --draft "$BIN_PATH" "$BIN_PATH2" "./steamguard-cli_$RAW_VERSION-0.deb"
+	gh release create "$VERSION" --discussion-category "General" --title "$VERSION" "$BIN_PATH" "$BIN_PATH2" "./steamguard-cli_$RAW_VERSION-0.deb"
 fi
