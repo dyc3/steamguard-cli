@@ -143,17 +143,17 @@ pub struct SdaAccount {
 #[deprecated(note = "this is not used anymore, the closest equivalent is `Tokens`")]
 pub struct Session {
 	#[serde(default, rename = "SessionID")]
-	pub session_id: String,
+	pub session_id: Option<String>,
 	#[serde(default, rename = "SteamLogin")]
-	pub steam_login: String,
+	pub steam_login: Option<String>,
 	#[serde(default, rename = "SteamLoginSecure")]
-	pub steam_login_secure: String,
+	pub steam_login_secure: Option<String>,
 	#[serde(default, rename = "WebCookie")]
 	pub web_cookie: Option<String>,
 	#[serde(default, rename = "OAuthToken")]
 	pub token: Option<String>,
 	#[serde(rename = "SteamID")]
-	pub steam_id: u64,
+	pub steam_id: Option<u64>,
 }
 
 impl CloneableSecret for Session {}
@@ -164,7 +164,7 @@ impl From<SdaAccount> for SteamGuardAccount {
 		let steam_id = value
 			.session
 			.as_ref()
-			.map(|s| s.expose_secret().steam_id)
+			.and_then(|s| s.expose_secret().steam_id)
 			.unwrap_or(0);
 		Self {
 			account_name: value.account_name,
