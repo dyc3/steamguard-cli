@@ -29,7 +29,7 @@ scraper = "0.12.0"
 maplit = "1.0.2"
 thiserror = "1.0.26"
 secrecy = { version = "0.8", features = ["serde"] }
-zeroize = "^1.4.3"
+zeroize = { version = "^1.6.0", features = ["std", "zeroize_derive"] }
 protobuf = "3.2.0"
 protobuf-json-mapping = "3.2.0"
 hmac-sha256 = "1.1.7"
