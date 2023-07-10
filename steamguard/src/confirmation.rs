@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use base64::Engine;
 use hmac::{Hmac, Mac};
 use log::*;
 use reqwest::{
@@ -403,13 +404,15 @@ fn generate_confirmation_hash_for_time(
 	tag: &str,
 	identity_secret: impl AsRef<[u8]>,
 ) -> String {
-	let decode: &[u8] = &base64::decode(identity_secret).unwrap();
+	let decode: &[u8] = &base64::engine::general_purpose::STANDARD
+		.decode(identity_secret)
+		.unwrap();
 	let mut mac = Hmac::<Sha1>::new_from_slice(decode).unwrap();
 	mac.update(&build_time_bytes(time));
 	mac.update(tag.as_bytes());
 	let result = mac.finalize();
 	let hash = result.into_bytes();
-	base64::encode(hash)
+	base64::engine::general_purpose::STANDARD.encode(hash)
 }
 
 #[cfg(test)]

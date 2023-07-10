@@ -31,7 +31,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "^1.0"
-base64 = "0.13.0"
+base64 = "0.21.2"
 text_io = "0.1.8"
 rpassword = "5.0"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "cookies", "gzip", "rustls-tls"] }

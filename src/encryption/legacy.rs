@@ -1,6 +1,8 @@
 use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use aes::Aes256;
+use anyhow::Context;
+use base64::Engine;
 use log::*;
 use sha1::Sha1;
 
@@ -21,7 +23,7 @@ impl LegacySdaCompatible {
 
 	fn get_encryption_key(passkey: &str, salt: &str) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
 		let password_bytes = passkey.as_bytes();
-		let salt_bytes = base64::decode(salt)?;
+		let salt_bytes = base64::engine::general_purpose::STANDARD.decode(salt)?;
 		let mut full_key: [u8; Self::KEY_SIZE_BYTES] = [0u8; Self::KEY_SIZE_BYTES];
 		pbkdf2::pbkdf2_hmac::<Sha1>(
 			password_bytes,
@@ -30,6 +32,14 @@ impl LegacySdaCompatible {
 			&mut full_key,
 		);
 		Ok(full_key)
+	}
+
+	fn decode_iv(&self) -> anyhow::Result<[u8; Self::IV_LENGTH]> {
+		let mut iv = [0u8; Self::IV_LENGTH];
+		base64::engine::general_purpose::STANDARD
+			.decode_slice_unchecked(&self.iv, &mut iv)
+			.context("decoding iv")?;
+		Ok(iv)
 	}
 }
 
@@ -41,8 +51,8 @@ impl EntryEncryptor for LegacySdaCompatible {
 		rng.fill(&mut salt);
 		rng.fill(&mut iv);
 		LegacySdaCompatible {
-			iv: base64::encode(iv),
-			salt: base64::encode(salt),
+			iv: base64::engine::general_purpose::STANDARD.encode(iv),
+			salt: base64::engine::general_purpose::STANDARD.encode(salt),
 		}
 	}
 
@@ -56,11 +66,11 @@ impl EntryEncryptor for LegacySdaCompatible {
 		debug!("key derivation took: {:?}", start.elapsed());
 
 		let start = std::time::Instant::now();
-		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
-		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
+		let iv = self.decode_iv()?;
+		let cipher =
+			cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv).context("creating cipher")?;
 		let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&plaintext);
-		let encoded = base64::encode(ciphertext);
+		let encoded = base64::engine::general_purpose::STANDARD.encode(ciphertext);
 		debug!("encryption took: {:?}", start.elapsed());
 		Ok(encoded.as_bytes().to_vec())
 	}
@@ -75,10 +85,10 @@ impl EntryEncryptor for LegacySdaCompatible {
 		debug!("key derivation took: {:?}", start.elapsed());
 
 		let start = std::time::Instant::now();
-		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
-		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
-		let decoded = base64::decode(ciphertext)?;
+		let iv = self.decode_iv()?;
+		let cipher =
+			cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv).context("creating cipher")?;
+		let decoded = base64::engine::general_purpose::STANDARD.decode(ciphertext)?;
 		let size: usize = decoded.len() / 16 + (if decoded.len() % 16 == 0 { 0 } else { 1 });
 		let mut buffer = vec![0xffu8; 16 * size];
 		buffer[..decoded.len()].copy_from_slice(&decoded);
@@ -100,7 +110,8 @@ mod tests {
 			LegacySdaCompatible::get_encryption_key("password", "GMhL0N2hqXg=")
 				.unwrap()
 				.as_slice(),
-			base64::decode("KtiRa4/OxW83MlB6URf+Z8rAGj7CBY+pDlwD/NuVo6Y=")
+			base64::engine::general_purpose::STANDARD
+				.decode("KtiRa4/OxW83MlB6URf+Z8rAGj7CBY+pDlwD/NuVo6Y=")
 				.unwrap()
 				.as_slice()
 		);
@@ -109,7 +120,8 @@ mod tests {
 			LegacySdaCompatible::get_encryption_key("password", "wTzTE9A6aN8=")
 				.unwrap()
 				.as_slice(),
-			base64::decode("Dqpej/3DqEat0roJaHmu3luYgDzRCUmzX94n4fqvWj8=")
+			base64::engine::general_purpose::STANDARD
+				.decode("Dqpej/3DqEat0roJaHmu3luYgDzRCUmzX94n4fqvWj8=")
 				.unwrap()
 				.as_slice()
 		);
@@ -140,8 +152,8 @@ mod tests {
 		/// An insecure but reproducible strategy for generating encryption params.
 		fn encryption_params()(salt in any::<[u8; LegacySdaCompatible::SALT_LENGTH]>(), iv in any::<[u8; LegacySdaCompatible::IV_LENGTH]>()) -> LegacySdaCompatible {
 			LegacySdaCompatible {
-				salt: base64::encode(salt),
-				iv: base64::encode(iv),
+				salt: base64::engine::general_purpose::STANDARD.encode(salt),
+				iv: base64::engine::general_purpose::STANDARD.encode(iv),
 			}
 		}
 	}
