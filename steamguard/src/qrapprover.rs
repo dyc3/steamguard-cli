@@ -1,5 +1,7 @@
+use hmac::{Hmac, Mac};
 use log::debug;
 use reqwest::IntoUrl;
+use sha2::Sha256;
 
 use crate::{
 	protobufs::steammessages_auth_steamclient::CAuthentication_UpdateAuthSessionWithMobileConfirmation_Request,
@@ -67,12 +69,12 @@ fn build_signature(
 	steam_id: u64,
 	challenge: &Challenge,
 ) -> [u8; 32] {
-	let mut data = Vec::<u8>::with_capacity(18);
-	data.extend_from_slice(&challenge.version.to_le_bytes());
-	data.extend_from_slice(&challenge.client_id.to_le_bytes());
-	data.extend_from_slice(&steam_id.to_le_bytes());
-
-	hmac_sha256::HMAC::mac(data, shared_secret.expose_secret())
+	let mut mac = Hmac::<Sha256>::new_from_slice(shared_secret.expose_secret()).unwrap();
+	mac.update(&challenge.version.to_le_bytes());
+	mac.update(&challenge.client_id.to_le_bytes());
+	mac.update(&steam_id.to_le_bytes());
+	let result = mac.finalize();
+	result.into_bytes().into()
 }
 
 fn parse_challenge_url(challenge_url: impl IntoUrl) -> Result<Challenge, QrApproverError> {

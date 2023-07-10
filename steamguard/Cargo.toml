@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "^1.0"
-hmac-sha1 = "^0.1"
+sha1 = "^0.10"
 base64 = "0.13.0"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "cookies", "gzip", "rustls-tls", "multipart"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -32,9 +32,10 @@ secrecy = { version = "0.8", features = ["serde"] }
 zeroize = { version = "^1.6.0", features = ["std", "zeroize_derive"] }
 protobuf = "3.2.0"
 protobuf-json-mapping = "3.2.0"
-hmac-sha256 = "1.1.7"
 phonenumber = "0.3"
 serde_path_to_error = "0.1.11"
+hmac = "^0.12"
+sha2 = "^0.10"
 
 [build-dependencies]
 anyhow = "^1.0"
