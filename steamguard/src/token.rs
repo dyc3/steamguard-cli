@@ -1,5 +1,7 @@
+use hmac::{Hmac, Mac};
 use secrecy::{ExposeSecret, Secret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use sha1::Sha1;
 use std::convert::TryInto;
 
 #[derive(Debug, Clone)]
@@ -34,9 +36,11 @@ impl TwoFactorSecret {
 			86, 87, 88, 89,
 		];
 
+		let mut mac = Hmac::<Sha1>::new_from_slice(self.0.expose_secret()).unwrap();
 		// this effectively makes it so that it creates a new code every 30 seconds.
-		let time_bytes: [u8; 8] = build_time_bytes(time / 30u64);
-		let hashed_data = hmacsha1::hmac_sha1(self.0.expose_secret(), &time_bytes);
+		mac.update(&build_time_bytes(time / 30u64));
+		let result = mac.finalize();
+		let hashed_data = result.into_bytes();
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
 		let mut code_point: i32 = ((hashed_data[b] & 0x7F) as i32) << 24

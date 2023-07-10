@@ -31,7 +31,6 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "^1.0"
-hmac-sha1 = "^0.1"
 base64 = "0.13.0"
 text_io = "0.1.8"
 rpassword = "5.0"

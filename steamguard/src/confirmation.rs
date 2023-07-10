@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use hmacsha1::hmac_sha1;
+use hmac::{Hmac, Mac};
 use log::*;
 use reqwest::{
 	cookie::CookieStore,
@@ -9,6 +9,7 @@ use reqwest::{
 };
 use secrecy::ExposeSecret;
 use serde::Deserialize;
+use sha1::Sha1;
 
 use crate::{
 	steamapi::{self},
@@ -403,10 +404,11 @@ fn generate_confirmation_hash_for_time(
 	identity_secret: impl AsRef<[u8]>,
 ) -> String {
 	let decode: &[u8] = &base64::decode(identity_secret).unwrap();
-	let time_bytes = build_time_bytes(time);
-	let tag_bytes = tag.as_bytes();
-	let array = [&time_bytes, tag_bytes].concat();
-	let hash = hmac_sha1(decode, &array);
+	let mut mac = Hmac::<Sha1>::new_from_slice(decode).unwrap();
+	mac.update(&build_time_bytes(time));
+	mac.update(&tag.as_bytes());
+	let result = mac.finalize();
+	let hash = result.into_bytes();
 	base64::encode(hash)
 }
 

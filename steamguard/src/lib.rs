@@ -32,7 +32,6 @@ pub mod userlogin;
 
 extern crate base64;
 extern crate cookie;
-extern crate hmacsha1;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SteamGuardAccount {
