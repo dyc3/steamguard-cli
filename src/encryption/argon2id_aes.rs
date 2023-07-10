@@ -2,6 +2,7 @@ use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use aes::Aes256;
 use argon2::Argon2;
+use base64::Engine;
 use log::*;
 
 use super::*;
@@ -19,7 +20,7 @@ impl Argon2idAes256 {
 
 	fn get_encryption_key(passkey: &str, salt: &str) -> anyhow::Result<[u8; Self::KEY_SIZE_BYTES]> {
 		let password_bytes = passkey.as_bytes();
-		let salt_bytes = base64::decode(salt)?;
+		let salt_bytes = base64::engine::general_purpose::STANDARD.decode(salt)?;
 		let mut full_key: [u8; Self::KEY_SIZE_BYTES] = [0u8; Self::KEY_SIZE_BYTES];
 		let deriver = Argon2::new(
 			argon2::Algorithm::Argon2id,
@@ -50,8 +51,8 @@ impl EntryEncryptor for Argon2idAes256 {
 		rng.fill(&mut salt);
 		rng.fill(&mut iv);
 		Argon2idAes256 {
-			iv: base64::encode(iv),
-			salt: base64::encode(salt),
+			iv: base64::engine::general_purpose::STANDARD.encode(iv),
+			salt: base64::engine::general_purpose::STANDARD.encode(salt),
 		}
 	}
 
@@ -66,10 +67,10 @@ impl EntryEncryptor for Argon2idAes256 {
 
 		let start = std::time::Instant::now();
 		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
+		base64::engine::general_purpose::STANDARD.decode_slice(&self.iv, &mut iv)?;
 		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
 		let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&plaintext);
-		let encoded = base64::encode(ciphertext);
+		let encoded = base64::engine::general_purpose::STANDARD.encode(ciphertext);
 		debug!("encryption took: {:?}", start.elapsed());
 		Ok(encoded.as_bytes().to_vec())
 	}
@@ -85,9 +86,9 @@ impl EntryEncryptor for Argon2idAes256 {
 
 		let start = std::time::Instant::now();
 		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::decode_config_slice(&self.iv, base64::STANDARD, &mut iv)?;
+		base64::engine::general_purpose::STANDARD.decode_slice(&self.iv, &mut iv)?;
 		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
-		let decoded = base64::decode(ciphertext)?;
+		let decoded = base64::engine::general_purpose::STANDARD.decode(ciphertext)?;
 		let size: usize = decoded.len() / 16 + (if decoded.len() % 16 == 0 { 0 } else { 1 });
 		let mut buffer = vec![0xffu8; 16 * size];
 		buffer[..decoded.len()].copy_from_slice(&decoded);
@@ -104,7 +105,7 @@ mod tests {
 	#[test]
 	fn test_encryption_key() {
 		assert_eq!(
-			base64::encode(
+			base64::engine::general_purpose::STANDARD.encode(
 				Argon2idAes256::get_encryption_key("password", "GMhL0N2hqXg=")
 					.unwrap()
 					.as_slice()
@@ -116,7 +117,7 @@ mod tests {
 	#[test]
 	fn test_encryption_key2() {
 		assert_eq!(
-			base64::encode(
+			base64::engine::general_purpose::STANDARD.encode(
 				Argon2idAes256::get_encryption_key("password", "wTzTE9A6aN8=")
 					.unwrap()
 					.as_slice()

@@ -69,6 +69,8 @@ impl EntryEncryptor for EncryptionScheme {
 pub enum EntryEncryptionError {
 	#[error("Invalid ciphertext length. The ciphertext must be a multiple of 16 bytes.")]
 	InvalidCipherTextLength,
+	#[error("Invalid base64. {0}")]
+	InvalidBase64(#[from] base64::DecodeSliceError),
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }

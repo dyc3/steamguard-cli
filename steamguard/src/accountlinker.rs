@@ -5,6 +5,7 @@ use crate::steamapi::twofactor::TwoFactorClient;
 use crate::token::TwoFactorSecret;
 use crate::transport::Transport;
 use crate::{steamapi::EResult, token::Tokens, SteamGuardAccount};
+use base64::Engine;
 use log::*;
 use thiserror::Error;
 
@@ -64,9 +65,13 @@ where
 			uri: resp.take_uri().into(),
 			shared_secret: TwoFactorSecret::from_bytes(resp.take_shared_secret()),
 			token_gid: resp.take_token_gid(),
-			identity_secret: base64::encode(resp.take_identity_secret()).into(),
+			identity_secret: base64::engine::general_purpose::STANDARD
+				.encode(resp.take_identity_secret())
+				.into(),
 			device_id: self.device_id.clone(),
-			secret_1: base64::encode(resp.take_secret_1()).into(),
+			secret_1: base64::engine::general_purpose::STANDARD
+				.encode(resp.take_secret_1())
+				.into(),
 			tokens: Some(self.tokens.clone()),
 		};
 		let success = AccountLinkSuccess {

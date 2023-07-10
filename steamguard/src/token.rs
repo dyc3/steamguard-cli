@@ -1,3 +1,4 @@
+use base64::Engine;
 use hmac::{Hmac, Mac};
 use secrecy::{ExposeSecret, Secret, SecretString};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -25,7 +26,10 @@ impl TwoFactorSecret {
 
 	pub fn parse_shared_secret(secret: String) -> anyhow::Result<Self> {
 		ensure!(!secret.is_empty(), "unable to parse empty shared secret");
-		let result: [u8; 20] = base64::decode(secret)?.try_into().unwrap();
+		let result: [u8; 20] = base64::engine::general_purpose::STANDARD
+			.decode(secret)?
+			.try_into()
+			.unwrap();
 		Ok(Self(result.into()))
 	}
 
@@ -67,7 +71,11 @@ impl Serialize for TwoFactorSecret {
 	where
 		S: Serializer,
 	{
-		serializer.serialize_str(base64::encode(self.0.expose_secret()).as_str())
+		serializer.serialize_str(
+			base64::engine::general_purpose::STANDARD
+				.encode(self.0.expose_secret())
+				.as_str(),
+		)
 	}
 }
 
@@ -152,7 +160,7 @@ fn decode_jwt(jwt: impl AsRef<str>) -> anyhow::Result<SteamJwtData> {
 	ensure!(parts.len() == 3, "Invalid JWT");
 
 	let data = parts[1];
-	let bytes = base64::decode_config(data, base64::URL_SAFE)?;
+	let bytes = base64::engine::general_purpose::URL_SAFE.decode(data)?;
 	let json = String::from_utf8(bytes)?;
 	let jwt_data: SteamJwtData = serde_json::from_str(&json)?;
 	Ok(jwt_data)

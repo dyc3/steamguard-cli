@@ -264,12 +264,6 @@ checksum = "4cbbc9d0964165b47557570cce6c952866c2678457aca742aafc9fb771d30270"
 
 [[package]]
 name = "base64"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
-
-[[package]]
-name = "base64"
 version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "604178f6c5c21f02dc555784810edfb88d34ac2c73b2eae109655649ee73ce3d"
@@ -2427,7 +2421,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cde824a14b7c14f85caff81225f411faacc04a2013f41670f41443742b1c1c55"
 dependencies = [
  "async-compression",
- "base64 0.21.2",
+ "base64",
  "bytes",
  "cookie 0.16.2",
  "cookie_store",
@@ -2567,7 +2561,7 @@ version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d3987094b1d07b653b7dfdc3f70ce9a1da9c51ac18c1b06b662e4f9a0e9f4b2"
 dependencies = [
- "base64 0.21.2",
+ "base64",
 ]
 
 [[package]]
@@ -3009,7 +3003,7 @@ name = "steamguard"
 version = "0.10.1"
 dependencies = [
  "anyhow",
- "base64 0.13.1",
+ "base64",
  "cookie 0.14.4",
  "hmac",
  "lazy_static 1.4.0",
@@ -3043,7 +3037,7 @@ dependencies = [
  "aes 0.8.3",
  "anyhow",
  "argon2",
- "base64 0.13.1",
+ "base64",
  "cbc",
  "clap",
  "clap_complete",

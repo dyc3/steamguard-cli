@@ -24,6 +24,7 @@ impl Zeroize for Ip_addr {
 
 #[cfg(test)]
 mod parse_tests {
+	use base64::Engine;
 	use protobuf::Message;
 
 	use super::steammessages_auth_steamclient::CAuthentication_GetPasswordRSAPublicKey_Request;
@@ -34,7 +35,7 @@ mod parse_tests {
 		req.set_account_name("hydrastar2".to_owned());
 
 		let bytes = req.write_to_bytes().unwrap();
-		let s = base64::encode_config(bytes, base64::URL_SAFE);
+		let s = base64::engine::general_purpose::URL_SAFE.encode(bytes);
 		assert_eq!(s, "CgpoeWRyYXN0YXIy");
 	}
 }

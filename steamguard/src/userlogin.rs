@@ -17,6 +17,7 @@ use crate::steamapi::authentication::AuthenticationClient;
 use crate::steamapi::EResult;
 use crate::token::Tokens;
 use crate::transport::Transport;
+use base64::Engine;
 use log::*;
 use rsa::{Pkcs1v15Encrypt, RsaPublicKey};
 use std::time::Duration;
@@ -275,7 +276,7 @@ fn encrypt_password(
 	let mut rng = tests::MockStepRng(rand::rngs::mock::StepRng::new(2, 1));
 	#[cfg(not(test))]
 	let mut rng = rand::rngs::OsRng;
-	base64::encode(
+	base64::engine::general_purpose::STANDARD.encode(
 		public_key
 			.encrypt(&mut rng, Pkcs1v15Encrypt, password.as_ref())
 			.unwrap(),
