@@ -168,19 +168,27 @@ impl AccountManager {
 			.insert(account.account_name.clone(), Arc::new(Mutex::new(account)));
 	}
 
-	pub fn import_account(&mut self, import_path: &String) -> anyhow::Result<()> {
+	pub fn import_account(
+		&mut self,
+		import_path: &String,
+	) -> anyhow::Result<(), ManifestAccountImportError> {
 		let path = Path::new(import_path);
-		ensure!(path.exists(), "{} does not exist.", import_path);
-		ensure!(path.is_file(), "{} is not a file.", import_path);
+		if !path.exists() {
+			return Err(ManifestAccountImportError::FileNotFound);
+		}
+		if !path.is_file() {
+			return Err(ManifestAccountImportError::NotAFile);
+		}
 
 		let file = File::open(path)?;
 		let reader = BufReader::new(file);
 		let mut deser = serde_json::Deserializer::from_reader(reader);
 		let account: SteamGuardAccount = serde_path_to_error::deserialize(&mut deser)?;
-		ensure!(
-			!self.account_exists(&account.account_name),
-			"Account already exists in manifest, please remove it first."
-		);
+		if self.account_exists(&account.account_name) {
+			return Err(ManifestAccountImportError::AlreadyExists {
+				account_name: account.account_name,
+			});
+		}
 		self.add_account(account);
 
 		Ok(())
@@ -436,6 +444,24 @@ impl From<std::io::Error> for ManifestAccountLoadError {
 	fn from(error: std::io::Error) -> Self {
 		Self::Unknown(anyhow::Error::from(error))
 	}
+}
+
+#[derive(Debug, Error)]
+pub enum ManifestAccountImportError {
+	#[error("Could not find the specified file.")]
+	FileNotFound,
+	#[error("The specified path is not a file.")]
+	NotAFile,
+	#[error(
+		"The account you are trying to import, \"{account_name}\", already exists in the manifest."
+	)]
+	AlreadyExists { account_name: String },
+	#[error(transparent)]
+	IOError(#[from] std::io::Error),
+	#[error("Failed to deserialize the account. {self:?}")]
+	DeserializationFailed(#[from] serde_path_to_error::Error<serde_json::Error>),
+	#[error(transparent)]
+	Unknown(#[from] anyhow::Error),
 }
 
 #[cfg(test)]
