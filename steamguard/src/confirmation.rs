@@ -406,7 +406,7 @@ fn generate_confirmation_hash_for_time(
 	let decode: &[u8] = &base64::decode(identity_secret).unwrap();
 	let mut mac = Hmac::<Sha1>::new_from_slice(decode).unwrap();
 	mac.update(&build_time_bytes(time));
-	mac.update(&tag.as_bytes());
+	mac.update(tag.as_bytes());
 	let result = mac.finalize();
 	let hash = result.into_bytes();
 	base64::encode(hash)
