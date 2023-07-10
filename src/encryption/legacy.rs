@@ -1,6 +1,7 @@
 use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use aes::Aes256;
+use anyhow::Context;
 use base64::Engine;
 use log::*;
 use sha1::Sha1;
@@ -32,6 +33,14 @@ impl LegacySdaCompatible {
 		);
 		Ok(full_key)
 	}
+
+	fn decode_iv(&self) -> anyhow::Result<[u8; Self::IV_LENGTH]> {
+		let mut iv = [0u8; Self::IV_LENGTH];
+		base64::engine::general_purpose::STANDARD
+			.decode_slice_unchecked(&self.iv, &mut iv)
+			.context("decoding iv")?;
+		Ok(iv)
+	}
 }
 
 impl EntryEncryptor for LegacySdaCompatible {
@@ -57,9 +66,9 @@ impl EntryEncryptor for LegacySdaCompatible {
 		debug!("key derivation took: {:?}", start.elapsed());
 
 		let start = std::time::Instant::now();
-		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::engine::general_purpose::STANDARD.decode_slice(&self.iv, &mut iv)?;
-		let cipher = cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv)?;
+		let iv = self.decode_iv()?;
+		let cipher =
+			cbc::Encryptor::<Aes256>::new_from_slices(&key, &iv).context("creating cipher")?;
 		let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&plaintext);
 		let encoded = base64::engine::general_purpose::STANDARD.encode(ciphertext);
 		debug!("encryption took: {:?}", start.elapsed());
@@ -76,9 +85,9 @@ impl EntryEncryptor for LegacySdaCompatible {
 		debug!("key derivation took: {:?}", start.elapsed());
 
 		let start = std::time::Instant::now();
-		let mut iv = [0u8; Self::IV_LENGTH];
-		base64::engine::general_purpose::STANDARD.decode_slice(&self.iv, &mut iv)?;
-		let cipher = cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv)?;
+		let iv = self.decode_iv()?;
+		let cipher =
+			cbc::Decryptor::<Aes256>::new_from_slices(&key, &iv).context("creating cipher")?;
 		let decoded = base64::engine::general_purpose::STANDARD.decode(ciphertext)?;
 		let size: usize = decoded.len() / 16 + (if decoded.len() % 16 == 0 { 0 } else { 1 });
 		let mut buffer = vec![0xffu8; 16 * size];
