@@ -2,7 +2,7 @@ use std::path::Path;
 
 use log::*;
 
-use crate::AccountManager;
+use crate::{accountmanager::ManifestAccountImportError, AccountManager};
 
 use super::*;
 
@@ -24,6 +24,7 @@ where
 {
 	fn execute(&self, _transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
 		for file_path in self.files.iter() {
+			debug!("loading entry: {:?}", file_path);
 			if self.sda {
 				let path = Path::new(&file_path);
 				let account = crate::accountmanager::migrate::load_and_upgrade_sda_account(path)?;
@@ -33,6 +34,13 @@ where
 				match manager.import_account(file_path) {
 					Ok(_) => {
 						info!("Imported account: {}", &file_path);
+					}
+					Err(ManifestAccountImportError::AlreadyExists { .. }) => {
+						warn!("Account already exists: {} -- Ignoring", &file_path);
+					}
+					Err(ManifestAccountImportError::DeserializationFailed(err)) => {
+						warn!("Failed to import account: {} {}", &file_path, err);
+						warn!("If this file came from SDA, try using --sda");
 					}
 					Err(err) => {
 						bail!("Failed to import account: {} {}", &file_path, err);
