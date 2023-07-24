@@ -71,38 +71,82 @@ where
 
 			let confirmer = Confirmer::new(transport.clone(), &account);
 			let mut any_failed = false;
+
+			fn submit_loop(
+				f: impl Fn() -> Result<(), ConfirmerError>,
+				fail_fast: bool,
+			) -> Result<(), ConfirmerError> {
+				let mut attempts = 0;
+				loop {
+					match f() {
+						Ok(_) => break,
+						Err(ConfirmerError::InvalidTokens) => {
+							error!("Invalid tokens, but they should be valid already. This is weird, stopping.");
+							return Err(ConfirmerError::InvalidTokens);
+						}
+						Err(ConfirmerError::NetworkFailure(err)) => {
+							error!("{}", err);
+							return Err(ConfirmerError::NetworkFailure(err));
+						}
+						Err(ConfirmerError::DeserializeError(err)) => {
+							error!("Failed to deserialize the response, but the submission may have succeeded: {}", err);
+							return Err(ConfirmerError::DeserializeError(err));
+						}
+						Err(err) => {
+							warn!("submit confirmation result: {}", err);
+							if fail_fast || attempts >= 3 {
+								return Err(err);
+							}
+
+							attempts += 1;
+							let wait = std::time::Duration::from_secs(3 * attempts);
+							info!(
+								"retrying in {} seconds (attempt {})",
+								wait.as_secs(),
+								attempts
+							);
+							std::thread::sleep(wait);
+						}
+					}
+				}
+				Ok(())
+			}
+
 			if self.accept_all {
 				info!("accepting all confirmations");
-				match confirmer.accept_confirmations(&confirmations) {
+				match submit_loop(
+					|| confirmer.accept_confirmations(&confirmations),
+					self.fail_fast,
+				) {
 					Ok(_) => {}
 					Err(err) => {
 						warn!("accept confirmation result: {}", err);
-						any_failed = true;
 						if self.fail_fast {
 							return Err(err.into());
 						}
+						any_failed = true;
 					}
 				}
 			} else if std::io::stdout().is_tty() {
 				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
-				match confirmer.accept_confirmations(&accept) {
+				match submit_loop(|| confirmer.accept_confirmations(&accept), self.fail_fast) {
 					Ok(_) => {}
 					Err(err) => {
 						warn!("accept confirmation result: {}", err);
-						any_failed = true;
 						if self.fail_fast {
 							return Err(err.into());
 						}
+						any_failed = true;
 					}
 				}
-				match confirmer.deny_confirmations(&deny) {
+				match submit_loop(|| confirmer.deny_confirmations(&deny), self.fail_fast) {
 					Ok(_) => {}
 					Err(err) => {
 						warn!("deny confirmation result: {}", err);
-						any_failed = true;
 						if self.fail_fast {
 							return Err(err.into());
 						}
+						any_failed = true;
 					}
 				}
 			} else {
