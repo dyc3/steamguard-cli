@@ -25,7 +25,7 @@ where
 				Err(e) => warn!("Failed to clear passkey from keyring: {}", e),
 			}
 		}
-		for mut entry in manager.iter_mut() {
+		for entry in manager.iter_mut() {
 			entry.encryption = None;
 		}
 		manager.submit_passkey(None);
