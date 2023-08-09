@@ -162,7 +162,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 				}
 				let mut manager = AccountManager::from_manifest(manifest, mafiles_dir);
 				manager.register_accounts(accounts);
-				manager.submit_passkey(globalargs.passkey.clone());
+				manager.submit_passkey(passkey.clone());
 				manager.save()?;
 				manager
 			}
