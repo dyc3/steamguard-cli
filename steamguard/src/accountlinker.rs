@@ -5,6 +5,7 @@ use crate::steamapi::twofactor::TwoFactorClient;
 use crate::token::TwoFactorSecret;
 use crate::transport::Transport;
 use crate::{steamapi::EResult, token::Tokens, SteamGuardAccount};
+use anyhow::Context;
 use base64::Engine;
 use log::*;
 use thiserror::Error;
@@ -41,7 +42,10 @@ where
 
 	pub fn link(&mut self) -> anyhow::Result<AccountLinkSuccess, AccountLinkError> {
 		let access_token = self.tokens.access_token();
-		let steam_id = access_token.decode()?.steam_id();
+		let steam_id = access_token
+			.decode()
+			.context("decoding access token")?
+			.steam_id();
 
 		let mut req = CTwoFactor_AddAuthenticator_Request::new();
 		req.set_authenticator_type(1);
@@ -49,7 +53,10 @@ where
 		req.set_sms_phone_id("1".to_owned());
 		req.set_device_identifier(self.device_id.clone());
 
-		let resp = self.client.add_authenticator(req, access_token)?;
+		let resp = self
+			.client
+			.add_authenticator(req, access_token)
+			.context("add authenticator request")?;
 
 		if resp.result != EResult::OK {
 			return Err(resp.result.into());
