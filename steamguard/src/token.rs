@@ -160,7 +160,7 @@ fn decode_jwt(jwt: impl AsRef<str>) -> anyhow::Result<SteamJwtData> {
 	ensure!(parts.len() == 3, "Invalid JWT");
 
 	let data = parts[1];
-	let bytes = base64::engine::general_purpose::URL_SAFE.decode(data)?;
+	let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(data)?;
 	let json = String::from_utf8(bytes)?;
 	let jwt_data: SteamJwtData = serde_json::from_str(&json)?;
 	Ok(jwt_data)
@@ -258,5 +258,14 @@ mod tests {
 		assert_eq!(data.aud, vec!["web", "renew", "derive"]);
 		assert_eq!(data.sub, "76561199155706892");
 		assert_eq!(data.jti, "18C5_22B3F431_CDF6A");
+	}
+
+	#[test]
+	fn test_decode_jwt_2() {
+		let sample: Jwt = "eyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0.eyAiaXNzIjogInI6MTRCM18yMkZEQjg0RF9BMjJDRCIsICJzdWIiOiAiNzY1NjExOTk0NDE5OTI5NzAiLCAiYXVkIjogWyAid2ViIiwgIm1vYmlsZSIgXSwgImV4cCI6IDE2OTE3NTc5MzUsICJuYmYiOiAxNjgzMDMxMDUxLCAiaWF0IjogMTY5MTY3MTA1MSwgImp0aSI6ICIxNTI1XzIyRkRCOUJBXzZBRDkwIiwgIm9hdCI6IDE2OTE2NzEwNTEsICJydF9leHAiOiAxNzEwMDExNjg5LCAicGVyIjogMCwgImlwX3N1YmplY3QiOiAiMTA0LjI0Ni4xMjUuMTQxIiwgImlwX2NvbmZpcm1lciI6ICIxMDQuMjQ2LjEyNS4xNDEiIH0.ncqc5TpVlD05lnZvy8c3Bkx70gXDvQQXN0iG5Z4mOLgY_rwasXIJXnR-X4JczT8PmZ2v5cisW5VRHAdfsz_8CA".to_owned().into();
+		let data = sample.decode().expect("Failed to decode JWT");
+
+		assert_eq!(data.aud, vec!["web", "mobile"]);
+		assert_eq!(data.sub, "76561199441992970");
 	}
 }
