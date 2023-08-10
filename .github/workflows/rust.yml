@@ -27,7 +27,7 @@ jobs:
       - name: Validate documentation
         run: cargo doc --workspace --no-deps --all-features
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose --all-features --all-targets --workspace
   check:
     runs-on: ubuntu-latest
     strategy:
