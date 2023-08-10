@@ -13,6 +13,7 @@ use steamguard::{
 
 use crate::tui;
 
+/// Performs a login, prompting for credentials if necessary.
 pub fn do_login<T: Transport + Clone>(
 	transport: T,
 	account: &mut SteamGuardAccount,
