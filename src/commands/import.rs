@@ -27,7 +27,8 @@ where
 			debug!("loading entry: {:?}", file_path);
 			if self.sda {
 				let path = Path::new(&file_path);
-				let account = crate::accountmanager::migrate::load_and_upgrade_sda_account(path)?;
+				let account =
+					crate::accountmanager::migrate::load_and_upgrade_external_account(path)?;
 				manager.add_account(account);
 				info!("Imported account: {}", &file_path);
 			} else {

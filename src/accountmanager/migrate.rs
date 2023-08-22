@@ -11,6 +11,7 @@ use crate::encryption::EncryptionScheme;
 use super::{
 	legacy::{SdaAccount, SdaManifest},
 	manifest::ManifestV1,
+	steamv2::SteamMobileV2,
 	EntryLoader, Manifest,
 };
 
@@ -145,7 +146,11 @@ impl MigratingManifest {
 						errors
 					));
 				}
-				accounts.into_iter().map(MigratingAccount::Sda).collect()
+				accounts
+					.into_iter()
+					.map(ExternalAccount::Sda)
+					.map(MigratingAccount::External)
+					.collect()
 			}
 			Self::ManifestV1(manifest) => {
 				let (accounts, errors) = manifest
@@ -229,14 +234,14 @@ fn deserialize_manifest(
 
 #[derive(Debug, Clone)]
 enum MigratingAccount {
-	Sda(SdaAccount),
+	External(ExternalAccount),
 	ManifestV1(SteamGuardAccount),
 }
 
 impl MigratingAccount {
 	pub fn upgrade(self) -> Self {
 		match self {
-			Self::Sda(sda) => Self::ManifestV1(sda.into()),
+			Self::External(account) => Self::ManifestV1(account.into()),
 			Self::ManifestV1(_) => self,
 		}
 	}
@@ -255,15 +260,31 @@ impl From<MigratingAccount> for SteamGuardAccount {
 	}
 }
 
-pub fn load_and_upgrade_sda_account(path: &Path) -> anyhow::Result<SteamGuardAccount> {
+pub fn load_and_upgrade_external_account(path: &Path) -> anyhow::Result<SteamGuardAccount> {
 	let file = File::open(path)?;
-	let account: SdaAccount = serde_json::from_reader(file)?;
-	let mut account = MigratingAccount::Sda(account);
+	let account: ExternalAccount = serde_json::from_reader(file)?;
+	let mut account = MigratingAccount::External(account);
 	while !account.is_latest() {
 		account = account.upgrade();
 	}
 
 	Ok(account.into())
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum ExternalAccount {
+	Sda(SdaAccount),
+	SteamMobileV2(SteamMobileV2),
+}
+
+impl From<ExternalAccount> for SteamGuardAccount {
+	fn from(account: ExternalAccount) -> Self {
+		match account {
+			ExternalAccount::Sda(account) => account.into(),
+			ExternalAccount::SteamMobileV2(account) => account.into(),
+		}
+	}
 }
 
 #[cfg(test)]
@@ -363,7 +384,7 @@ mod tests {
 		];
 		for case in cases {
 			eprintln!("testing: {:?}", case);
-			let account = load_and_upgrade_sda_account(Path::new(case.mafile))?;
+			let account = load_and_upgrade_external_account(Path::new(case.mafile))?;
 			assert_eq!(account.account_name, case.account_name);
 			assert_eq!(account.steam_id, case.steam_id);
 		}

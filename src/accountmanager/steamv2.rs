@@ -30,7 +30,7 @@ pub struct SteamMobileV2 {
 	pub revocation_code: SecretString,
 	#[serde(with = "crate::secret_string")]
 	pub uri: SecretString,
-	pub server_time: Option<String>,
+	pub server_time: Option<serde_json::Value>,
 	pub account_name: String,
 	pub token_gid: String,
 	#[serde(with = "crate::secret_string")]
