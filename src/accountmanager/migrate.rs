@@ -262,7 +262,9 @@ impl From<MigratingAccount> for SteamGuardAccount {
 
 pub fn load_and_upgrade_external_account(path: &Path) -> anyhow::Result<SteamGuardAccount> {
 	let file = File::open(path)?;
-	let account: ExternalAccount = serde_json::from_reader(file)?;
+	let mut deser = serde_json::Deserializer::from_reader(&file);
+	let account: ExternalAccount = serde_path_to_error::deserialize(&mut deser)
+		.map_err(|err| anyhow::anyhow!("Failed to deserialize account: {}", err))?;
 	let mut account = MigratingAccount::External(account);
 	while !account.is_latest() {
 		account = account.upgrade();
