@@ -35,6 +35,8 @@ pub struct SteamMobileV2 {
 	pub token_gid: String,
 	#[serde(with = "crate::secret_string")]
 	pub identity_secret: SecretString,
+	#[serde(with = "crate::secret_string")]
+	pub secret_1: SecretString,
 	pub status: Option<String>,
 	pub steamguard_scheme: Option<String>,
 }
@@ -52,8 +54,7 @@ impl From<SteamMobileV2> for SteamGuardAccount {
 			steam_id: account.steamid,
 			// device_id is unknown, so we just make one up
 			device_id: format!("android:{}", Uuid::new_v4()),
-			// secret_1 is unknown, so we just set it to all zeros base64 encoded
-			secret_1: SecretString::new("AAAAAAAAAAAAAAAAAAAAAAAAAAA=".to_owned()),
+			secret_1: account.secret_1,
 			tokens: None,
 		}
 	}

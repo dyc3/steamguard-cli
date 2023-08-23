@@ -381,6 +381,11 @@ mod tests {
 				account_name: "example",
 				steam_id: 1234,
 			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/steamv2/sample.maFile",
+				account_name: "afarihm",
+				steam_id: 76561199441992970,
+			},
 		];
 		for case in cases {
 			eprintln!("testing: {:?}", case);
