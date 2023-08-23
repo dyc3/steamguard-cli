@@ -15,6 +15,7 @@ use thiserror::Error;
 mod legacy;
 pub mod manifest;
 pub mod migrate;
+mod steamv2;
 
 pub use manifest::*;
 

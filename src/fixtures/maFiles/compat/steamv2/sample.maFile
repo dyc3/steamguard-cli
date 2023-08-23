@@ -1,0 +1,14 @@
+{
+	"steamid": "76561199441992970",
+	"shared_secret": "kSJa7hfbr8IvReG9/1Ax13BhTJA=",
+	"serial_number": "5182004572898897156",
+	"revocation_code": "R52260",
+	"uri": "otpauth://totp/Steam:afarihm?secret=SERFV3QX3OX4EL2F4G676UBR25YGCTEQ&issuer=Steam",
+	"server_time": "123",
+	"account_name": "afarihm",
+	"token_gid": "2d5a1b6cdbbfa9cc",
+	"identity_secret": "f62XbJcml4r1j3NcFm0GGTtmcXw=",
+	"secret_1": "BEelQHBr74ahsgiJbGArNV62/Bs=",
+	"status": 1,
+	"steamguard_scheme": "2"
+}

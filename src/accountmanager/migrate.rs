@@ -11,6 +11,7 @@ use crate::encryption::EncryptionScheme;
 use super::{
 	legacy::{SdaAccount, SdaManifest},
 	manifest::ManifestV1,
+	steamv2::SteamMobileV2,
 	EntryLoader, Manifest,
 };
 
@@ -145,7 +146,11 @@ impl MigratingManifest {
 						errors
 					));
 				}
-				accounts.into_iter().map(MigratingAccount::Sda).collect()
+				accounts
+					.into_iter()
+					.map(ExternalAccount::Sda)
+					.map(MigratingAccount::External)
+					.collect()
 			}
 			Self::ManifestV1(manifest) => {
 				let (accounts, errors) = manifest
@@ -228,15 +233,16 @@ fn deserialize_manifest(
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 enum MigratingAccount {
-	Sda(SdaAccount),
+	External(ExternalAccount),
 	ManifestV1(SteamGuardAccount),
 }
 
 impl MigratingAccount {
 	pub fn upgrade(self) -> Self {
 		match self {
-			Self::Sda(sda) => Self::ManifestV1(sda.into()),
+			Self::External(account) => Self::ManifestV1(account.into()),
 			Self::ManifestV1(_) => self,
 		}
 	}
@@ -255,15 +261,34 @@ impl From<MigratingAccount> for SteamGuardAccount {
 	}
 }
 
-pub fn load_and_upgrade_sda_account(path: &Path) -> anyhow::Result<SteamGuardAccount> {
+pub fn load_and_upgrade_external_account(path: &Path) -> anyhow::Result<SteamGuardAccount> {
 	let file = File::open(path)?;
-	let account: SdaAccount = serde_json::from_reader(file)?;
-	let mut account = MigratingAccount::Sda(account);
+	let mut deser = serde_json::Deserializer::from_reader(&file);
+	let account: ExternalAccount = serde_path_to_error::deserialize(&mut deser)
+		.map_err(|err| anyhow::anyhow!("Failed to deserialize account: {}", err))?;
+	let mut account = MigratingAccount::External(account);
 	while !account.is_latest() {
 		account = account.upgrade();
 	}
 
 	Ok(account.into())
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
+enum ExternalAccount {
+	Sda(SdaAccount),
+	SteamMobileV2(SteamMobileV2),
+}
+
+impl From<ExternalAccount> for SteamGuardAccount {
+	fn from(account: ExternalAccount) -> Self {
+		match account {
+			ExternalAccount::Sda(account) => account.into(),
+			ExternalAccount::SteamMobileV2(account) => account.into(),
+		}
+	}
 }
 
 #[cfg(test)]
@@ -360,10 +385,15 @@ mod tests {
 				account_name: "example",
 				steam_id: 1234,
 			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/steamv2/sample.maFile",
+				account_name: "afarihm",
+				steam_id: 76561199441992970,
+			},
 		];
 		for case in cases {
 			eprintln!("testing: {:?}", case);
-			let account = load_and_upgrade_sda_account(Path::new(case.mafile))?;
+			let account = load_and_upgrade_external_account(Path::new(case.mafile))?;
 			assert_eq!(account.account_name, case.account_name);
 			assert_eq!(account.steam_id, case.steam_id);
 		}
