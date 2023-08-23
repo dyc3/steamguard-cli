@@ -8,18 +8,18 @@ use uuid::Uuid;
 ///
 /// ```json
 /// {
-/// 	"steamid": "X",
-/// 	"shared_secret": "X",
-/// 	"serial_number": "X",
-/// 	"revocation_code": "X",
-/// 	"uri": "otpauth:\/\/totp\/Steam:USERNAME?secret=X&issuer=Steam",
-/// 	"server_time": "X",
-/// 	"account_name": "USERNAME",
-/// 	"token_gid": "X",
-/// 	"identity_secret": "X",
-/// 	"secret_1": "X",
-/// 	"status": 1,
-/// 	"steamguard_scheme": "2"
+///     "steamid": "X",
+///     "shared_secret": "X",
+///     "serial_number": "X",
+///     "revocation_code": "X",
+///     "uri": "otpauth:\/\/totp\/Steam:USERNAME?secret=X&issuer=Steam",
+///     "server_time": "X",
+///     "account_name": "USERNAME",
+///     "token_gid": "X",
+///     "identity_secret": "X",
+///     "secret_1": "X",
+///     "status": 1,
+///     "steamguard_scheme": "2"
 /// }
 /// ```
 #[derive(Debug, Clone, Deserialize)]
@@ -67,7 +67,7 @@ fn de_parse_number<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u64, D:
 		Value::String(s) => s.parse().map_err(serde::de::Error::custom)?,
 		Value::Number(num) => num
 			.as_u64()
-			.ok_or(serde::de::Error::custom("Invalid number"))? as u64,
+			.ok_or(serde::de::Error::custom("Invalid number"))?,
 		_ => return Err(serde::de::Error::custom("wrong type")),
 	})
 }

@@ -233,6 +233,7 @@ fn deserialize_manifest(
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 enum MigratingAccount {
 	External(ExternalAccount),
 	ManifestV1(SteamGuardAccount),
@@ -275,6 +276,7 @@ pub fn load_and_upgrade_external_account(path: &Path) -> anyhow::Result<SteamGua
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 enum ExternalAccount {
 	Sda(SdaAccount),
 	SteamMobileV2(SteamMobileV2),
