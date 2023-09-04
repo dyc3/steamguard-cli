@@ -10,7 +10,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: What version of steamguard-cli are you running? You can find this by running `steamguard --version`.
+      description: What version of steamguard-cli are you running? You can find this by running `steamguard --version`. **Do NOT just say "latest", or your issue will be automatically closed.**
     validations:
       required: true
   - type: textarea
