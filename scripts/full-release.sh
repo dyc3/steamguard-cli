@@ -4,6 +4,7 @@ set -e
 
 DRY_RUN=true
 SKIP_CRATE_PUBLISH=false
+ALLOW_DIRTY=false
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -21,6 +22,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-publish)
       SKIP_CRATE_PUBLISH=true
+      shift # past argument
+      ;;
+    --allow-dirty)
+      ALLOW_DIRTY=true
       shift # past argument
       ;;
     *)    # unknown option
@@ -65,6 +70,9 @@ if [[ $BUMP != "" ]]; then
 fi
 if [[ $SKIP_CRATE_PUBLISH == true ]]; then
 	params+=(--no-publish)
+fi
+if [[ $ALLOW_DIRTY == true ]]; then
+  params+=(--allow-dirty)
 fi
 cargo smart-release --update-crates-index --no-changelog --no-tag --no-push --no-publish "${params[@]}"
 
