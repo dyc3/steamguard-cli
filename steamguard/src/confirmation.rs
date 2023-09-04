@@ -109,7 +109,7 @@ where
 			return Err(ConfirmerError::InvalidTokens);
 		}
 		if !body.success {
-			return Err(anyhow!("Server responded with failure.").into());
+			return Err(ConfirmerError::RemoteFailure);
 		}
 		Ok(body.conf)
 	}
@@ -162,7 +162,7 @@ where
 			return Err(ConfirmerError::InvalidTokens);
 		}
 		if !body.success {
-			return Err(anyhow!("Server responded with failure.").into());
+			return Err(ConfirmerError::RemoteFailure);
 		}
 
 		Ok(())
@@ -237,7 +237,7 @@ where
 			return Err(ConfirmerError::InvalidTokens);
 		}
 		if !body.success {
-			return Err(anyhow!("Server responded with failure.").into());
+			return Err(ConfirmerError::RemoteFailure);
 		}
 
 		Ok(())
@@ -316,6 +316,8 @@ pub enum ConfirmerError {
 	NetworkFailure(#[from] reqwest::Error),
 	#[error("Failed to deserialize response: {0}")]
 	DeserializeError(#[from] serde_path_to_error::Error<serde_json::Error>),
+	#[error("Remote failure: Valve's server responded with a failure. This is likely not a steamguard-cli bug, Steam's confirmation API is just unreliable. Wait a bit and try again.")]
+	RemoteFailure,
 	#[error("Unknown error: {0}")]
 	Unknown(#[from] anyhow::Error),
 }
