@@ -105,7 +105,9 @@ impl SteamGuardAccount {
 			return Err(RemoveAuthenticatorError::MissingRevocationCode);
 		}
 		let Some(tokens) = &self.tokens else {
-			return Err(RemoveAuthenticatorError::TransportError(TransportError::Unauthorized));
+			return Err(RemoveAuthenticatorError::TransportError(
+				TransportError::Unauthorized,
+			));
 		};
 		let mut req = CTwoFactor_RemoveAuthenticator_Request::new();
 		req.set_revocation_code(
