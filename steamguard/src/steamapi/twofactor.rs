@@ -69,6 +69,45 @@ where
 		Ok(resp)
 	}
 
+	pub fn remove_authenticator_via_challenge_start(
+		&self,
+		req: CTwoFactor_RemoveAuthenticatorViaChallengeStart_Request,
+		access_token: &Jwt,
+	) -> Result<ApiResponse<CTwoFactor_RemoveAuthenticatorViaChallengeStart_Response>, TransportError>
+	{
+		let req = ApiRequest::new(SERVICE_NAME, "RemoveAuthenticatorViaChallengeStart", 1, req)
+			.with_access_token(access_token);
+		let resp = self
+			.transport
+			.send_request::<CTwoFactor_RemoveAuthenticatorViaChallengeStart_Request, CTwoFactor_RemoveAuthenticatorViaChallengeStart_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
+	pub fn remove_authenticator_via_challenge_continue(
+		&self,
+		req: CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Request,
+		access_token: &Jwt,
+	) -> Result<
+		ApiResponse<CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Response>,
+		TransportError,
+	> {
+		let req = ApiRequest::new(
+			SERVICE_NAME,
+			"RemoveAuthenticatorViaChallengeContinue",
+			1,
+			req,
+		)
+		.with_access_token(access_token);
+		let resp = self
+			.transport
+			.send_request::<CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Request, CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
 	pub fn query_status(
 		&self,
 		req: CTwoFactor_Status_Request,
@@ -108,5 +147,13 @@ macro_rules! impl_buildable_req {
 impl_buildable_req!(CTwoFactor_AddAuthenticator_Request, true);
 impl_buildable_req!(CTwoFactor_FinalizeAddAuthenticator_Request, true);
 impl_buildable_req!(CTwoFactor_RemoveAuthenticator_Request, true);
+impl_buildable_req!(
+	CTwoFactor_RemoveAuthenticatorViaChallengeStart_Request,
+	true
+);
+impl_buildable_req!(
+	CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Request,
+	true
+);
 impl_buildable_req!(CTwoFactor_Status_Request, true);
 impl_buildable_req!(CTwoFactor_Time_Request, false);
