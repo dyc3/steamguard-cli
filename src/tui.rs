@@ -288,7 +288,7 @@ mod prompt_char_tests {
 	#[test]
 	fn test_should_not_give_invalid() {
 		let answer = prompt_char_impl("g", "yn");
-		assert!(matches!(answer, Err(_)));
+		assert!(answer.is_err());
 		let answer = prompt_char_impl("n", "yn").unwrap();
 		assert_eq!(answer, 'n');
 	}
@@ -296,6 +296,6 @@ mod prompt_char_tests {
 	#[test]
 	fn test_should_not_give_multichar() {
 		let answer = prompt_char_impl("yy", "yn");
-		assert!(matches!(answer, Err(_)));
+		assert!(answer.is_err());
 	}
 }

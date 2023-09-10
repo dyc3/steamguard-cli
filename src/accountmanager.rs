@@ -476,7 +476,7 @@ mod tests {
 		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let manager = AccountManager::new(manifest_path.as_path());
-		assert!(matches!(manager.save(), Ok(_)));
+		assert!(manager.save().is_ok());
 	}
 
 	#[test]
@@ -529,7 +529,7 @@ mod tests {
 		manager.add_account(account);
 		manager.manifest.entries[0].encryption = Some(EncryptionScheme::generate());
 		manager.submit_passkey(passkey.clone());
-		assert!(matches!(manager.save(), Ok(_)));
+		assert!(manager.save().is_ok());
 
 		let mut loaded_manager = AccountManager::load(manifest_path.as_path()).unwrap();
 		loaded_manager.submit_passkey(passkey);
@@ -542,7 +542,7 @@ mod tests {
 		if _r.is_err() {
 			eprintln!("{:?}", _r);
 		}
-		assert!(matches!(_r, Ok(_)));
+		assert!(_r.is_ok());
 		assert_eq!(
 			loaded_manager.manifest.entries.len(),
 			loaded_manager.accounts.len()
@@ -628,17 +628,16 @@ mod tests {
 		std::fs::remove_file(&manifest_path)?;
 
 		let mut loaded_manager = AccountManager::new(manifest_path.as_path());
-		assert!(matches!(
-			loaded_manager.import_account(
+		assert!(loaded_manager
+			.import_account(
 				&tmp_dir
 					.path()
 					.join("asdf1234.maFile")
 					.into_os_string()
 					.into_string()
 					.unwrap()
-			),
-			Ok(_)
-		));
+			)
+			.is_ok());
 		assert_eq!(
 			loaded_manager.manifest.entries.len(),
 			loaded_manager.accounts.len()
