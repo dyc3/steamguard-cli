@@ -42,7 +42,10 @@ where
 
 		loop {
 			let Some(tokens) = account.tokens.as_ref() else {
-				error!("No tokens found for {}. Can't approve login if we aren't logged in ourselves.", account.account_name);
+				error!(
+					"No tokens found for {}. Can't approve login if we aren't logged in ourselves.",
+					account.account_name
+				);
 				return Err(anyhow!("No tokens found for {}", account.account_name));
 			};
 
