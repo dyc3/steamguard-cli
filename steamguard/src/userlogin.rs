@@ -13,10 +13,12 @@ use crate::protobufs::steammessages_auth_steamclient::{
 	CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
 	CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthTokenPlatformType,
 };
+use crate::refresher::TokenRefresher;
 use crate::steamapi::authentication::AuthenticationClient;
 use crate::steamapi::EResult;
 use crate::token::Tokens;
 use crate::transport::Transport;
+use anyhow::Context;
 use base64::Engine;
 use log::*;
 use rsa::{Pkcs1v15Encrypt, RsaPublicKey};
@@ -82,7 +84,7 @@ impl BeginQrLoginResponse {
 #[derive(Debug)]
 pub struct UserLogin<T>
 where
-	T: Transport,
+	T: Transport + Clone,
 {
 	client: AuthenticationClient<T>,
 	device_details: DeviceDetails,
@@ -92,7 +94,7 @@ where
 
 impl<T> UserLogin<T>
 where
-	T: Transport,
+	T: Transport + Clone,
 {
 	pub fn new(transport: T, device_details: DeviceDetails) -> Self {
 		Self {
@@ -214,11 +216,29 @@ where
 		loop {
 			let mut next_poll = self.poll_until_info()?;
 
-			if next_poll.has_access_token() {
-				return Ok(Tokens::new(
-					next_poll.take_access_token(),
-					next_poll.take_refresh_token(),
-				));
+			if next_poll.has_access_token() || next_poll.has_refresh_token() {
+				// On 2023-09-12, Steam stopped issuing access tokens alongside refresh tokens for newly authenticated sessions.
+				// If they decide to revert this change, we'll accept the access token if it's present.
+
+				let access_token = next_poll.take_access_token();
+				if access_token.is_empty() {
+					// Let's go ahead an fetch the access token, because we are going to need it anyway.
+					let mut refresher = TokenRefresher::new(self.client.clone());
+					let mut tokens = Tokens::new(
+						next_poll.take_access_token(),
+						next_poll.take_refresh_token(),
+					);
+					let steamid = tokens
+						.refresh_token()
+						.decode()
+						.context("decoding refresh token for steam id")?
+						.steam_id();
+					let access_token = refresher.refresh(steamid, &tokens)?;
+					tokens.set_access_token(access_token);
+					return Ok(tokens);
+				} else {
+					return Ok(Tokens::new(access_token, next_poll.take_refresh_token()));
+				};
 			}
 		}
 	}
