@@ -11,7 +11,7 @@ const SERVICE_NAME: &str = "IAuthenticationService";
 
 use super::{ApiRequest, ApiResponse, BuildableRequest};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AuthenticationClient<T>
 where
 	T: Transport,
