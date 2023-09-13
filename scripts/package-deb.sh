@@ -32,12 +32,12 @@ Depends:
 Version: $VERSION
 Section: base
 Priority: optional
-Architecture: x86-64
+Architecture: amd64
 Maintainer: Carson McManus <carson.mcmanus1@gmail.com>
 Description: steamguard-cli
  A command line utility to generate Steam 2FA codes and respond to confirmations.
 EOT
 
-dpkg-deb --build "$TEMP_PKG_PATH" "steamguard-cli_$VERSION-0.deb"
+dpkg-deb -Zxz --build "$TEMP_PKG_PATH" "steamguard-cli_$VERSION-0.deb"
 
 rm -rf "$TEMP_PKG_PATH"
