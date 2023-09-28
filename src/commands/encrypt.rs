@@ -25,9 +25,8 @@ where
 					error!("Passkey cannot be empty, try again.");
 					continue;
 				}
-				let passkey_confirm =
-					rpassword::prompt_password_stdout("Confirm encryption passkey: ")
-						.map(SecretString::new)?;
+				let passkey_confirm = rpassword::prompt_password("Confirm encryption passkey: ")
+					.map(SecretString::new)?;
 				if passkey1.expose_secret() == passkey_confirm.expose_secret() {
 					passkey = Some(passkey1);
 					break;

@@ -1,3 +1,4 @@
+use anyhow::Context;
 use crossterm::{
 	cursor,
 	event::{Event, KeyCode, KeyEvent, KeyModifiers},
@@ -6,6 +7,7 @@ use crossterm::{
 	terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 	QueueableCommand,
 };
+use log::debug;
 use secrecy::SecretString;
 use std::collections::HashSet;
 use std::io::{stderr, stdout, Write};
@@ -245,18 +247,21 @@ pub(crate) fn pause() {
 	}
 }
 
-pub(crate) fn prompt_passkey() -> std::io::Result<SecretString> {
+pub(crate) fn prompt_passkey() -> anyhow::Result<SecretString> {
+	debug!("prompting for passkey");
 	loop {
-		let raw = rpassword::prompt_password_stdout("Enter encryption passkey: ")?;
+		let raw = rpassword::prompt_password("Enter encryption passkey: ")
+			.context("prompting for passkey")?;
 		if !raw.is_empty() {
 			return Ok(SecretString::new(raw));
 		}
 	}
 }
 
-pub(crate) fn prompt_password() -> std::io::Result<SecretString> {
+pub(crate) fn prompt_password() -> anyhow::Result<SecretString> {
+	debug!("prompting for password");
 	loop {
-		let raw = rpassword::prompt_password_stdout("Password: ")?;
+		let raw = rpassword::prompt_password("Password: ").context("prompting for password")?;
 		if !raw.is_empty() {
 			return Ok(SecretString::new(raw));
 		}
