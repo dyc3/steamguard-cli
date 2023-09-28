@@ -4,7 +4,6 @@ pub mod twofactor;
 
 use crate::transport::Transport;
 use crate::{protobufs::service_twofactor::CTwoFactor_Time_Response, token::Jwt};
-use reqwest::Url;
 use serde::Deserialize;
 
 pub use self::authentication::AuthenticationClient;
@@ -12,7 +11,6 @@ pub use self::phone::PhoneClient;
 pub use self::twofactor::TwoFactorClient;
 
 lazy_static! {
-	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
 	static ref STEAM_API_BASE: String = "https://api.steampowered.com".into();
 }
 
