@@ -12,7 +12,12 @@ impl<T> ManifestCommand<T> for DecryptCommand
 where
 	T: Transport,
 {
-	fn execute(&self, _transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
+	fn execute(
+		&self,
+		_transport: T,
+		manager: &mut AccountManager,
+		_args: &GlobalArgs,
+	) -> anyhow::Result<()> {
 		load_accounts_with_prompts(manager)?;
 
 		#[cfg(feature = "keyring")]

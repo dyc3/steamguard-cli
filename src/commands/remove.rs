@@ -20,6 +20,7 @@ where
 		transport: T,
 		manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		eprintln!(
 			"This will remove the mobile authenticator from {} accounts: {}",
@@ -54,7 +55,7 @@ where
 					}
 					Err(RemoveAuthenticatorError::TransportError(TransportError::Unauthorized)) => {
 						error!("Account {} is not logged in", account.account_name);
-						crate::do_login(transport.clone(), &mut account)?;
+						crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 						continue;
 					}
 					Err(RemoveAuthenticatorError::IncorrectRevocationCode {

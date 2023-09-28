@@ -27,6 +27,7 @@ where
 		_transport: T,
 		_manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		_args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		use anyhow::Context;
 

@@ -18,7 +18,12 @@ impl<T> ManifestCommand<T> for SetupCommand
 where
 	T: Transport + Clone,
 {
-	fn execute(&self, transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
+	fn execute(
+		&self,
+		transport: T,
+		manager: &mut AccountManager,
+		args: &GlobalArgs,
+	) -> anyhow::Result<()> {
 		eprintln!("Log in to the account that you want to link to steamguard-cli");
 		eprint!("Username: ");
 		let username = tui::prompt().to_lowercase();
@@ -30,7 +35,7 @@ where
 			);
 		}
 		info!("Logging in to {}", username);
-		let tokens = crate::do_login_raw(transport.clone(), username)
+		let tokens = crate::do_login_raw(transport.clone(), username, args.password.clone())
 			.expect("Failed to log in. Account has not been linked.");
 
 		info!("Adding authenticator...");

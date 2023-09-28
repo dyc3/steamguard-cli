@@ -26,6 +26,7 @@ where
 		transport: T,
 		_manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		ensure!(
 			accounts.len() == 1,
@@ -37,7 +38,7 @@ where
 		info!("Approving login to {}", account.account_name);
 
 		if account.tokens.is_none() {
-			crate::do_login(transport.clone(), &mut account)?;
+			crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 		}
 
 		loop {
@@ -57,7 +58,7 @@ where
 				}
 				Err(QrApproverError::Unauthorized) => {
 					warn!("tokens are invalid. Attempting to log in again.");
-					crate::do_login(transport.clone(), &mut account)?;
+					crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 				}
 				Err(e) => {
 					error!("Failed to approve login: {}", e);

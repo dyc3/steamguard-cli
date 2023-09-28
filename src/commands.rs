@@ -44,7 +44,12 @@ pub(crate) trait ManifestCommand<T>
 where
 	T: Transport,
 {
-	fn execute(&self, transport: T, manager: &mut AccountManager) -> anyhow::Result<()>;
+	fn execute(
+		&self,
+		transport: T,
+		manager: &mut AccountManager,
+		args: &GlobalArgs,
+	) -> anyhow::Result<()>;
 }
 
 /// A command that operates on individual accounts.
@@ -57,6 +62,7 @@ where
 		transport: T,
 		manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		args: &GlobalArgs,
 	) -> anyhow::Result<()>;
 }
 
@@ -92,6 +98,13 @@ pub(crate) struct GlobalArgs {
 		long_help = "Select the account you want by steam username. Case-sensitive. By default, the first account in the manifest is selected."
 	)]
 	pub username: Option<String>,
+	#[clap(
+		long,
+		conflicts_with = "all",
+		help = "Steam account password. You really shouldn't use this if you can avoid it.",
+		env = "STEAMGUARD_CLI_STEAM_PASSWORD"
+	)]
+	pub password: Option<SecretString>,
 	#[clap(
 		short,
 		long,

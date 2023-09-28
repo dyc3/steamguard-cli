@@ -19,7 +19,12 @@ impl<T> ManifestCommand<T> for ImportCommand
 where
 	T: Transport,
 {
-	fn execute(&self, _transport: T, manager: &mut AccountManager) -> anyhow::Result<()> {
+	fn execute(
+		&self,
+		_transport: T,
+		manager: &mut AccountManager,
+		_args: &GlobalArgs,
+	) -> anyhow::Result<()> {
 		for file_path in self.files.iter() {
 			debug!("loading entry: {:?}", file_path);
 			match manager.import_account(file_path) {

@@ -232,7 +232,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 	let transport = WebApiTransport::new(http_client);
 
 	if let CommandType::Manifest(cmd) = cmd {
-		cmd.execute(transport, &mut manager)?;
+		cmd.execute(transport, &mut manager, &globalargs)?;
 		return Ok(());
 	}
 
@@ -269,7 +269,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 	);
 
 	if let CommandType::Account(cmd) = cmd {
-		return cmd.execute(transport, &mut manager, selected_accounts);
+		return cmd.execute(transport, &mut manager, selected_accounts, &globalargs);
 	}
 
 	Ok(())
