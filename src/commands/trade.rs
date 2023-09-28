@@ -34,13 +34,14 @@ where
 		transport: T,
 		manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		for a in accounts {
 			let mut account = a.lock().unwrap();
 
 			if !account.is_logged_in() {
 				info!("Account does not have tokens, logging in");
-				crate::do_login(transport.clone(), &mut account)?;
+				crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 			}
 
 			info!("{}: Checking for trade confirmations", account.account_name);
@@ -55,7 +56,7 @@ where
 					}
 					Err(ConfirmerError::InvalidTokens) => {
 						info!("obtaining new tokens");
-						crate::do_login(transport.clone(), &mut account)?;
+						crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 					}
 					Err(err) => {
 						error!("Failed to get trade confirmations: {}", err);

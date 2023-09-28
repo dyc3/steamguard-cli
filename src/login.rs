@@ -17,6 +17,7 @@ use crate::tui;
 pub fn do_login<T: Transport + Clone>(
 	transport: T,
 	account: &mut SteamGuardAccount,
+	password: Option<SecretString>,
 ) -> anyhow::Result<()> {
 	if let Some(tokens) = account.tokens.as_mut() {
 		info!("Refreshing access token...");
@@ -44,7 +45,11 @@ pub fn do_login<T: Transport + Clone>(
 		account.account_name = tui::prompt();
 	}
 	let _ = std::io::stdout().flush();
-	let password = tui::prompt_password()?;
+	let password = if let Some(p) = password {
+		p
+	} else {
+		tui::prompt_password()?
+	};
 	if !password.expose_secret().is_empty() {
 		debug!("password is present");
 	} else {
@@ -65,9 +70,14 @@ pub fn do_login<T: Transport + Clone>(
 pub fn do_login_raw<T: Transport + Clone>(
 	transport: T,
 	username: String,
+	password: Option<SecretString>,
 ) -> anyhow::Result<Tokens> {
 	let _ = std::io::stdout().flush();
-	let password = tui::prompt_password()?;
+	let password = if let Some(p) = password {
+		p
+	} else {
+		tui::prompt_password()?
+	};
 	if !password.expose_secret().is_empty() {
 		debug!("password is present");
 	} else {

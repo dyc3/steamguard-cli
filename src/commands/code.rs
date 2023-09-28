@@ -29,6 +29,7 @@ where
 		transport: T,
 		_manager: &mut AccountManager,
 		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		_args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		let server_time = if self.offline {
 			SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
