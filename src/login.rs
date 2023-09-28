@@ -82,6 +82,7 @@ fn do_login_impl<T: Transport + Clone>(
 	password: SecretString,
 	account: Option<&SteamGuardAccount>,
 ) -> anyhow::Result<Tokens> {
+	debug!("starting login");
 	let mut login = UserLogin::new(transport.clone(), build_device_details());
 
 	let mut password = password;
