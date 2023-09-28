@@ -1,14 +1,9 @@
 use log::{debug, trace};
 use protobuf::MessageFull;
-use reqwest::{blocking::multipart::Form, Url};
+use reqwest::blocking::multipart::Form;
 
 use super::{Transport, TransportError};
 use crate::steamapi::{ApiRequest, ApiResponse, BuildableRequest, EResult};
-
-lazy_static! {
-	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
-	static ref STEAM_API_BASE: String = "https://api.steampowered.com".into();
-}
 
 #[derive(Debug, Clone)]
 pub struct WebApiTransport {
