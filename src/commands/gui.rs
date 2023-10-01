@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use anyhow::Context;
 use log::*;
 use serde::{Deserialize, Serialize};
+use steamguard::{Confirmation, Confirmer, ConfirmerError};
 
 use super::*;
 
@@ -15,7 +18,7 @@ impl GuiCommand {
 		args: &GlobalArgs,
 	) -> anyhow::Result<()>
 	where
-		T: Transport + 'static,
+		T: Transport + Clone + Send + 'static,
 	{
 		info!("Starting GUI");
 
@@ -44,6 +47,10 @@ struct Gui<T> {
 	globalargs: GlobalArgs,
 
 	selected_account: usize,
+	mfa_codes: HashMap<usize, String>,
+	confirmations: Arc<Mutex<HashMap<usize, Result<Vec<Confirmation>, ConfirmerError>>>>,
+
+	confirmations_job: Option<std::thread::JoinHandle<Result<Vec<Confirmation>, ConfirmerError>>>,
 }
 
 impl<'g, T> Gui<T> {
@@ -54,26 +61,28 @@ impl<'g, T> Gui<T> {
 		args: GuiCommand,
 		globalargs: GlobalArgs,
 	) -> Self {
-		let first_entry = manager.iter().next().unwrap().account_name.clone();
-
 		Self {
 			transport,
 			manager,
 			args,
 			globalargs,
 
-			selected_account: 0,
+			selected_account: Default::default(),
+			mfa_codes: Default::default(),
+			confirmations: Default::default(),
+
+			confirmations_job: None,
 		}
 	}
 }
 
 impl<'g, T> eframe::App for Gui<T>
 where
-	T: Transport,
+	T: Transport + Clone + Send + 'static,
 {
 	fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 		egui::CentralPanel::default().show(ctx, |ui| {
-			let selected_account = self
+			let selected_account_name = self
 				.manager
 				.iter()
 				.nth(self.selected_account)
@@ -81,7 +90,7 @@ where
 				.account_name
 				.clone();
 			egui::ComboBox::from_label("Account")
-				.selected_text(&selected_account)
+				.selected_text(&selected_account_name)
 				.show_ui(ui, |ui| {
 					for (i, entry) in self.manager.iter().enumerate() {
 						ui.selectable_value(
@@ -91,6 +100,80 @@ where
 						);
 					}
 				});
+
+			let account = self
+				.manager
+				.get_or_load_account(&selected_account_name)
+				.unwrap();
+			let mut code = account.lock().unwrap().generate_code(
+				std::time::SystemTime::now()
+					.duration_since(std::time::UNIX_EPOCH)
+					.unwrap()
+					.as_secs(),
+			);
+
+			egui::TextEdit::singleline(&mut code)
+				.interactive(false)
+				.show(ui);
+
+			ui.add(egui::Separator::default());
+
+			if ui.button("Check Confirmations").clicked() {
+				let transport = self.transport.clone();
+				let account = account.clone();
+				let ctx = ctx.clone();
+				self.confirmations_job = Some(std::thread::spawn(move || {
+					let result = job_fetch_confirmations(transport, account);
+					ctx.request_repaint();
+					result
+				}));
+			}
+
+			if self
+				.confirmations_job
+				.as_ref()
+				.is_some_and(|j| j.is_finished())
+			{
+				debug!("confirmations job finished");
+				let job = self.confirmations_job.take().unwrap();
+				let confirmations = job.join().unwrap();
+				self.confirmations
+					.lock()
+					.unwrap()
+					.insert(self.selected_account, confirmations);
+			} else if self.confirmations_job.is_some() {
+				ui.spinner();
+			} else {
+				let confirmations = self.confirmations.lock().unwrap();
+				if let Some(confirmations) = confirmations.get(&self.selected_account) {
+					match confirmations {
+						Ok(confirmations) => {
+							if !confirmations.is_empty() {
+								for confirmation in confirmations {
+									ui.label(format!("{:?}", confirmation));
+								}
+							} else {
+								ui.label("No confirmations");
+							}
+						}
+						Err(e) => {
+							ui.label(format!("Error: {}", e));
+						}
+					}
+				}
+			}
 		});
 	}
+}
+
+fn job_fetch_confirmations<T>(
+	transport: T,
+	account: Arc<Mutex<SteamGuardAccount>>,
+) -> Result<Vec<Confirmation>, ConfirmerError>
+where
+	T: Transport + Clone,
+{
+	let account = account.lock().unwrap();
+	let confirmer = Confirmer::new(transport.clone(), &account);
+	confirmer.get_trade_confirmations()
 }
