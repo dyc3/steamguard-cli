@@ -43,11 +43,10 @@ impl GuiCommand {
 struct Gui<T> {
 	transport: T,
 	manager: AccountManager,
-	args: GuiCommand,
-	globalargs: GlobalArgs,
+	_args: GuiCommand,
+	_globalargs: GlobalArgs,
 
 	selected_account: usize,
-	mfa_codes: HashMap<usize, String>,
 	confirmations: Arc<Mutex<HashMap<usize, Result<Vec<Confirmation>, ConfirmerError>>>>,
 
 	confirmations_job: Option<std::thread::JoinHandle<Result<Vec<Confirmation>, ConfirmerError>>>,
@@ -64,11 +63,10 @@ impl<'g, T> Gui<T> {
 		Self {
 			transport,
 			manager,
-			args,
-			globalargs,
+			_args: args,
+			_globalargs: globalargs,
 
 			selected_account: Default::default(),
-			mfa_codes: Default::default(),
 			confirmations: Default::default(),
 
 			confirmations_job: None,
