@@ -14,10 +14,11 @@ repository = "https://github.com/dyc3/steamguard-cli"
 license = "GPL-3.0-or-later"
 
 [features]
-default = ["qr", "updater", "keyring"]
+default = ["qr", "updater", "keyring", "gui"]
 qr = ["dep:qrcode"]
 updater = ["dep:update-informer"]
 keyring = ["dep:keyring"]
+gui = ["dep:egui", "dep:eframe"]
 
 # [[bin]]
 # name = "steamguard-cli"
@@ -67,6 +68,8 @@ argon2 = { version = "0.5.0", features = ["std", "zeroize"] }
 pbkdf2 = { version = "0.12.1", features = ["parallel"] }
 sha1 = "0.10.5"
 rayon = "1.7.0"
+egui = { version = "0.23.0", optional = true }
+eframe = { version = "0.23.0", optional = true }
 
 [dev-dependencies]
 tempdir = "0.3"

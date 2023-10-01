@@ -13,6 +13,8 @@ pub mod completions;
 pub mod debug;
 pub mod decrypt;
 pub mod encrypt;
+#[cfg(feature = "gui")]
+pub mod gui;
 pub mod import;
 #[cfg(feature = "qr")]
 pub mod qr;
@@ -26,6 +28,8 @@ pub use completions::CompletionsCommand;
 pub use debug::DebugCommand;
 pub use decrypt::DecryptCommand;
 pub use encrypt::EncryptCommand;
+#[cfg(feature = "gui")]
+pub use gui::GuiCommand;
 pub use import::ImportCommand;
 #[cfg(feature = "qr")]
 pub use qr::QrCommand;
@@ -73,6 +77,7 @@ where
 	Const(Box<dyn ConstCommand>),
 	Manifest(Box<dyn ManifestCommand<T>>),
 	Account(Box<dyn AccountCommand<T>>),
+	Gui(GuiCommand),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -174,6 +179,8 @@ pub(crate) enum Subcommands {
 	#[cfg(feature = "qr")]
 	Qr(QrCommand),
 	QrLogin(QrLoginCommand),
+	#[cfg(feature = "gui")]
+	Gui(GuiCommand),
 }
 
 #[derive(Debug, Clone, Copy, ArgEnum)]

@@ -11,6 +11,7 @@ use steamguard::SteamGuardAccount;
 
 use crate::accountmanager::migrate::{load_and_migrate, MigrationError};
 pub use crate::accountmanager::{AccountManager, ManifestAccountLoadError, ManifestLoadError};
+use crate::commands::ManifestCommand;
 use crate::commands::{CommandType, Subcommands};
 pub use login::*;
 
@@ -92,6 +93,8 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		#[cfg(feature = "qr")]
 		Subcommands::Qr(args) => CommandType::Account(Box::new(args)),
 		Subcommands::QrLogin(args) => CommandType::Account(Box::new(args)),
+		#[cfg(feature = "gui")]
+		Subcommands::Gui(args) => CommandType::Gui(args),
 	};
 
 	if let CommandType::Const(cmd) = cmd {
@@ -233,6 +236,11 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 
 	if let CommandType::Manifest(cmd) = cmd {
 		cmd.execute(transport, &mut manager, &globalargs)?;
+		return Ok(());
+	}
+
+	if let CommandType::Gui(cmd) = cmd {
+		cmd.execute(transport, manager, &globalargs)?;
 		return Ok(());
 	}
 

@@ -18,6 +18,26 @@ pub trait Transport {
 	}
 }
 
+impl<T> Transport for Box<T>
+where
+	T: Transport,
+{
+	fn send_request<Req: BuildableRequest + MessageFull, Res: MessageFull>(
+		&self,
+		req: ApiRequest<Req>,
+	) -> Result<ApiResponse<Res>, TransportError> {
+		self.as_ref().send_request(req)
+	}
+
+	fn close(&mut self) {
+		self.as_mut().close()
+	}
+
+	fn innner_http_client(&self) -> anyhow::Result<reqwest::blocking::Client> {
+		self.as_ref().innner_http_client()
+	}
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum TransportError {
 	#[error("Transport failed to parse response headers")]
