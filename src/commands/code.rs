@@ -28,7 +28,7 @@ where
 		&self,
 		transport: T,
 		_manager: &mut AccountManager,
-		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		accounts: Vec<Arc<RwLock<SteamGuardAccount>>>,
 		_args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		let server_time = if self.offline {
@@ -39,7 +39,7 @@ where
 		debug!("Time used to generate codes: {}", server_time);
 
 		for account in accounts {
-			let account = account.lock().unwrap();
+			let account = account.read().unwrap();
 			info!("Generating code for {}", account.account_name);
 			trace!("{:?}", account);
 			let code = account.generate_code(server_time);

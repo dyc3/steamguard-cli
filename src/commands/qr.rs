@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use log::*;
 use qrcode::QrCode;
@@ -26,7 +26,7 @@ where
 		&self,
 		_transport: T,
 		_manager: &mut AccountManager,
-		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		accounts: Vec<Arc<RwLock<SteamGuardAccount>>>,
 		_args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		use anyhow::Context;
@@ -34,7 +34,7 @@ where
 		info!("Generating QR codes for {} accounts", accounts.len());
 
 		for account in accounts {
-			let account = account.lock().unwrap();
+			let account = account.read().unwrap();
 			let qr = QrCode::new(account.uri.expose_secret())
 				.context(format!("generating qr code for {}", account.account_name))?;
 

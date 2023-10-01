@@ -4,7 +4,7 @@ use log::*;
 use secrecy::SecretString;
 use std::{
 	path::Path,
-	sync::{Arc, Mutex},
+	sync::{Arc, Mutex, RwLock},
 };
 use steamguard::transport::WebApiTransport;
 use steamguard::SteamGuardAccount;
@@ -244,7 +244,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		return Ok(());
 	}
 
-	let selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>>;
+	let selected_accounts: Vec<Arc<RwLock<SteamGuardAccount>>>;
 	loop {
 		match get_selected_accounts(&globalargs, &mut manager) {
 			Ok(accounts) => {
@@ -272,7 +272,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		"selected accounts: {:?}",
 		selected_accounts
 			.iter()
-			.map(|a| a.lock().unwrap().account_name.clone())
+			.map(|a| a.read().unwrap().account_name.clone())
 			.collect::<Vec<String>>()
 	);
 
@@ -286,8 +286,8 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 fn get_selected_accounts(
 	args: &commands::GlobalArgs,
 	manifest: &mut accountmanager::AccountManager,
-) -> anyhow::Result<Vec<Arc<Mutex<SteamGuardAccount>>>, ManifestAccountLoadError> {
-	let mut selected_accounts: Vec<Arc<Mutex<SteamGuardAccount>>> = vec![];
+) -> anyhow::Result<Vec<Arc<RwLock<SteamGuardAccount>>>, ManifestAccountLoadError> {
+	let mut selected_accounts: Vec<Arc<RwLock<SteamGuardAccount>>> = vec![];
 
 	if args.all {
 		manifest.load_accounts()?;

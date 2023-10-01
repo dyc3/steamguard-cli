@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use clap::{clap_derive::ArgEnum, Parser};
 use clap_complete::Shell;
@@ -65,7 +65,7 @@ where
 		&self,
 		transport: T,
 		manager: &mut AccountManager,
-		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		accounts: Vec<Arc<RwLock<SteamGuardAccount>>>,
 		args: &GlobalArgs,
 	) -> anyhow::Result<()>;
 }

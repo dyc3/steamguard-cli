@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use log::*;
 use steamguard::{QrApprover, QrApproverError};
@@ -25,7 +25,7 @@ where
 		&self,
 		transport: T,
 		_manager: &mut AccountManager,
-		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		accounts: Vec<Arc<RwLock<SteamGuardAccount>>>,
 		args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		ensure!(
@@ -33,7 +33,7 @@ where
 			"You can only log in to one account at a time."
 		);
 
-		let mut account = accounts[0].lock().unwrap();
+		let mut account = accounts[0].write().unwrap();
 
 		info!("Approving login to {}", account.account_name);
 

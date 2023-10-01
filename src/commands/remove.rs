@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use log::*;
 use steamguard::{steamapi::TwoFactorClient, transport::TransportError, RemoveAuthenticatorError};
@@ -19,7 +19,7 @@ where
 		&self,
 		transport: T,
 		manager: &mut AccountManager,
-		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		accounts: Vec<Arc<RwLock<SteamGuardAccount>>>,
 		args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		eprintln!(
@@ -27,7 +27,7 @@ where
 			accounts.len(),
 			accounts
 				.iter()
-				.map(|a| a.lock().unwrap().account_name.clone())
+				.map(|a| a.read().unwrap().account_name.clone())
 				.collect::<Vec<String>>()
 				.join(", ")
 		);
@@ -42,7 +42,7 @@ where
 
 		let mut successful = vec![];
 		for a in accounts {
-			let mut account = a.lock().unwrap();
+			let mut account = a.write().unwrap();
 			let client = TwoFactorClient::new(transport.clone());
 
 			let mut revocation: Option<String> = None;
