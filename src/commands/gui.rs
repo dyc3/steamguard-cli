@@ -105,7 +105,7 @@ where
 				.manager
 				.get_or_load_account(&selected_account_name)
 				.unwrap();
-			let mut code = account.lock().unwrap().generate_code(
+			let mut code = account.read().unwrap().generate_code(
 				std::time::SystemTime::now()
 					.duration_since(std::time::UNIX_EPOCH)
 					.unwrap()
@@ -168,12 +168,12 @@ where
 
 fn job_fetch_confirmations<T>(
 	transport: T,
-	account: Arc<Mutex<SteamGuardAccount>>,
+	account: Arc<RwLock<SteamGuardAccount>>,
 ) -> Result<Vec<Confirmation>, ConfirmerError>
 where
 	T: Transport + Clone,
 {
-	let account = account.lock().unwrap();
+	let account = account.read().unwrap();
 	let confirmer = Confirmer::new(transport.clone(), &account);
 	confirmer.get_trade_confirmations()
 }
