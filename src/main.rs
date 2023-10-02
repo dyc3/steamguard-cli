@@ -4,14 +4,13 @@ use log::*;
 use secrecy::SecretString;
 use std::{
 	path::Path,
-	sync::{Arc, Mutex, RwLock},
+	sync::{Arc, RwLock},
 };
 use steamguard::transport::WebApiTransport;
 use steamguard::SteamGuardAccount;
 
 use crate::accountmanager::migrate::{load_and_migrate, MigrationError};
 pub use crate::accountmanager::{AccountManager, ManifestAccountLoadError, ManifestLoadError};
-use crate::commands::ManifestCommand;
 use crate::commands::{CommandType, Subcommands};
 pub use login::*;
 
@@ -239,6 +238,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		return Ok(());
 	}
 
+	#[cfg(feature = "gui")]
 	if let CommandType::Gui(cmd) = cmd {
 		cmd.execute(transport, manager, &globalargs)?;
 		return Ok(());

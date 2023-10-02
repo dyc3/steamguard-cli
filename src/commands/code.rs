@@ -1,5 +1,5 @@
 use std::{
-	sync::{Arc, Mutex},
+	sync::{Arc},
 	time::{SystemTime, UNIX_EPOCH},
 };
 

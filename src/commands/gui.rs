@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use anyhow::Context;
 use log::*;
-use serde::{Deserialize, Serialize};
+
 use steamguard::{Confirmation, Confirmer, ConfirmerError};
 
 use super::*;
@@ -52,7 +51,7 @@ struct Gui<T> {
 	confirmations_job: Option<std::thread::JoinHandle<Result<Vec<Confirmation>, ConfirmerError>>>,
 }
 
-impl<'g, T> Gui<T> {
+impl<T> Gui<T> {
 	fn new(
 		_ctx: &eframe::CreationContext<'_>,
 		transport: T,
@@ -74,11 +73,11 @@ impl<'g, T> Gui<T> {
 	}
 }
 
-impl<'g, T> eframe::App for Gui<T>
+impl<T> eframe::App for Gui<T>
 where
 	T: Transport + Clone + Send + 'static,
 {
-	fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+	fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 		egui::CentralPanel::default().show(ctx, |ui| {
 			let selected_account_name = self
 				.manager
