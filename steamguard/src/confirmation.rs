@@ -109,7 +109,11 @@ where
 			return Err(ConfirmerError::InvalidTokens);
 		}
 		if !body.success {
-			return Err(ConfirmerError::RemoteFailure);
+			if let Some(msg) = body.message {
+				return Err(ConfirmerError::RemoteFailureWithMessage(msg));
+			} else {
+				return Err(ConfirmerError::RemoteFailure);
+			}
 		}
 		Ok(body.conf)
 	}
@@ -162,7 +166,11 @@ where
 			return Err(ConfirmerError::InvalidTokens);
 		}
 		if !body.success {
-			return Err(ConfirmerError::RemoteFailure);
+			if let Some(msg) = body.message {
+				return Err(ConfirmerError::RemoteFailureWithMessage(msg));
+			} else {
+				return Err(ConfirmerError::RemoteFailure);
+			}
 		}
 
 		Ok(())
@@ -237,7 +245,11 @@ where
 			return Err(ConfirmerError::InvalidTokens);
 		}
 		if !body.success {
-			return Err(ConfirmerError::RemoteFailure);
+			if let Some(msg) = body.message {
+				return Err(ConfirmerError::RemoteFailureWithMessage(msg));
+			} else {
+				return Err(ConfirmerError::RemoteFailure);
+			}
 		}
 
 		Ok(())
@@ -316,8 +328,10 @@ pub enum ConfirmerError {
 	NetworkFailure(#[from] reqwest::Error),
 	#[error("Failed to deserialize response: {0}")]
 	DeserializeError(#[from] serde_path_to_error::Error<serde_json::Error>),
-	#[error("Remote failure: Valve's server responded with a failure. This is likely not a steamguard-cli bug, Steam's confirmation API is just unreliable. Wait a bit and try again.")]
+	#[error("Remote failure: Valve's server responded with a failure and did not elaborate any further. This is likely not a steamguard-cli bug, Steam's confirmation API is just unreliable. Wait a bit and try again.")]
 	RemoteFailure,
+	#[error("Remote failure: Valve's server responded with a failure and said: {0}")]
+	RemoteFailureWithMessage(String),
 	#[error("Unknown error: {0}")]
 	Unknown(#[from] anyhow::Error),
 }
@@ -388,13 +402,17 @@ pub struct ConfirmationListResponse {
 	pub needauth: Option<bool>,
 	#[serde(default)]
 	pub conf: Vec<Confirmation>,
+	#[serde(default)]
+	pub message: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct SendConfirmationResponse {
 	pub success: bool,
 	#[serde(default)]
 	pub needsauth: Option<bool>,
+	#[serde(default)]
+	pub message: Option<String>,
 }
 
 fn build_time_bytes(time: u64) -> [u8; 8] {
