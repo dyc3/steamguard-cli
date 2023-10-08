@@ -16,6 +16,7 @@ mod legacy;
 pub mod manifest;
 pub mod migrate;
 mod steamv2;
+mod winauth;
 
 pub use manifest::*;
 

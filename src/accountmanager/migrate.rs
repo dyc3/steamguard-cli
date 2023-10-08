@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read, path::Path};
 
-use log::debug;
+use log::*;
 use secrecy::SecretString;
 use serde::{de::Error, Deserialize};
 use steamguard::SteamGuardAccount;
@@ -12,6 +12,7 @@ use super::{
 	legacy::{SdaAccount, SdaManifest},
 	manifest::ManifestV1,
 	steamv2::SteamMobileV2,
+	winauth::parse_winauth_exports,
 	EntryLoader, Manifest,
 };
 
@@ -261,23 +262,48 @@ impl From<MigratingAccount> for SteamGuardAccount {
 	}
 }
 
-pub fn load_and_upgrade_external_account(path: &Path) -> anyhow::Result<SteamGuardAccount> {
-	let file = File::open(path)?;
-	let mut deser = serde_json::Deserializer::from_reader(&file);
-	let account: ExternalAccount = serde_path_to_error::deserialize(&mut deser)
-		.map_err(|err| anyhow::anyhow!("Failed to deserialize account: {}", err))?;
-	let mut account = MigratingAccount::External(account);
-	while !account.is_latest() {
-		account = account.upgrade();
-	}
+pub fn load_and_upgrade_external_accounts(path: &Path) -> anyhow::Result<Vec<SteamGuardAccount>> {
+	let mut file = File::open(path)?;
+	let mut buf = vec![];
+	file.read_to_end(&mut buf)?;
+	let mut deser = serde_json::Deserializer::from_slice(&buf);
+	let accounts = match serde_path_to_error::deserialize(&mut deser) {
+		Ok(account) => {
+			vec![MigratingAccount::External(account)]
+		}
+		Err(json_err) => {
+			// the file is not JSON, so it's probably a winauth export
+			match parse_winauth_exports(buf) {
+				Ok(accounts) => accounts
+					.into_iter()
+					.map(MigratingAccount::External)
+					.collect(),
+				Err(winauth_err) => {
+					bail!(
+						"Failed to parse as JSON: {}\nFailed to parse as Winauth export: {}",
+						json_err,
+						winauth_err
+					)
+				}
+			}
+		}
+	};
 
-	Ok(account.into())
+	Ok(accounts
+		.into_iter()
+		.map(|mut account| {
+			while !account.is_latest() {
+				account = account.upgrade();
+			}
+			account.into()
+		})
+		.collect())
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 #[allow(clippy::large_enum_variant)]
-enum ExternalAccount {
+pub(crate) enum ExternalAccount {
 	Sda(SdaAccount),
 	SteamMobileV2(SteamMobileV2),
 }
@@ -390,10 +416,16 @@ mod tests {
 				account_name: "afarihm",
 				steam_id: 76561199441992970,
 			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/winauth/exports.txt",
+				account_name: "example",
+				steam_id: 1234,
+			},
 		];
 		for case in cases {
 			eprintln!("testing: {:?}", case);
-			let account = load_and_upgrade_external_account(Path::new(case.mafile))?;
+			let accounts = load_and_upgrade_external_accounts(Path::new(case.mafile))?;
+			let account = accounts[0].clone();
 			assert_eq!(account.account_name, case.account_name);
 			assert_eq!(account.steam_id, case.steam_id);
 		}
