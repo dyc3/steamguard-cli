@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use log::*;
 
-use steamguard::{Confirmation, Confirmer, ConfirmerError};
+use steamguard::{
+	refresher::TokenRefresher, steamapi::AuthenticationClient, Confirmation, Confirmer,
+	ConfirmerError,
+};
 
 use super::*;
 
@@ -49,6 +52,7 @@ struct Gui<T> {
 	confirmations: Arc<Mutex<HashMap<usize, Result<Vec<Confirmation>, ConfirmerError>>>>,
 
 	confirmations_job: Option<std::thread::JoinHandle<Result<Vec<Confirmation>, ConfirmerError>>>,
+	refresh_tokens_job: Option<std::thread::JoinHandle<anyhow::Result<()>>>,
 }
 
 impl<T> Gui<T> {
@@ -69,6 +73,7 @@ impl<T> Gui<T> {
 			confirmations: Default::default(),
 
 			confirmations_job: None,
+			refresh_tokens_job: None,
 		}
 	}
 }
@@ -147,7 +152,8 @@ where
 						Ok(confirmations) => {
 							if !confirmations.is_empty() {
 								for confirmation in confirmations {
-									ui.label(format!("{:?}", confirmation));
+									// ui.label(format!("{:?}", confirmation));
+									self.render_confirmation(ctx, account.clone(), confirmation);
 								}
 							} else {
 								ui.label("No confirmations");
@@ -163,6 +169,50 @@ where
 	}
 }
 
+impl<T> Gui<T>
+where
+	T: Transport + Clone + Send + 'static,
+{
+	fn render_confirmation(
+		&self,
+		ctx: &egui::Context,
+		account: Arc<RwLock<SteamGuardAccount>>,
+		confirmation: &Confirmation,
+	) {
+		egui::CentralPanel::default().show(ctx, |ui| {
+			ui.label(&confirmation.headline);
+			for line in &confirmation.summary {
+				ui.label(line);
+			}
+
+			ui.horizontal(|ui| {
+				let btn_accept = ui.button(&confirmation.accept);
+				let btn_cancel = ui.button(&confirmation.cancel);
+
+				let (act_on_confirmation, accept) =
+					match (btn_accept.clicked(), btn_cancel.clicked()) {
+						(true, false) => (true, true),
+						(false, true) => (true, false),
+						_ => (false, false),
+					};
+
+				if act_on_confirmation {
+					let transport = self.transport.clone();
+					let account = account.clone();
+					let confirmation = confirmation.clone();
+					let ctx = ctx.clone();
+					std::thread::spawn(move || {
+						let result =
+							job_respond_confirmation(transport, account, confirmation, accept);
+						ctx.request_repaint();
+						result
+					});
+				}
+			})
+		});
+	}
+}
+
 fn job_fetch_confirmations<T>(
 	transport: T,
 	account: Arc<RwLock<SteamGuardAccount>>,
@@ -173,4 +223,43 @@ where
 	let account = account.read().unwrap();
 	let confirmer = Confirmer::new(transport.clone(), &account);
 	confirmer.get_trade_confirmations()
+}
+
+fn job_respond_confirmation<T>(
+	transport: T,
+	account: Arc<RwLock<SteamGuardAccount>>,
+	confirmation: Confirmation,
+	accept: bool,
+) -> Result<(), ConfirmerError>
+where
+	T: Transport + Clone,
+{
+	let account = account.read().unwrap();
+	let confirmer = Confirmer::new(transport.clone(), &account);
+	if accept {
+		confirmer.accept_confirmation(&confirmation)
+	} else {
+		confirmer.deny_confirmation(&confirmation)
+	}
+}
+
+fn job_refresh_tokens<T>(
+	transport: T,
+	account: Arc<RwLock<SteamGuardAccount>>,
+) -> anyhow::Result<()>
+where
+	T: Transport + Clone,
+{
+	let client = AuthenticationClient::new(transport.clone());
+
+	let mut account = account.write().unwrap();
+	let steam_id = account.steam_id;
+	if let Some(tokens) = account.tokens.as_mut() {
+		let mut refresher = TokenRefresher::new(client);
+		let jwt = refresher.refresh(steam_id, &tokens)?;
+		tokens.set_access_token(jwt);
+		Ok(())
+	} else {
+		Err(anyhow::anyhow!("No tokens"))
+	}
 }
