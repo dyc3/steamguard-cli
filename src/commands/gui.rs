@@ -55,6 +55,10 @@ struct Gui<T> {
 
 	confirmations_job: Option<std::thread::JoinHandle<Result<Vec<Confirmation>, ConfirmerError>>>,
 	refresh_tokens_job: Option<std::thread::JoinHandle<anyhow::Result<()>>>,
+	/// The password used to log in to the currently selected account.
+	///
+	/// TODO: make this [`SecretString`] somehow
+	login_password: String,
 }
 
 impl<T> Gui<T> {
@@ -78,6 +82,7 @@ impl<T> Gui<T> {
 
 			confirmations_job: None,
 			refresh_tokens_job: None,
+			login_password: Default::default(),
 		}
 	}
 }
@@ -160,7 +165,33 @@ where
 				}
 				LoginState::HasAuth => {}
 				LoginState::NeedsLogin => {
-					ui.label("login required");
+					ui.label("Please log in");
+
+					ui.vertical(|ui| {
+						ui.horizontal(|ui| {
+							ui.label("Username:");
+							egui::TextEdit::singleline(&mut selected_account_name)
+								.interactive(false)
+								.show(ui);
+						});
+						ui.horizontal(|ui| {
+							ui.label("Password:");
+
+							let txt_password =
+								egui::TextEdit::singleline(&mut self.login_password).password(true);
+							ui.add(txt_password);
+						});
+						if ui.button("Login").clicked() {
+							let transport = self.transport.clone();
+							let account = account.clone();
+							let ctx = ctx.clone();
+							// std::thread::spawn(move || {
+							// 	let result = job_refresh_tokens(transport, account);
+							// 	ctx.request_repaint();
+							// 	result
+							// });
+						}
+					});
 				}
 				LoginState::NeedsRefresh => {
 					if self
