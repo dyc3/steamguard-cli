@@ -18,7 +18,7 @@ extern crate anyhow;
 extern crate maplit;
 
 pub mod accountlinker;
-mod api_responses;
+pub mod api_responses;
 mod confirmation;
 pub mod phonelinker;
 pub mod protobufs;

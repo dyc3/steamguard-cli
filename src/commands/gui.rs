@@ -1,10 +1,17 @@
-use std::{collections::HashMap, thread::Thread};
+use std::collections::HashMap;
 
 use log::*;
 
+use secrecy::ExposeSecret;
 use steamguard::{
-	refresher::TokenRefresher, steamapi::AuthenticationClient, Confirmation, Confirmer,
-	ConfirmerError,
+	api_responses::AllowedConfirmation,
+	protobufs::steammessages_auth_steamclient::{
+		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, EAuthSessionGuardType,
+	},
+	refresher::TokenRefresher,
+	steamapi::AuthenticationClient,
+	userlogin::UpdateAuthSessionError,
+	Confirmation, Confirmer, ConfirmerError, LoginError, UserLogin,
 };
 
 use super::*;
@@ -42,7 +49,7 @@ impl GuiCommand {
 	}
 }
 
-struct Gui<T> {
+struct Gui<T: Transport + Clone + Send + 'static> {
 	transport: T,
 	manager: AccountManager,
 	_args: GuiCommand,
@@ -55,13 +62,30 @@ struct Gui<T> {
 
 	confirmations_job: ThreadJob<Result<Vec<Confirmation>, ConfirmerError>>,
 	refresh_tokens_job: ThreadJob<anyhow::Result<()>>,
+	login_begin_job: ThreadJob<Result<Vec<AllowedConfirmation>, LoginError>>,
+	login_begin_result: Option<Result<Vec<AllowedConfirmation>, LoginError>>,
+	login_confirm_job: ThreadJob<
+		anyhow::Result<
+			CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response,
+			UpdateAuthSessionError,
+		>,
+	>,
+	login_confirm_result: Option<
+		anyhow::Result<
+			CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response,
+			UpdateAuthSessionError,
+		>,
+	>,
+	login_poll_job: ThreadJob<anyhow::Result<()>>,
 	/// The password used to log in to the currently selected account.
 	///
 	/// TODO: make this [`SecretString`] somehow
 	login_password: String,
+	login_confirm_code: String,
+	user_login: Option<Arc<Mutex<UserLogin<T>>>>,
 }
 
-impl<T> Gui<T> {
+impl<T: Transport + Clone + Send + 'static> Gui<T> {
 	fn new(
 		_ctx: &eframe::CreationContext<'_>,
 		transport: T,
@@ -82,7 +106,14 @@ impl<T> Gui<T> {
 
 			confirmations_job: ThreadJob::new(),
 			refresh_tokens_job: ThreadJob::new(),
+			login_begin_job: ThreadJob::new(),
+			login_begin_result: Default::default(),
+			login_confirm_job: ThreadJob::new(),
+			login_confirm_result: Default::default(),
+			login_poll_job: ThreadJob::new(),
 			login_password: Default::default(),
+			login_confirm_code: Default::default(),
+			user_login: None,
 		}
 	}
 }
@@ -127,6 +158,7 @@ where
 				self.login_state = LoginState::Unknown;
 				self.confirmations_job = ThreadJob::new();
 				self.refresh_tokens_job = ThreadJob::new();
+				self.login_begin_job = ThreadJob::new();
 			}
 
 			let mut code = account.read().unwrap().generate_code(
@@ -182,16 +214,183 @@ where
 							ui.add(txt_password);
 						});
 						if ui.button("Login").clicked() {
-							// let transport = self.transport.clone();
-							// let account = account.clone();
-							// let ctx = ctx.clone();
-							// std::thread::spawn(move || {
-							// 	let result = job_refresh_tokens(transport, account);
-							// 	ctx.request_repaint();
-							// 	result
-							// });
+							let transport = self.transport.clone();
+							let account = account.clone();
+							let ctx = ctx.clone();
+							let user_login = self
+								.user_login
+								.get_or_insert_with(|| {
+									Arc::new(Mutex::new(UserLogin::new(
+										transport.clone(),
+										crate::login::build_device_details(),
+									)))
+								})
+								.clone();
+							let password =
+								SecretString::new(std::mem::take(&mut self.login_password));
+
+							self.login_begin_job.start(move || {
+								let result = job_begin_login(user_login, account, password);
+								ctx.request_repaint();
+								result
+							});
 						}
 					});
+
+					match self.login_begin_job.status() {
+						JobStatus::NotStarted => {}
+						JobStatus::InProgress => {
+							ui.horizontal(|ui| {
+								ui.spinner();
+								ui.label("Logging in...");
+							});
+						}
+						JobStatus::Finished => {
+							debug!("login begin job finished");
+							self.login_begin_result = Some(self.login_begin_job.result());
+						}
+					}
+					if let Some(result) = self.login_begin_result.as_ref() {
+						match result {
+							Ok(_) => {
+								self.login_state = LoginState::NeedsConfirmation;
+							}
+							Err(e) => {
+								self.login_state = LoginState::NeedsLogin;
+								ui.label(format!("Error: {}", e));
+							}
+						}
+					}
+				}
+				LoginState::NeedsConfirmation => {
+					let Some(user_login) = self.user_login.as_ref() else {
+						self.login_state = LoginState::NeedsLogin;
+						return;
+					};
+
+					let mut confirmation_method = None;
+
+					if let Ok(confirmation_methods) = self.login_begin_result.as_ref().unwrap() {
+						if !confirmation_methods.is_empty() {
+							ui.label("Please confirm login");
+						}
+						for method in confirmation_methods {
+							match method.confirmation_type {
+								EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation => {
+									ui.label("Please confirm this login on your other device.");
+								}
+								EAuthSessionGuardType::k_EAuthSessionGuardType_EmailConfirmation => {
+									ui.label(
+										"Please confirm this login by clicking the link in your email."
+									);
+									if !method.associated_messsage.is_empty() {
+										ui.label(format!(" ({})", method.associated_messsage));
+									}
+								}
+								EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => {
+									debug!("Generating 2fa code...");
+									let time = std::time::SystemTime::now()
+										.duration_since(std::time::UNIX_EPOCH)
+										.unwrap()
+										.as_secs();
+									self.login_confirm_code = account.read().unwrap().generate_code(time);
+								}
+								EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode => {
+									ui.label("Enter the 2fa code sent to your email: ");
+									egui::TextEdit::singleline(&mut self.login_confirm_code).show(ui);
+								}
+								_ => {
+									ui.label(format!("Warning: Unknown confirmation method: {:?}", method));
+									continue;
+								}
+							}
+							confirmation_method = Some(method);
+							break;
+						}
+					}
+
+					let Some(confirmation_method) = confirmation_method else {
+						error!("No known confirmation methods");
+						self.login_state = LoginState::NeedsLogin;
+						return;
+					};
+
+					// ui.label(format!("Confirmation method: {:?}", confirmation_method.confirmation_type));
+
+					match confirmation_method.confirmation_type {
+						EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode | EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode => {
+
+						match self.login_confirm_job.status() {
+							JobStatus::NotStarted => {
+									if ui.button("Submit").clicked() || confirmation_method.confirmation_type == EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode {
+										let user_login = user_login.clone();
+										let guard_type = confirmation_method.confirmation_type;
+										let code = self.login_confirm_code.clone();
+										let ctx = ctx.clone();
+										self.login_confirm_job.start(move || {
+											let result = job_login_submit_code(user_login, guard_type, code);
+											ctx.request_repaint();
+											result
+										});
+										}
+									}
+								JobStatus::InProgress => {
+									ui.horizontal(|ui| {
+										ui.spinner();
+										ui.label("Confirming...");
+									});
+								}
+								JobStatus::Finished => {
+									debug!("login confirm job finished");
+									self.login_confirm_result = Some(self.login_confirm_job.result());
+								}
+							}
+							if let Some(result) = self.login_confirm_result.as_ref() {
+								match result {
+									Ok(_) => {
+										self.login_state = LoginState::WaitingForTokens;
+									}
+									Err(e) => {
+										self.login_state = LoginState::NeedsLogin;
+										ui.label(format!("Error: {}", e));
+									}
+								}
+							}
+						},
+						_ => {}
+					}
+				}
+				LoginState::WaitingForTokens => {
+					let Some(user_login) = self.user_login.as_ref() else {
+						self.login_state = LoginState::NeedsLogin;
+						return;
+					};
+
+					match self.login_poll_job.status() {
+						JobStatus::NotStarted => {
+							let user_login = user_login.clone();
+							let account = account.clone();
+							let ctx = ctx.clone();
+							self.login_poll_job.start(move || {
+								let result = job_login_poll_tokens(user_login, account);
+								ctx.request_repaint();
+								result
+							});
+						},
+						JobStatus::InProgress => {
+							ui.horizontal(|ui| {
+								ui.spinner();
+								ui.label("Waiting for tokens...");
+							});
+						},
+						JobStatus::Finished => {
+							if let Err(e) = self.manager.save() {
+								ui.label(format!("Error: {}", e));
+								error!("Failed to save manifest and accounts: {}", e);
+							}
+							self.login_state = LoginState::HasAuth;
+						},
+					}
 				}
 				LoginState::NeedsRefresh => {
 					match self.refresh_tokens_job.status() {
@@ -426,11 +625,6 @@ impl<T> ThreadJob<T> {
 	}
 
 	pub fn result(&mut self) -> T {
-		// self.handle
-		// 	.ok_or(anyhow::anyhow!("Job not started"))?
-		// 	.join()
-		// 	.map_err(|e| anyhow::anyhow!("{:?}", e))
-
 		self.handle
 			.take()
 			.expect("job not started")
@@ -446,10 +640,61 @@ enum JobStatus {
 	Finished,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum LoginState {
 	Unknown,
 	HasAuth,
 	NeedsRefresh,
+	/// Tokens are invalid or expired, and the login process has not started, or has previously failed.
 	NeedsLogin,
+	/// The login process has started, but requires some form of 2FA to approve the login.
+	NeedsConfirmation,
+	/// The login process has started, the user has submitted all necessary 2FA information, and we are waiting for the login to complete.
+	WaitingForTokens,
+}
+
+fn job_begin_login<T>(
+	user_login: Arc<Mutex<UserLogin<T>>>,
+	account: Arc<RwLock<SteamGuardAccount>>,
+	password: SecretString,
+) -> Result<Vec<AllowedConfirmation>, LoginError>
+where
+	T: Transport + Clone,
+{
+	let account = account.read().unwrap();
+	user_login
+		.lock()
+		.unwrap()
+		.begin_auth_via_credentials(&account.account_name, password.expose_secret())
+}
+
+fn job_login_submit_code<T>(
+	user_login: Arc<Mutex<UserLogin<T>>>,
+	guard_type: EAuthSessionGuardType,
+	code: String,
+) -> anyhow::Result<
+	CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response,
+	UpdateAuthSessionError,
+>
+where
+	T: Transport + Clone,
+{
+	user_login
+		.lock()
+		.unwrap()
+		.submit_steam_guard_code(guard_type, code)
+}
+
+fn job_login_poll_tokens<T>(
+	user_login: Arc<Mutex<UserLogin<T>>>,
+	account: Arc<RwLock<SteamGuardAccount>>,
+) -> anyhow::Result<()>
+where
+	T: Transport + Clone,
+{
+	let tokens = user_login.lock().unwrap().poll_until_tokens()?;
+	let mut account = account.write().unwrap();
+	account.tokens = Some(tokens);
+
+	Ok(())
 }
