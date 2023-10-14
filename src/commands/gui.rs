@@ -88,7 +88,7 @@ where
 {
 	fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 		egui::CentralPanel::default().show(ctx, |ui| {
-			let selected_account_name = self
+			let mut selected_account_name = self
 				.manager
 				.iter()
 				.nth(self.selected_account)
@@ -107,6 +107,7 @@ where
 						if selectable.clicked() {
 							debug!("Selected account {}", entry.account_name);
 							self.just_switched_account = true;
+							selected_account_name = entry.account_name.clone();
 						}
 					}
 				});
@@ -141,6 +142,7 @@ where
 			match self.login_state {
 				LoginState::Unknown => {
 					let account = account.read().unwrap();
+					debug!("Determining login state for {}", account.account_name);
 					if let Some(tokens) = account.tokens.as_ref() {
 						let expired_or_invalid = match tokens.access_token().decode() {
 							Ok(data) => data.is_expired(),
