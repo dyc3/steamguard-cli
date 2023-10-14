@@ -83,6 +83,10 @@ where
 	}
 
 	pub fn get_trade_confirmations(&self) -> Result<Vec<Confirmation>, ConfirmerError> {
+		if self.account.tokens.is_none() {
+			return Err(ConfirmerError::InvalidTokens);
+		}
+
 		let cookies = self.build_cookie_jar();
 		let client = self.transport.innner_http_client()?;
 
