@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::Thread};
 
 use log::*;
 
@@ -53,8 +53,8 @@ struct Gui<T> {
 	login_state: LoginState,
 	just_switched_account: bool,
 
-	confirmations_job: Option<std::thread::JoinHandle<Result<Vec<Confirmation>, ConfirmerError>>>,
-	refresh_tokens_job: Option<std::thread::JoinHandle<anyhow::Result<()>>>,
+	confirmations_job: ThreadJob<Result<Vec<Confirmation>, ConfirmerError>>,
+	refresh_tokens_job: ThreadJob<anyhow::Result<()>>,
 	/// The password used to log in to the currently selected account.
 	///
 	/// TODO: make this [`SecretString`] somehow
@@ -80,8 +80,8 @@ impl<T> Gui<T> {
 			login_state: LoginState::Unknown,
 			just_switched_account: true,
 
-			confirmations_job: None,
-			refresh_tokens_job: None,
+			confirmations_job: ThreadJob::new(),
+			refresh_tokens_job: ThreadJob::new(),
 			login_password: Default::default(),
 		}
 	}
@@ -125,8 +125,8 @@ where
 			if self.just_switched_account {
 				self.just_switched_account = false;
 				self.login_state = LoginState::Unknown;
-				self.confirmations_job = None;
-				self.refresh_tokens_job = None;
+				self.confirmations_job = ThreadJob::new();
+				self.refresh_tokens_job = ThreadJob::new();
 			}
 
 			let mut code = account.read().unwrap().generate_code(
@@ -182,9 +182,9 @@ where
 							ui.add(txt_password);
 						});
 						if ui.button("Login").clicked() {
-							let transport = self.transport.clone();
-							let account = account.clone();
-							let ctx = ctx.clone();
+							// let transport = self.transport.clone();
+							// let account = account.clone();
+							// let ctx = ctx.clone();
 							// std::thread::spawn(move || {
 							// 	let result = job_refresh_tokens(transport, account);
 							// 	ctx.request_repaint();
@@ -194,35 +194,34 @@ where
 					});
 				}
 				LoginState::NeedsRefresh => {
-					if self
-						.refresh_tokens_job
-						.as_ref()
-						.is_some_and(|j| j.is_finished())
-					{
-						debug!("refresh tokens job finished");
-						let job = self.refresh_tokens_job.take().unwrap();
-						let result = job.join().unwrap();
-						if let Err(e) = result {
-							ui.label(format!("Error: {}", e));
-							self.login_state = LoginState::NeedsLogin;
-						} else {
-							self.login_state = LoginState::HasAuth;
+					match self.refresh_tokens_job.status() {
+						JobStatus::NotStarted => {
+							let transport = self.transport.clone();
+							let account = account.clone();
+							let ctx = ctx.clone();
+							self.refresh_tokens_job.start(move || {
+								let result = job_refresh_tokens(transport, account);
+								ctx.request_repaint();
+								result
+							});
 						}
-					} else if self.refresh_tokens_job.is_some() {
-						ui.horizontal(|ui| {
-							ui.spinner();
-							ui.label("Refreshing Tokens...");
-						});
-					} else {
-						let transport = self.transport.clone();
-						let account = account.clone();
-						let ctx = ctx.clone();
-						self.refresh_tokens_job = Some(std::thread::spawn(move || {
-							let result = job_refresh_tokens(transport, account);
-							ctx.request_repaint();
-							result
-						}));
-					}
+						JobStatus::InProgress => {
+							ui.horizontal(|ui| {
+								ui.spinner();
+								ui.label("Refreshing Tokens...");
+							});
+						}
+						JobStatus::Finished => {
+							debug!("refresh tokens job finished");
+							let result = self.refresh_tokens_job.result();
+							if let Err(e) = result {
+								ui.label(format!("Error: {}", e));
+								self.login_state = LoginState::NeedsLogin;
+							} else {
+								self.login_state = LoginState::HasAuth;
+							}
+						}
+					};
 				}
 			}
 
@@ -244,57 +243,60 @@ where
 		account: Arc<RwLock<SteamGuardAccount>>,
 	) {
 		egui::CentralPanel::default().show_inside(ui, |ui| {
-			if ui.button("Check Confirmations").clicked() {
-				let transport = self.transport.clone();
-				let account = account.clone();
-				let ctx = ctx.clone();
-				self.confirmations_job = Some(std::thread::spawn(move || {
-					let result = job_fetch_confirmations(transport, account);
-					ctx.request_repaint();
-					result
-				}));
-			}
-
-			if self
-				.confirmations_job
-				.as_ref()
-				.is_some_and(|j| j.is_finished())
-			{
-				debug!("confirmations job finished");
-				let job = self.confirmations_job.take().unwrap();
-				let confirmations = job.join().unwrap();
-				self.confirmations
-					.lock()
-					.unwrap()
-					.insert(self.selected_account, confirmations);
-			} else if self.confirmations_job.is_some() {
-				ui.horizontal(|ui| {
-					ui.spinner();
-					ui.label("Checking...");
-				});
-			} else {
-				let confirmations = self.confirmations.lock().unwrap();
-				if let Some(confirmations) = confirmations.get(&self.selected_account) {
-					match confirmations {
-						Ok(confirmations) => {
-							if !confirmations.is_empty() {
-								for confirmation in confirmations {
-									// ui.label(format!("{:?}", confirmation));
-									self.render_confirmation(ctx, account.clone(), confirmation);
-								}
-							} else {
-								ui.label("No confirmations");
-							}
-						}
-						Err(e) => match e {
-							ConfirmerError::InvalidTokens => {
-								self.login_state = LoginState::NeedsRefresh;
-							}
-							_ => {
-								ui.label(format!("Error: {}", e));
-							}
-						},
+			match self.confirmations_job.status() {
+				JobStatus::NotStarted => {
+					if ui.button("Check Confirmations").clicked() {
+						let transport = self.transport.clone();
+						let account = account.clone();
+						let ctx = ctx.clone();
+						self.confirmations_job.start(move || {
+							let result = job_fetch_confirmations(transport, account);
+							ctx.request_repaint();
+							result
+						});
 					}
+
+					let confirmations = self.confirmations.lock().unwrap();
+					if let Some(confirmations) = confirmations.get(&self.selected_account) {
+						match confirmations {
+							Ok(confirmations) => {
+								if !confirmations.is_empty() {
+									for confirmation in confirmations {
+										// ui.label(format!("{:?}", confirmation));
+										self.render_confirmation(
+											ctx,
+											account.clone(),
+											confirmation,
+										);
+									}
+								} else {
+									ui.label("No confirmations");
+								}
+							}
+							Err(e) => match e {
+								ConfirmerError::InvalidTokens => {
+									self.login_state = LoginState::NeedsRefresh;
+								}
+								_ => {
+									ui.label(format!("Error: {}", e));
+								}
+							},
+						}
+					}
+				}
+				JobStatus::InProgress => {
+					ui.horizontal(|ui| {
+						ui.spinner();
+						ui.label("Checking...");
+					});
+				}
+				JobStatus::Finished => {
+					debug!("confirmations job finished");
+					let confirmations = self.confirmations_job.result();
+					self.confirmations
+						.lock()
+						.unwrap()
+						.insert(self.selected_account, confirmations);
 				}
 			}
 		});
@@ -389,6 +391,59 @@ where
 	} else {
 		Err(anyhow::anyhow!("No tokens"))
 	}
+}
+
+#[derive(Debug)]
+struct ThreadJob<T> {
+	handle: Option<std::thread::JoinHandle<T>>,
+}
+
+impl<T> ThreadJob<T> {
+	fn new() -> Self {
+		Self {
+			handle: Default::default(),
+		}
+	}
+
+	pub fn start<F>(&mut self, f: F)
+	where
+		F: FnOnce() -> T + Send + 'static,
+		T: Send + 'static,
+	{
+		self.handle = Some(std::thread::spawn(f));
+	}
+
+	pub fn status(&self) -> JobStatus {
+		let Some(handle) = self.handle.as_ref() else {
+			return JobStatus::NotStarted;
+		};
+
+		if handle.is_finished() {
+			JobStatus::Finished
+		} else {
+			JobStatus::InProgress
+		}
+	}
+
+	pub fn result(&mut self) -> T {
+		// self.handle
+		// 	.ok_or(anyhow::anyhow!("Job not started"))?
+		// 	.join()
+		// 	.map_err(|e| anyhow::anyhow!("{:?}", e))
+
+		self.handle
+			.take()
+			.expect("job not started")
+			.join()
+			.expect("job panicked")
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JobStatus {
+	NotStarted,
+	InProgress,
+	Finished,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
