@@ -50,6 +50,8 @@ struct Gui<T> {
 
 	selected_account: usize,
 	confirmations: Arc<Mutex<HashMap<usize, Result<Vec<Confirmation>, ConfirmerError>>>>,
+	login_state: LoginState,
+	just_switched_account: bool,
 
 	confirmations_job: Option<std::thread::JoinHandle<Result<Vec<Confirmation>, ConfirmerError>>>,
 	refresh_tokens_job: Option<std::thread::JoinHandle<anyhow::Result<()>>>,
@@ -71,6 +73,8 @@ impl<T> Gui<T> {
 
 			selected_account: Default::default(),
 			confirmations: Default::default(),
+			login_state: LoginState::Unknown,
+			just_switched_account: true,
 
 			confirmations_job: None,
 			refresh_tokens_job: None,
@@ -95,11 +99,15 @@ where
 				.selected_text(&selected_account_name)
 				.show_ui(ui, |ui| {
 					for (i, entry) in self.manager.iter().enumerate() {
-						ui.selectable_value(
+						let selectable = ui.selectable_value(
 							&mut self.selected_account,
 							i,
 							entry.account_name.clone(),
 						);
+						if selectable.clicked() {
+							debug!("Selected account {}", entry.account_name);
+							self.just_switched_account = true;
+						}
 					}
 				});
 
@@ -107,6 +115,14 @@ where
 				.manager
 				.get_or_load_account(&selected_account_name)
 				.unwrap();
+
+			if self.just_switched_account {
+				self.just_switched_account = false;
+				self.login_state = LoginState::Unknown;
+				self.confirmations_job = None;
+				self.refresh_tokens_job = None;
+			}
+
 			let mut code = account.read().unwrap().generate_code(
 				std::time::SystemTime::now()
 					.duration_since(std::time::UNIX_EPOCH)
@@ -118,8 +134,83 @@ where
 				.interactive(false)
 				.show(ui);
 
+			ui.label(format!("Login State: {:?}", self.login_state));
+
 			ui.add(egui::Separator::default());
 
+			match self.login_state {
+				LoginState::Unknown => {
+					let account = account.read().unwrap();
+					if let Some(tokens) = account.tokens.as_ref() {
+						let expired_or_invalid = match tokens.access_token().decode() {
+							Ok(data) => data.is_expired(),
+							Err(_) => true,
+						};
+						if expired_or_invalid {
+							self.login_state = LoginState::NeedsRefresh;
+						} else {
+							self.login_state = LoginState::HasAuth;
+						}
+					} else {
+						self.login_state = LoginState::NeedsLogin;
+					}
+					debug!("Login state determined: {:?}", self.login_state);
+				}
+				LoginState::HasAuth => {}
+				LoginState::NeedsLogin => {
+					ui.label("login required");
+				}
+				LoginState::NeedsRefresh => {
+					if self
+						.refresh_tokens_job
+						.as_ref()
+						.is_some_and(|j| j.is_finished())
+					{
+						debug!("refresh tokens job finished");
+						let job = self.refresh_tokens_job.take().unwrap();
+						let result = job.join().unwrap();
+						if let Err(e) = result {
+							ui.label(format!("Error: {}", e));
+							self.login_state = LoginState::NeedsLogin;
+						} else {
+							self.login_state = LoginState::HasAuth;
+						}
+					} else if self.refresh_tokens_job.is_some() {
+						ui.horizontal(|ui| {
+							ui.spinner();
+							ui.label("Refreshing Tokens...");
+						});
+					} else {
+						let transport = self.transport.clone();
+						let account = account.clone();
+						let ctx = ctx.clone();
+						self.refresh_tokens_job = Some(std::thread::spawn(move || {
+							let result = job_refresh_tokens(transport, account);
+							ctx.request_repaint();
+							result
+						}));
+					}
+				}
+			}
+
+			if self.login_state == LoginState::HasAuth {
+				self.confirmations_widget(ctx, ui, account.clone());
+			}
+		});
+	}
+}
+
+impl<T> Gui<T>
+where
+	T: Transport + Clone + Send + 'static,
+{
+	fn confirmations_widget(
+		&mut self,
+		ctx: &egui::Context,
+		ui: &mut egui::Ui,
+		account: Arc<RwLock<SteamGuardAccount>>,
+	) {
+		egui::CentralPanel::default().show_inside(ui, |ui| {
 			if ui.button("Check Confirmations").clicked() {
 				let transport = self.transport.clone();
 				let account = account.clone();
@@ -144,7 +235,10 @@ where
 					.unwrap()
 					.insert(self.selected_account, confirmations);
 			} else if self.confirmations_job.is_some() {
-				ui.spinner();
+				ui.horizontal(|ui| {
+					ui.spinner();
+					ui.label("Checking...");
+				});
 			} else {
 				let confirmations = self.confirmations.lock().unwrap();
 				if let Some(confirmations) = confirmations.get(&self.selected_account) {
@@ -159,20 +253,20 @@ where
 								ui.label("No confirmations");
 							}
 						}
-						Err(e) => {
-							ui.label(format!("Error: {}", e));
-						}
+						Err(e) => match e {
+							ConfirmerError::InvalidTokens => {
+								self.login_state = LoginState::NeedsRefresh;
+							}
+							_ => {
+								ui.label(format!("Error: {}", e));
+							}
+						},
 					}
 				}
 			}
 		});
 	}
-}
 
-impl<T> Gui<T>
-where
-	T: Transport + Clone + Send + 'static,
-{
 	fn render_confirmation(
 		&self,
 		ctx: &egui::Context,
@@ -262,4 +356,12 @@ where
 	} else {
 		Err(anyhow::anyhow!("No tokens"))
 	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LoginState {
+	Unknown,
+	HasAuth,
+	NeedsRefresh,
+	NeedsLogin,
 }
