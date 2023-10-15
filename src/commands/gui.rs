@@ -56,7 +56,7 @@ struct Gui<T: Transport + Clone + Send + 'static> {
 	_globalargs: GlobalArgs,
 
 	selected_account: usize,
-	confirmations: Arc<Mutex<HashMap<usize, Result<Vec<Confirmation>, ConfirmerError>>>>,
+	confirmations: HashMap<usize, Result<Vec<Confirmation>, ConfirmerError>>,
 	login_state: LoginState,
 	just_switched_account: bool,
 
@@ -455,8 +455,7 @@ where
 						});
 					}
 
-					let confirmations = self.confirmations.lock().unwrap();
-					if let Some(confirmations) = confirmations.get(&self.selected_account) {
+					if let Some(confirmations) = self.confirmations.get(&self.selected_account) {
 						match confirmations {
 							Ok(confirmations) => {
 								if !confirmations.is_empty() {
@@ -493,8 +492,6 @@ where
 					debug!("confirmations job finished");
 					let confirmations = self.confirmations_job.result();
 					self.confirmations
-						.lock()
-						.unwrap()
 						.insert(self.selected_account, confirmations);
 				}
 			}
