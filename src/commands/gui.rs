@@ -584,7 +584,7 @@ where
 	let steam_id = account.steam_id;
 	if let Some(tokens) = account.tokens.as_mut() {
 		let mut refresher = TokenRefresher::new(client);
-		let jwt = refresher.refresh(steam_id, &tokens)?;
+		let jwt = refresher.refresh(steam_id, tokens)?;
 		tokens.set_access_token(jwt);
 		Ok(())
 	} else {

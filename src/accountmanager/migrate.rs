@@ -497,7 +497,7 @@ mod tests {
 			manager.submit_passkey(case.passkey.clone());
 			manager.load_accounts()?;
 			let account = manager.get_or_load_account("example")?;
-			let account = account.lock().unwrap();
+			let account = account.read().unwrap();
 			assert_eq!(account.account_name, "example");
 			assert_eq!(account.steam_id, 1234);
 		}
