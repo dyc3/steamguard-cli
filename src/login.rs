@@ -119,6 +119,12 @@ fn do_login_impl<T: Transport + Clone>(
 		}
 	}
 
+	debug!(
+		"got {} confirmation methods: {:#?}",
+		confirmation_methods.len(),
+		confirmation_methods
+	);
+
 	for method in confirmation_methods {
 		match method.confirmation_type {
 			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation => {
