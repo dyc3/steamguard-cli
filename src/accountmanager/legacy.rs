@@ -128,9 +128,11 @@ pub struct SdaAccount {
 	pub token_gid: String,
 	#[serde(with = "crate::secret_string")]
 	pub identity_secret: SecretString,
+	#[serde(default)]
 	pub server_time: u64,
 	#[serde(with = "crate::secret_string")]
 	pub uri: SecretString,
+	#[serde(default)]
 	pub fully_enrolled: bool,
 	pub device_id: String,
 	#[serde(with = "crate::secret_string")]
