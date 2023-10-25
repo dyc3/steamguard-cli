@@ -359,6 +359,10 @@ mod tests {
 				manifest: "src/fixtures/maFiles/compat/difficult-migration/manifest.json",
 				passkey: None,
 			},
+			Test {
+				manifest: "src/fixtures/maFiles/compat/missing-unnecessary/manifest.json",
+				passkey: None,
+			},
 		];
 		for case in cases {
 			eprintln!("testing: {:?}", case);
@@ -418,6 +422,11 @@ mod tests {
 			},
 			Test {
 				mafile: "src/fixtures/maFiles/compat/winauth/exports.txt",
+				account_name: "example",
+				steam_id: 1234,
+			},
+			Test {
+				mafile: "src/fixtures/maFiles/compat/missing-unnecessary/1234.maFile",
 				account_name: "example",
 				steam_id: 1234,
 			},
