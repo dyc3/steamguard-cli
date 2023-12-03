@@ -157,6 +157,10 @@ fn do_login_impl<T: Transport + Clone>(
 				let code = tui::prompt().trim().to_owned();
 				login.submit_steam_guard_code(method.confirmation_type, code)?;
 			}
+			EAuthSessionGuardType::k_EAuthSessionGuardType_None => {
+				debug!("No login confirmation required. Proceeding with login.");
+				continue;
+			}
 			_ => {
 				warn!("Unknown confirmation method: {:?}", method);
 				continue;
