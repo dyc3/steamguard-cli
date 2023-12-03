@@ -2,8 +2,11 @@ use log::*;
 use phonenumber::PhoneNumber;
 use secrecy::ExposeSecret;
 use steamguard::{
-	accountlinker::AccountLinkSuccess, phonelinker::PhoneLinker, steamapi::PhoneClient,
-	token::Tokens, AccountLinkError, AccountLinker, FinalizeLinkError,
+	accountlinker::{AccountLinkConfirmType, AccountLinkSuccess},
+	phonelinker::PhoneLinker,
+	steamapi::PhoneClient,
+	token::Tokens,
+	AccountLinkError, AccountLinker, FinalizeLinkError,
 };
 
 use crate::{tui, AccountManager};
@@ -48,6 +51,7 @@ where
 					break;
 				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
+					// As of Dec 12, 2023, Steam no longer appears to require a phone number to add an authenticator. Keeping this code here just in case.
 					eprintln!("Looks like you don't have a phone number on this account.");
 					do_add_phone_number(transport.clone(), linker.tokens())?;
 				}
@@ -66,6 +70,7 @@ where
 		}
 		let mut server_time = link.server_time();
 		let phone_number_hint = link.phone_number_hint().to_owned();
+		let confirm_type = link.confirm_type();
 		manager.add_account(link.into_account());
 		match manager.save() {
 			Ok(_) => {}
@@ -88,15 +93,29 @@ where
 		tui::pause();
 
 		debug!("attempting link finalization");
-		println!(
-			"A code has been sent to your phone number ending in {}.",
-			phone_number_hint
-		);
-		print!("Enter SMS code: ");
-		let sms_code = tui::prompt();
+		let confirm_code = match confirm_type {
+			AccountLinkConfirmType::Email => {
+				eprintln!(
+					"A code has been sent to the email address associated with this account."
+				);
+				tui::prompt_non_empty("Enter email code: ")
+			}
+			AccountLinkConfirmType::SMS => {
+				eprintln!(
+					"A code has been sent to your phone number ending in {}.",
+					phone_number_hint
+				);
+				tui::prompt_non_empty("Enter SMS code: ")
+			}
+			AccountLinkConfirmType::Unknown(t) => {
+				error!("Unknown link confirm type: {}", t);
+				bail!("Unknown link confirm type: {}", t);
+			}
+		};
+
 		let mut tries = 0;
 		loop {
-			match linker.finalize(server_time, &mut account, sms_code.clone()) {
+			match linker.finalize(server_time, &mut account, confirm_code.clone()) {
 				Ok(_) => break,
 				Err(FinalizeLinkError::WantMore { server_time: s }) => {
 					server_time = s;
@@ -115,6 +134,18 @@ where
 		}
 		let revocation_code = account.revocation_code.clone();
 		drop(account); // explicitly drop the lock so we don't hang on the mutex
+
+		info!("Verifying authenticator status...");
+		let status =
+			linker.query_status(&manager.get_account(&account_name).unwrap().lock().unwrap())?;
+		if status.state() == 0 {
+			debug!(
+				"authenticator state: {} -- did not actually finalize",
+				status.state()
+			);
+			manager.remove_account(&account_name);
+			bail!("Authenticator finalization was unsuccessful. You may have entered the wrong confirm code in the previous step. Try again.");
+		}
 
 		info!("Authenticator finalized.");
 		match manager.save() {

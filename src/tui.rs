@@ -34,6 +34,16 @@ pub(crate) fn prompt() -> String {
 	line
 }
 
+pub(crate) fn prompt_non_empty(prompt_text: impl AsRef<str>) -> String {
+	loop {
+		eprint!("{}", prompt_text.as_ref());
+		let input = prompt();
+		if !input.is_empty() {
+			return input;
+		}
+	}
+}
+
 /// Prompt the user for a single character response. Useful for asking yes or no questions.
 ///
 /// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.

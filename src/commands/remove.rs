@@ -94,7 +94,7 @@ where
 		}
 
 		for account_name in successful {
-			manager.remove_account(account_name);
+			manager.remove_account(&account_name);
 		}
 
 		manager.save()?;

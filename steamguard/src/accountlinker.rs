@@ -1,5 +1,6 @@
 use crate::protobufs::service_twofactor::{
 	CTwoFactor_AddAuthenticator_Request, CTwoFactor_FinalizeAddAuthenticator_Request,
+	CTwoFactor_Status_Request, CTwoFactor_Status_Response,
 };
 use crate::steamapi::twofactor::TwoFactorClient;
 use crate::token::TwoFactorSecret;
@@ -85,6 +86,7 @@ where
 			account,
 			server_time: resp.server_time(),
 			phone_number_hint: resp.take_phone_number_hint(),
+			confirm_type: resp.confirm_type().into(),
 		};
 		Ok(success)
 	}
@@ -94,7 +96,7 @@ where
 		&mut self,
 		time: u64,
 		account: &mut SteamGuardAccount,
-		sms_code: String,
+		confirm_code: String,
 	) -> anyhow::Result<(), FinalizeLinkError> {
 		let code = account.generate_code(time);
 
@@ -105,7 +107,8 @@ where
 		req.set_steamid(steam_id);
 		req.set_authenticator_code(code);
 		req.set_authenticator_time(time);
-		req.set_activation_code(sms_code);
+		req.set_activation_code(confirm_code);
+		req.set_validate_sms_code(true);
 
 		let resp = self.client.finalize_authenticator(req, token)?;
 
@@ -124,6 +127,21 @@ where
 		self.finalized = true;
 		Ok(())
 	}
+
+	pub fn query_status(
+		&self,
+		account: &SteamGuardAccount,
+	) -> anyhow::Result<CTwoFactor_Status_Response> {
+		let mut req = CTwoFactor_Status_Request::new();
+		req.set_steamid(account.steam_id);
+
+		let resp = self
+			.client
+			.query_status(req, self.tokens.access_token())
+			.unwrap();
+
+		Ok(resp.into_response_data())
+	}
 }
 
 #[derive(Debug)]
@@ -131,6 +149,7 @@ pub struct AccountLinkSuccess {
 	account: SteamGuardAccount,
 	server_time: u64,
 	phone_number_hint: String,
+	confirm_type: AccountLinkConfirmType,
 }
 
 impl AccountLinkSuccess {
@@ -148,6 +167,28 @@ impl AccountLinkSuccess {
 
 	pub fn phone_number_hint(&self) -> &str {
 		&self.phone_number_hint
+	}
+
+	pub fn confirm_type(&self) -> AccountLinkConfirmType {
+		self.confirm_type
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum AccountLinkConfirmType {
+	SMS = 1,
+	Email = 3,
+	Unknown(i32),
+}
+
+impl From<i32> for AccountLinkConfirmType {
+	fn from(i: i32) -> Self {
+		match i {
+			1 => AccountLinkConfirmType::SMS,
+			3 => AccountLinkConfirmType::Email,
+			_ => AccountLinkConfirmType::Unknown(i),
+		}
 	}
 }
 
