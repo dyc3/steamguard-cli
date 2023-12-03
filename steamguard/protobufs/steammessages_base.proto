@@ -92,6 +92,11 @@ message CMsgGCRoutingProtoBufHeader {
 }
 
 message CMsgProtoBufHeader {
+	enum ESessionDisposition {
+		k_ESessionDispositionNormal = 0;
+		k_ESessionDispositionDisconnect = 1;
+	}
+
 	optional fixed64 steamid = 1;
 	optional int32 client_sessionid = 2;
 	optional uint32 routing_appid = 3;
@@ -120,6 +125,10 @@ message CMsgProtoBufHeader {
 	optional uint32 debug_source_string_index = 35;
 	optional uint64 token_id = 36;
 	optional .CMsgGCRoutingProtoBufHeader routing_gc = 37;
+	optional .CMsgProtoBufHeader.ESessionDisposition session_disposition = 38 [default = k_ESessionDispositionNormal];
+	optional string wg_token = 39;
+	optional string webui_auth_key = 40;
+	repeated int32 exclude_client_sessionids = 41;
 
 	oneof ip_addr {
 		uint32 ip = 15;
@@ -145,6 +154,7 @@ message CMsgAuthTicket {
 	optional uint32 ticket_crc = 6;
 	optional bytes ticket = 7;
 	optional bytes server_secret = 8;
+	optional uint32 ticket_type = 9;
 }
 
 message CCDDBAppDetailCommon {
@@ -302,6 +312,8 @@ message CPackageReservationStatus {
 	optional bool expired = 6;
 	optional uint32 time_expires = 7;
 	optional uint32 time_reserved = 8;
+	optional uint32 rtime_estimated_notification = 9;
+	optional string notificaton_token = 10;
 }
 
 message CMsgKeyValuePair {
@@ -311,4 +323,13 @@ message CMsgKeyValuePair {
 
 message CMsgKeyValueSet {
 	repeated .CMsgKeyValuePair pairs = 1;
+}
+
+message UserContentDescriptorPreferences {
+	message ContentDescriptor {
+		optional uint32 content_descriptorid = 1;
+		optional uint32 timestamp_added = 2;
+	}
+
+	repeated .UserContentDescriptorPreferences.ContentDescriptor content_descriptors_to_exclude = 1;
 }
