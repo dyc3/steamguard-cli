@@ -3,7 +3,6 @@ use crate::transport::{Transport, TransportError};
 
 use super::{ApiRequest, ApiResponse, BuildableRequest};
 
-use crate::protobufs::custom::CTwoFactor_Time_Request;
 use crate::protobufs::service_twofactor::*;
 
 const SERVICE_NAME: &str = "ITwoFactorService";
