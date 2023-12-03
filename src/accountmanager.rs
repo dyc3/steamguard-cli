@@ -196,14 +196,14 @@ impl AccountManager {
 		Ok(())
 	}
 
-	pub fn remove_account(&mut self, account_name: String) {
+	pub fn remove_account(&mut self, account_name: &String) {
 		let index = self
 			.manifest
 			.entries
 			.iter()
-			.position(|a| a.account_name == account_name)
+			.position(|a| &a.account_name == account_name)
 			.unwrap();
-		self.accounts.remove(&account_name);
+		self.accounts.remove(account_name);
 		self.manifest.entries.remove(index);
 	}
 
