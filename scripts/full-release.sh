@@ -52,6 +52,10 @@ This will do everything needed to release a new version:
 - publish crates on crates.io
 - upload artifacts to a new release on github
 """
+
+echo "Previewing changes..."
+cargo smart-release --update-crates-index --no-changelog --no-tag --no-push --no-publish
+
 if [ "$DRY_RUN" = true ]; then
 	echo "This is a dry run, nothing will be done. Artifacts will be built, but not published. Use --execute to do it for real."
 else
