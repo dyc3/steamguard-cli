@@ -78,7 +78,7 @@ where
 				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
 				eprintln!(
 				"Just in case, here is the account info. Save it somewhere just in case!\n{:#?}",
-				manager.get_account(&account_name).unwrap().lock().unwrap()
+				manager.get_account(&account_name).unwrap().read().unwrap()
 			);
 				return Err(err);
 			}
@@ -87,7 +87,7 @@ where
 		let account_arc = manager
 			.get_account(&account_name)
 			.expect("account was not present in manifest");
-		let mut account = account_arc.lock().unwrap();
+		let mut account = account_arc.write().unwrap();
 
 		eprintln!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code.expose_secret());
 		tui::pause();

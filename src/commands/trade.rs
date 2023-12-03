@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use crossterm::tty::IsTty;
 use log::*;
@@ -33,11 +33,11 @@ where
 		&self,
 		transport: T,
 		manager: &mut AccountManager,
-		accounts: Vec<Arc<Mutex<SteamGuardAccount>>>,
+		accounts: Vec<Arc<RwLock<SteamGuardAccount>>>,
 		args: &GlobalArgs,
 	) -> anyhow::Result<()> {
 		for a in accounts {
-			let mut account = a.lock().unwrap();
+			let mut account = a.write().unwrap();
 
 			if !account.is_logged_in() {
 				info!("Account does not have tokens, logging in");

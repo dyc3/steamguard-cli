@@ -176,7 +176,7 @@ fn do_login_impl<T: Transport + Clone>(
 	Ok(tokens)
 }
 
-fn build_device_details() -> DeviceDetails {
+pub(crate) fn build_device_details() -> DeviceDetails {
 	DeviceDetails {
 		friendly_name: format!(
 			"{} (steamguard-cli)",

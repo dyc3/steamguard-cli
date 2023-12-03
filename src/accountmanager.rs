@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use steamguard::SteamGuardAccount;
 use thiserror::Error;
 
@@ -23,7 +23,7 @@ pub use manifest::*;
 #[derive(Debug, Default)]
 pub struct AccountManager {
 	manifest: Manifest,
-	accounts: HashMap<String, Arc<Mutex<SteamGuardAccount>>>,
+	accounts: HashMap<String, Arc<RwLock<SteamGuardAccount>>>,
 	folder: String,
 	passkey: Option<SecretString>,
 }
@@ -47,7 +47,7 @@ impl AccountManager {
 
 	pub fn register_accounts(&mut self, accounts: Vec<SteamGuardAccount>) {
 		for account in accounts {
-			self.register_loaded_account(Arc::new(Mutex::new(account)));
+			self.register_loaded_account(Arc::new(RwLock::new(account)));
 		}
 	}
 
@@ -122,7 +122,7 @@ impl AccountManager {
 	fn load_account(
 		&self,
 		account_name: impl AsRef<str>,
-	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
+	) -> anyhow::Result<Arc<RwLock<SteamGuardAccount>>, ManifestAccountLoadError> {
 		let entry = self.get_entry(account_name)?;
 		self.load_account_by_entry(entry)
 	}
@@ -132,20 +132,20 @@ impl AccountManager {
 	fn load_account_by_entry(
 		&self,
 		entry: &ManifestEntry,
-	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
+	) -> anyhow::Result<Arc<RwLock<SteamGuardAccount>>, ManifestAccountLoadError> {
 		let path = Path::new(&self.folder).join(&entry.filename);
 		let account = entry.load(
 			path.as_path(),
 			self.passkey.as_ref(),
 			entry.encryption.as_ref(),
 		)?;
-		let account = Arc::new(Mutex::new(account));
+		let account = Arc::new(RwLock::new(account));
 		Ok(account)
 	}
 
 	/// Register an account as loaded, so it can be operated on.
-	fn register_loaded_account(&mut self, account: Arc<Mutex<SteamGuardAccount>>) {
-		let account_name = account.lock().unwrap().account_name.clone();
+	fn register_loaded_account(&mut self, account: Arc<RwLock<SteamGuardAccount>>) {
+		let account_name = account.read().unwrap().account_name.clone();
 		self.accounts.insert(account_name, account);
 	}
 
@@ -167,7 +167,7 @@ impl AccountManager {
 			encryption: None,
 		});
 		self.accounts
-			.insert(account.account_name.clone(), Arc::new(Mutex::new(account)));
+			.insert(account.account_name.clone(), Arc::new(RwLock::new(account)));
 	}
 
 	pub fn import_account(
@@ -215,7 +215,7 @@ impl AccountManager {
 			.values()
 			.par_bridge()
 			.map(|account| -> anyhow::Result<()> {
-				let account = account.lock().unwrap();
+				let account = account.read().unwrap();
 				let entry = self.get_entry(&account.account_name)?.clone();
 				debug!("saving {}", entry.filename);
 				let serialized = serde_json::to_vec(&account.clone())?;
@@ -256,7 +256,7 @@ impl AccountManager {
 
 	/// Return all loaded accounts. Order is not guarenteed.
 	#[allow(dead_code)]
-	pub fn get_all_loaded(&self) -> Vec<Arc<Mutex<SteamGuardAccount>>> {
+	pub fn get_all_loaded(&self) -> Vec<Arc<RwLock<SteamGuardAccount>>> {
 		return self.accounts.values().cloned().collect();
 	}
 
@@ -293,7 +293,7 @@ impl AccountManager {
 	pub fn get_account(
 		&self,
 		account_name: impl AsRef<str>,
-	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>> {
+	) -> anyhow::Result<Arc<RwLock<SteamGuardAccount>>> {
 		let account = self
 			.accounts
 			.get(account_name.as_ref())
@@ -306,7 +306,7 @@ impl AccountManager {
 	pub fn get_or_load_account(
 		&mut self,
 		account_name: impl AsRef<str>,
-	) -> anyhow::Result<Arc<Mutex<SteamGuardAccount>>, ManifestAccountLoadError> {
+	) -> anyhow::Result<Arc<RwLock<SteamGuardAccount>>, ManifestAccountLoadError> {
 		let account = self.get_account(account_name.as_ref());
 		if let Ok(account) = account {
 			return Ok(account);
@@ -340,7 +340,7 @@ impl AccountManager {
 			for i in 0..self.manifest.entries.len() {
 				let account = self.load_account_by_entry(&self.manifest.entries[i].clone())?;
 				self.manifest.entries[i].account_name =
-					account.lock().unwrap().account_name.clone();
+					account.read().unwrap().account_name.clone();
 			}
 			upgraded = true;
 		}
@@ -502,7 +502,7 @@ mod tests {
 		assert_eq!(manager.manifest.entries.len(), manager.accounts.len());
 		let account_name = "asdf1234";
 		let account = manager.get_account(account_name)?;
-		let account = account.lock().unwrap();
+		let account = account.read().unwrap();
 		assert_eq!(account.account_name, "asdf1234");
 		assert_eq!(account.revocation_code.expose_secret(), "R12345");
 		assert_eq!(
@@ -550,7 +550,7 @@ mod tests {
 		);
 		let account_name = "asdf1234";
 		let account = loaded_manager.get_account(account_name)?;
-		let account = account.lock().unwrap();
+		let account = account.read().unwrap();
 		assert_eq!(account.account_name, "asdf1234");
 		assert_eq!(account.revocation_code.expose_secret(), "R12345");
 		assert_eq!(
@@ -598,7 +598,7 @@ mod tests {
 		);
 		let account_name = "asdf1234";
 		let account = loaded_manager.get_account(account_name)?;
-		let account = account.lock().unwrap();
+		let account = account.read().unwrap();
 		assert_eq!(account.account_name, "asdf1234");
 		assert_eq!(account.revocation_code.expose_secret(), "R12345");
 		assert_eq!(
@@ -645,7 +645,7 @@ mod tests {
 		);
 		let account_name = "asdf1234";
 		let account = loaded_manager.get_account(account_name)?;
-		let account = account.lock().unwrap();
+		let account = account.read().unwrap();
 		assert_eq!(account.account_name, "asdf1234");
 		assert_eq!(account.revocation_code.expose_secret(), "R12345");
 		assert_eq!(
@@ -693,7 +693,7 @@ mod tests {
 			assert_eq!(manager.manifest.entries[0].account_name, "example");
 			assert_eq!(manager.manifest.entries[0].steam_id, 1234);
 			let account = manager.get_account("example").unwrap();
-			let account = account.lock().unwrap();
+			let account = account.read().unwrap();
 			assert_eq!(account.account_name, "example");
 			assert_eq!(account.steam_id, 1234);
 		}

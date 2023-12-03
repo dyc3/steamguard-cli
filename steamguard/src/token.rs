@@ -182,6 +182,14 @@ impl SteamJwtData {
 	pub fn steam_id(&self) -> u64 {
 		self.sub.parse::<u64>().unwrap()
 	}
+
+	pub fn is_expired(&self) -> bool {
+		let now = std::time::SystemTime::now()
+			.duration_since(std::time::UNIX_EPOCH)
+			.unwrap()
+			.as_secs();
+		self.exp < now
+	}
 }
 
 mod tests {
