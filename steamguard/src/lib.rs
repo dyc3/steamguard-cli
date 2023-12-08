@@ -1,6 +1,5 @@
-use crate::protobufs::service_twofactor::CTwoFactor_RemoveAuthenticator_Request;
-use crate::steamapi::EResult;
-use crate::{steamapi::twofactor::TwoFactorClient, token::TwoFactorSecret};
+use crate::token::TwoFactorSecret;
+use accountlinker::RemoveAuthenticatorError;
 pub use accountlinker::{AccountLinkError, AccountLinker, FinalizeLinkError};
 pub use confirmation::*;
 pub use qrapprover::{QrApprover, QrApproverError};
@@ -96,58 +95,21 @@ impl SteamGuardAccount {
 
 	/// Removes the mobile authenticator from the steam account. If this operation succeeds, this object can no longer be considered valid.
 	/// Returns whether or not the operation was successful.
-	pub fn remove_authenticator<T: Transport>(
+	///
+	/// A convenience method for [`AccountLinker::remove_authenticator`].
+	pub fn remove_authenticator(
 		&self,
-		client: &TwoFactorClient<T>,
+		transport: impl Transport,
 		revocation_code: Option<&String>,
 	) -> Result<(), RemoveAuthenticatorError> {
-		if revocation_code.is_none() && self.revocation_code.expose_secret().is_empty() {
-			return Err(RemoveAuthenticatorError::MissingRevocationCode);
-		}
 		let Some(tokens) = &self.tokens else {
 			return Err(RemoveAuthenticatorError::TransportError(
 				TransportError::Unauthorized,
 			));
 		};
-		let mut req = CTwoFactor_RemoveAuthenticator_Request::new();
-		req.set_revocation_code(
-			revocation_code
-				.unwrap_or(self.revocation_code.expose_secret())
-				.to_owned(),
-		);
-		let resp = client.remove_authenticator(req, tokens.access_token())?;
-
-		// returns EResult::TwoFactorCodeMismatch if the revocation code is incorrect
-		if resp.result != EResult::OK && resp.result != EResult::TwoFactorCodeMismatch {
-			return Err(resp.result.into());
-		}
-		let resp = resp.into_response_data();
-		if !resp.success() {
-			return Err(RemoveAuthenticatorError::IncorrectRevocationCode {
-				attempts_remaining: resp.revocation_attempts_remaining(),
-			});
-		}
-
-		Ok(())
-	}
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum RemoveAuthenticatorError {
-	#[error("Missing revocation code")]
-	MissingRevocationCode,
-	#[error("Incorrect revocation code, {attempts_remaining} attempts remaining")]
-	IncorrectRevocationCode { attempts_remaining: u32 },
-	#[error("Transport error: {0}")]
-	TransportError(#[from] TransportError),
-	#[error("Steam returned an enexpected result: {0:?}")]
-	UnknownEResult(EResult),
-	#[error("Unexpected error: {0}")]
-	Unknown(#[from] anyhow::Error),
-}
-
-impl From<EResult> for RemoveAuthenticatorError {
-	fn from(e: EResult) -> Self {
-		Self::UnknownEResult(e)
+		let revocation_code =
+			Some(revocation_code.unwrap_or_else(|| self.revocation_code.expose_secret()));
+		let linker = AccountLinker::new(transport, tokens.clone());
+		linker.remove_authenticator(revocation_code)
 	}
 }

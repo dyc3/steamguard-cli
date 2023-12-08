@@ -1,10 +1,10 @@
 use crate::protobufs::service_twofactor::{
 	CTwoFactor_AddAuthenticator_Request, CTwoFactor_FinalizeAddAuthenticator_Request,
-	CTwoFactor_Status_Request, CTwoFactor_Status_Response,
+	CTwoFactor_RemoveAuthenticator_Request, CTwoFactor_Status_Request, CTwoFactor_Status_Response,
 };
 use crate::steamapi::twofactor::TwoFactorClient;
 use crate::token::TwoFactorSecret;
-use crate::transport::Transport;
+use crate::transport::{Transport, TransportError};
 use crate::{steamapi::EResult, token::Tokens, SteamGuardAccount};
 use anyhow::Context;
 use base64::Engine;
@@ -142,6 +142,36 @@ where
 
 		Ok(resp.into_response_data())
 	}
+
+	pub fn remove_authenticator(
+		&self,
+		revocation_code: Option<&String>,
+	) -> Result<(), RemoveAuthenticatorError> {
+		let Some(revocation_code) = revocation_code else {
+			return Err(RemoveAuthenticatorError::MissingRevocationCode);
+		};
+		if revocation_code.is_empty() {
+			return Err(RemoveAuthenticatorError::MissingRevocationCode);
+		}
+		let mut req = CTwoFactor_RemoveAuthenticator_Request::new();
+		req.set_revocation_code(revocation_code.clone());
+		let resp = self
+			.client
+			.remove_authenticator(req, self.tokens.access_token())?;
+
+		// returns EResult::TwoFactorCodeMismatch if the revocation code is incorrect
+		if resp.result != EResult::OK && resp.result != EResult::TwoFactorCodeMismatch {
+			return Err(resp.result.into());
+		}
+		let resp = resp.into_response_data();
+		if !resp.success() {
+			return Err(RemoveAuthenticatorError::IncorrectRevocationCode {
+				attempts_remaining: resp.revocation_attempts_remaining(),
+			});
+		}
+
+		Ok(())
+	}
 }
 
 #[derive(Debug)]
@@ -251,5 +281,25 @@ impl From<EResult> for FinalizeLinkError {
 			EResult::TwoFactorActivationCodeMismatch => FinalizeLinkError::BadSmsCode,
 			r => FinalizeLinkError::UnknownEResult(r),
 		}
+	}
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RemoveAuthenticatorError {
+	#[error("Missing revocation code")]
+	MissingRevocationCode,
+	#[error("Incorrect revocation code, {attempts_remaining} attempts remaining")]
+	IncorrectRevocationCode { attempts_remaining: u32 },
+	#[error("Transport error: {0}")]
+	TransportError(#[from] TransportError),
+	#[error("Steam returned an enexpected result: {0:?}")]
+	UnknownEResult(EResult),
+	#[error("Unexpected error: {0}")]
+	Unknown(#[from] anyhow::Error),
+}
+
+impl From<EResult> for RemoveAuthenticatorError {
+	fn from(e: EResult) -> Self {
+		Self::UnknownEResult(e)
 	}
 }

@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use log::*;
-use steamguard::{steamapi::TwoFactorClient, transport::TransportError, RemoveAuthenticatorError};
+use steamguard::{accountlinker::RemoveAuthenticatorError, transport::TransportError};
 
 use crate::{errors::UserError, tui, AccountManager};
 
@@ -43,11 +43,10 @@ where
 		let mut successful = vec![];
 		for a in accounts {
 			let mut account = a.lock().unwrap();
-			let client = TwoFactorClient::new(transport.clone());
 
 			let mut revocation: Option<String> = None;
 			loop {
-				match account.remove_authenticator(&client, revocation.as_ref()) {
+				match account.remove_authenticator(transport.clone(), revocation.as_ref()) {
 					Ok(_) => {
 						info!("Removed authenticator from {}", account.account_name);
 						successful.push(account.account_name.clone());
@@ -69,17 +68,17 @@ where
 							error!("No attempts remaining, aborting!");
 							break;
 						}
-						eprint!("Enter the revocation code for {}: ", account.account_name);
-						let code = tui::prompt();
+						let code = tui::prompt_non_empty(format!(
+							"Enter the revocation code for {}: ",
+							account.account_name
+						));
 						revocation = Some(code);
 					}
 					Err(RemoveAuthenticatorError::MissingRevocationCode) => {
-						error!(
-							"Account {} does not have a revocation code",
+						let code = tui::prompt_non_empty(format!(
+							"Enter the revocation code for {}: ",
 							account.account_name
-						);
-						eprint!("Enter the revocation code for {}: ", account.account_name);
-						let code = tui::prompt();
+						));
 						revocation = Some(code);
 					}
 					Err(err) => {
