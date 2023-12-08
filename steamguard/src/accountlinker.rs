@@ -186,24 +186,24 @@ where
 		if resp.result != EResult::OK {
 			return Err(resp.result.into());
 		}
-		let resp = resp.into_response_data();
-		if resp.success() {
-			Ok(())
-		} else {
-			Err(TransferError::Unknown(anyhow!(
-				"Steam returned an unknown failure"
-			)))
-		}
+		// the success field in the response is always None, so we can't check that
+		// it appears to not be used at all
+		Ok(())
 	}
 
 	/// Completes the process of "transfering" a mobile authenticator from a different device to this device.
-	pub fn transfer_finish(&mut self) -> Result<SteamGuardAccount, TransferError> {
+	pub fn transfer_finish(
+		&mut self,
+		sms_code: impl AsRef<str>,
+	) -> Result<SteamGuardAccount, TransferError> {
 		let access_token = self.tokens.access_token();
 		let steam_id = access_token
 			.decode()
 			.context("decoding access token")?
 			.steam_id();
-		let req = CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Request::new();
+		let mut req = CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Request::new();
+		req.set_sms_code(sms_code.as_ref().to_owned());
+		req.set_generate_new_token(true);
 		let resp = self
 			.client
 			.remove_authenticator_via_challenge_continue(req, access_token)?;
@@ -365,6 +365,8 @@ impl From<EResult> for RemoveAuthenticatorError {
 
 #[derive(Error, Debug)]
 pub enum TransferError {
+	#[error("Provided SMS code was incorrect.")]
+	BadSmsCode,
 	#[error("Failed to send request to Steam: {0:?}")]
 	Transport(#[from] crate::transport::TransportError),
 	#[error("Steam returned an unexpected error code: {0:?}")]
@@ -376,6 +378,7 @@ pub enum TransferError {
 impl From<EResult> for TransferError {
 	fn from(result: EResult) -> Self {
 		match result {
+			EResult::SMSCodeFailed => TransferError::BadSmsCode,
 			r => TransferError::UnknownEResult(r),
 		}
 	}
