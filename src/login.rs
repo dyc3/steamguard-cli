@@ -8,6 +8,7 @@ use steamguard::{
 	steamapi::{self, AuthenticationClient},
 	token::Tokens,
 	transport::Transport,
+	userlogin::UpdateAuthSessionError,
 	DeviceDetails, LoginError, SteamGuardAccount, UserLogin,
 };
 
@@ -141,21 +142,48 @@ fn do_login_impl<T: Transport + Clone>(
 				eprintln!("Press enter when you have confirmed.");
 				tui::pause();
 			}
-			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode => {
-				let code = if let Some(account) = account {
-					debug!("Generating 2fa code...");
-					let time = steamapi::get_server_time(transport)?.server_time();
-					account.generate_code(time)
+			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode
+			| EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode => {
+				let prompt = if method.confirmation_type
+					== EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode
+				{
+					"Enter the 2fa code from your device: "
 				} else {
-					eprint!("Enter the 2fa code from your device: ");
-					tui::prompt().trim().to_owned()
+					"Enter the 2fa code sent to your email: "
 				};
-				login.submit_steam_guard_code(method.confirmation_type, code)?;
-			}
-			EAuthSessionGuardType::k_EAuthSessionGuardType_EmailCode => {
-				eprint!("Enter the 2fa code sent to your email: ");
-				let code = tui::prompt().trim().to_owned();
-				login.submit_steam_guard_code(method.confirmation_type, code)?;
+				let mut attempts = 0;
+				loop {
+					let code = if let Some(account) = account {
+						debug!("Generating 2fa code...");
+						let time = steamapi::get_server_time(transport.clone())?.server_time();
+						account.generate_code(time)
+					} else {
+						tui::prompt_non_empty(prompt).trim().to_owned()
+					};
+
+					match login.submit_steam_guard_code(method.confirmation_type, code) {
+						Ok(_) => break,
+						Err(err) => {
+							error!("Failed to submit code: {}", err);
+
+							match err {
+								UpdateAuthSessionError::TooManyAttempts
+								| UpdateAuthSessionError::SessionExpired
+								| UpdateAuthSessionError::InvalidGuardType => {
+									error!("Error is unrecoverable. Aborting.");
+									return Err(err.into());
+								}
+								_ => {}
+							}
+							attempts += 1;
+							debug!("Attempts: {}/3", attempts);
+							if attempts >= 3 {
+								error!("Too many failed attempts. Aborting.");
+								return Err(err.into());
+							}
+						}
+					}
+				}
 			}
 			EAuthSessionGuardType::k_EAuthSessionGuardType_None => {
 				debug!("No login confirmation required. Proceeding with login.");
