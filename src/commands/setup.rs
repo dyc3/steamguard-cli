@@ -43,12 +43,10 @@ where
 
 		info!("Adding authenticator...");
 		let mut linker = AccountLinker::new(transport.clone(), tokens);
-		let link: AccountLinkSuccess;
 		loop {
 			match linker.link() {
-				Ok(a) => {
-					link = a;
-					break;
+				Ok(link) => {
+					return Self::add_new_account(link, manager, account_name, linker);
 				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
 					// As of Dec 12, 2023, Steam no longer appears to require a phone number to add an authenticator. Keeping this code here just in case.
@@ -111,6 +109,20 @@ where
 				}
 			}
 		}
+	}
+}
+
+impl SetupCommand {
+	/// Add a new account to the manifest after linking has started.
+	fn add_new_account<T>(
+		link: AccountLinkSuccess,
+		manager: &mut AccountManager,
+		account_name: String,
+		mut linker: AccountLinker<T>,
+	) -> Result<(), anyhow::Error>
+	where
+		T: Transport + Clone,
+	{
 		let mut server_time = link.server_time();
 		let phone_number_hint = link.phone_number_hint().to_owned();
 		let confirm_type = link.confirm_type();
@@ -120,21 +132,18 @@ where
 			Err(err) => {
 				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
 				eprintln!(
-				"Just in case, here is the account info. Save it somewhere just in case!\n{:#?}",
-				manager.get_account(&account_name).unwrap().lock().unwrap()
-			);
+					"Just in case, here is the account info. Save it somewhere just in case!\n{:#?}",
+					manager.get_account(&account_name).unwrap().lock().unwrap()
+				);
 				return Err(err);
 			}
 		}
-
 		let account_arc = manager
 			.get_account(&account_name)
 			.expect("account was not present in manifest");
 		let mut account = account_arc.lock().unwrap();
-
 		eprintln!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code.expose_secret());
 		tui::pause();
-
 		debug!("attempting link finalization");
 		let confirm_code = match confirm_type {
 			AccountLinkConfirmType::Email => {
@@ -155,7 +164,6 @@ where
 				bail!("Unknown link confirm type: {}", t);
 			}
 		};
-
 		let mut tries = 0;
 		loop {
 			match linker.finalize(server_time, &mut account, confirm_code.clone()) {
@@ -176,8 +184,7 @@ where
 			}
 		}
 		let revocation_code = account.revocation_code.clone();
-		drop(account); // explicitly drop the lock so we don't hang on the mutex
-
+		drop(account);
 		info!("Verifying authenticator status...");
 		let status =
 			linker.query_status(&manager.get_account(&account_name).unwrap().lock().unwrap())?;
@@ -190,7 +197,6 @@ where
 			manager.save()?;
 			bail!("Authenticator finalization was unsuccessful. You may have entered the wrong confirm code in the previous step. Try again.");
 		}
-
 		info!("Authenticator finalized.");
 		match manager.save() {
 			Ok(_) => {}
@@ -202,12 +208,10 @@ where
 				return Err(err);
 			}
 		}
-
 		eprintln!(
 			"Authenticator has been finalized. Please actually write down your revocation code: {}",
 			revocation_code.expose_secret()
 		);
-
 		Ok(())
 	}
 }
