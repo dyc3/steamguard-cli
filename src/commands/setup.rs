@@ -2,7 +2,7 @@ use log::*;
 use phonenumber::PhoneNumber;
 use secrecy::ExposeSecret;
 use steamguard::{
-	accountlinker::{AccountLinkConfirmType, AccountLinkSuccess},
+	accountlinker::{AccountLinkConfirmType, AccountLinkSuccess, RemoveAuthenticatorError},
 	phonelinker::PhoneLinker,
 	steamapi::PhoneClient,
 	token::Tokens,
