@@ -59,6 +59,49 @@ where
 					println!("Check your email and click the link.");
 					tui::pause();
 				}
+				Err(AccountLinkError::AuthenticatorPresent) => {
+					eprintln!("It looks like there's already an authenticator on this account. If you want to link it to steamguard-cli, you'll need to remove it first. If you remove it using your revocation code (R#####), you'll get a 15 day trade ban.");
+					eprintln!("However, you can \"transfer\" the authenticator to steamguard-cli if you still have access to the other authenticator. This will cause you to get only a 2 day trade ban.");
+					eprintln!("If you were using SDA or WinAuth, you can import it into steamguard-cli with the `import` command, and have no trade ban.");
+					eprintln!("You can't have the same authenticator on steamguard-cli and the steam mobile app at the same time.");
+
+					eprintln!("\nHere are your options:");
+					eprintln!("[T] Transfer authenticator to steamguard-cli (2 day trade ban)");
+					eprintln!("[R] Revoke authenticator with revocation code (15 day trade ban)");
+					eprintln!("[A] Abort setup");
+					let answer = tui::prompt_char("Select", "Tra");
+					match answer {
+						't' => todo!("not implemented"),
+						'r' => {
+							loop {
+								let revocation_code =
+									tui::prompt_non_empty("Enter your revocation code (R#####): ");
+								match linker.remove_authenticator(Some(&revocation_code)) {
+									Ok(_) => break,
+									Err(RemoveAuthenticatorError::IncorrectRevocationCode {
+										attempts_remaining,
+									}) => {
+										error!(
+											"Revocation code was incorrect ({} attempts remaining)",
+											attempts_remaining
+										);
+										if attempts_remaining == 0 {
+											error!("No attempts remaining, aborting!");
+											bail!("Failed to remove authenticator: no attempts remaining")
+										}
+									}
+									Err(err) => {
+										error!("Failed to remove authenticator: {}", err);
+									}
+								}
+							}
+						}
+						_ => {
+							info!("Aborting account linking.");
+							return Err(AccountLinkError::AuthenticatorPresent.into());
+						}
+					}
+				}
 				Err(err) => {
 					error!(
 						"Failed to link authenticator. Account has not been linked. {}",
