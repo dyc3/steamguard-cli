@@ -1,5 +1,7 @@
 use crate::protobufs::service_twofactor::{
 	CTwoFactor_AddAuthenticator_Request, CTwoFactor_FinalizeAddAuthenticator_Request,
+	CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Request,
+	CTwoFactor_RemoveAuthenticatorViaChallengeStart_Request,
 	CTwoFactor_RemoveAuthenticator_Request, CTwoFactor_Status_Request, CTwoFactor_Status_Response,
 };
 use crate::steamapi::twofactor::TwoFactorClient;
@@ -172,6 +174,63 @@ where
 
 		Ok(())
 	}
+
+	/// Begin the process of "transfering" a mobile authenticator from a different device to this device.
+	///
+	/// "Transfering" does not actually literally transfer the secrets from one device to another. Instead, it generates a new set of secrets on this device, and invalidates the old secrets on the other device. Call [`Self::transfer_finish`] to complete the process.
+	pub fn transfer_start(&mut self) -> Result<(), TransferError> {
+		let req = CTwoFactor_RemoveAuthenticatorViaChallengeStart_Request::new();
+		let resp = self
+			.client
+			.remove_authenticator_via_challenge_start(req, self.tokens().access_token())?;
+		if resp.result != EResult::OK {
+			return Err(resp.result.into());
+		}
+		// the success field in the response is always None, so we can't check that
+		// it appears to not be used at all
+		Ok(())
+	}
+
+	/// Completes the process of "transfering" a mobile authenticator from a different device to this device.
+	pub fn transfer_finish(
+		&mut self,
+		sms_code: impl AsRef<str>,
+	) -> Result<SteamGuardAccount, TransferError> {
+		let access_token = self.tokens.access_token();
+		let steam_id = access_token
+			.decode()
+			.context("decoding access token")?
+			.steam_id();
+		let mut req = CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Request::new();
+		req.set_sms_code(sms_code.as_ref().to_owned());
+		req.set_generate_new_token(true);
+		let resp = self
+			.client
+			.remove_authenticator_via_challenge_continue(req, access_token)?;
+		if resp.result != EResult::OK {
+			return Err(resp.result.into());
+		}
+		let resp = resp.into_response_data();
+		let mut resp = resp.replacement_token.clone().unwrap();
+		let account = SteamGuardAccount {
+			account_name: resp.take_account_name(),
+			steam_id,
+			serial_number: resp.serial_number().to_string(),
+			revocation_code: resp.take_revocation_code().into(),
+			uri: resp.take_uri().into(),
+			shared_secret: TwoFactorSecret::from_bytes(resp.take_shared_secret()),
+			token_gid: resp.take_token_gid(),
+			identity_secret: base64::engine::general_purpose::STANDARD
+				.encode(resp.take_identity_secret())
+				.into(),
+			device_id: self.device_id.clone(),
+			secret_1: base64::engine::general_purpose::STANDARD
+				.encode(resp.take_secret_1())
+				.into(),
+			tokens: Some(self.tokens.clone()),
+		};
+		Ok(account)
+	}
 }
 
 #[derive(Debug)]
@@ -301,5 +360,26 @@ pub enum RemoveAuthenticatorError {
 impl From<EResult> for RemoveAuthenticatorError {
 	fn from(e: EResult) -> Self {
 		Self::UnknownEResult(e)
+	}
+}
+
+#[derive(Error, Debug)]
+pub enum TransferError {
+	#[error("Provided SMS code was incorrect.")]
+	BadSmsCode,
+	#[error("Failed to send request to Steam: {0:?}")]
+	Transport(#[from] crate::transport::TransportError),
+	#[error("Steam returned an unexpected error code: {0:?}")]
+	UnknownEResult(EResult),
+	#[error(transparent)]
+	Unknown(#[from] anyhow::Error),
+}
+
+impl From<EResult> for TransferError {
+	fn from(result: EResult) -> Self {
+		match result {
+			EResult::SMSCodeFailed => TransferError::BadSmsCode,
+			r => TransferError::UnknownEResult(r),
+		}
 	}
 }

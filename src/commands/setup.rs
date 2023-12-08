@@ -2,7 +2,7 @@ use log::*;
 use phonenumber::PhoneNumber;
 use secrecy::ExposeSecret;
 use steamguard::{
-	accountlinker::{AccountLinkConfirmType, AccountLinkSuccess},
+	accountlinker::{AccountLinkConfirmType, AccountLinkSuccess, RemoveAuthenticatorError},
 	phonelinker::PhoneLinker,
 	steamapi::PhoneClient,
 	token::Tokens,
@@ -43,12 +43,10 @@ where
 
 		info!("Adding authenticator...");
 		let mut linker = AccountLinker::new(transport.clone(), tokens);
-		let link: AccountLinkSuccess;
 		loop {
 			match linker.link() {
-				Ok(a) => {
-					link = a;
-					break;
+				Ok(link) => {
+					return Self::add_new_account(link, manager, account_name, linker);
 				}
 				Err(AccountLinkError::MustProvidePhoneNumber) => {
 					// As of Dec 12, 2023, Steam no longer appears to require a phone number to add an authenticator. Keeping this code here just in case.
@@ -59,6 +57,49 @@ where
 					println!("Check your email and click the link.");
 					tui::pause();
 				}
+				Err(AccountLinkError::AuthenticatorPresent) => {
+					eprintln!("It looks like there's already an authenticator on this account. If you want to link it to steamguard-cli, you'll need to remove it first. If you remove it using your revocation code (R#####), you'll get a 15 day trade ban.");
+					eprintln!("However, you can \"transfer\" the authenticator to steamguard-cli if you have access to the phone number associated with your account. This will cause you to get only a 2 day trade ban.");
+					eprintln!("If you were using SDA or WinAuth, you can import it into steamguard-cli with the `import` command, and have no trade ban.");
+					eprintln!("You can't have the same authenticator on steamguard-cli and the steam mobile app at the same time.");
+
+					eprintln!("\nHere are your options:");
+					eprintln!("[T] Transfer authenticator to steamguard-cli (2 day trade ban)");
+					eprintln!("[R] Revoke authenticator with revocation code (15 day trade ban)");
+					eprintln!("[A] Abort setup");
+					let answer = tui::prompt_char("What would you like to do?", "Tra");
+					match answer {
+						't' => return Self::transfer_new_account(linker, manager),
+						'r' => {
+							loop {
+								let revocation_code =
+									tui::prompt_non_empty("Enter your revocation code (R#####): ");
+								match linker.remove_authenticator(Some(&revocation_code)) {
+									Ok(_) => break,
+									Err(RemoveAuthenticatorError::IncorrectRevocationCode {
+										attempts_remaining,
+									}) => {
+										error!(
+											"Revocation code was incorrect ({} attempts remaining)",
+											attempts_remaining
+										);
+										if attempts_remaining == 0 {
+											error!("No attempts remaining, aborting!");
+											bail!("Failed to remove authenticator: no attempts remaining")
+										}
+									}
+									Err(err) => {
+										error!("Failed to remove authenticator: {}", err);
+									}
+								}
+							}
+						}
+						_ => {
+							info!("Aborting account linking.");
+							return Err(AccountLinkError::AuthenticatorPresent.into());
+						}
+					}
+				}
 				Err(err) => {
 					error!(
 						"Failed to link authenticator. Account has not been linked. {}",
@@ -68,6 +109,20 @@ where
 				}
 			}
 		}
+	}
+}
+
+impl SetupCommand {
+	/// Add a new account to the manifest after linking has started.
+	fn add_new_account<T>(
+		link: AccountLinkSuccess,
+		manager: &mut AccountManager,
+		account_name: String,
+		mut linker: AccountLinker<T>,
+	) -> Result<(), anyhow::Error>
+	where
+		T: Transport + Clone,
+	{
 		let mut server_time = link.server_time();
 		let phone_number_hint = link.phone_number_hint().to_owned();
 		let confirm_type = link.confirm_type();
@@ -77,21 +132,18 @@ where
 			Err(err) => {
 				error!("Aborting the account linking process because we failed to save the manifest. This is really bad. Here is the error: {}", err);
 				eprintln!(
-				"Just in case, here is the account info. Save it somewhere just in case!\n{:#?}",
-				manager.get_account(&account_name).unwrap().lock().unwrap()
-			);
+					"Just in case, here is the account info. Save it somewhere just in case!\n{:#?}",
+					manager.get_account(&account_name).unwrap().lock().unwrap()
+				);
 				return Err(err);
 			}
 		}
-
 		let account_arc = manager
 			.get_account(&account_name)
 			.expect("account was not present in manifest");
 		let mut account = account_arc.lock().unwrap();
-
 		eprintln!("Authenticator has not yet been linked. Before continuing with finalization, please take the time to write down your revocation code: {}", account.revocation_code.expose_secret());
 		tui::pause();
-
 		debug!("attempting link finalization");
 		let confirm_code = match confirm_type {
 			AccountLinkConfirmType::Email => {
@@ -112,7 +164,6 @@ where
 				bail!("Unknown link confirm type: {}", t);
 			}
 		};
-
 		let mut tries = 0;
 		loop {
 			match linker.finalize(server_time, &mut account, confirm_code.clone()) {
@@ -133,8 +184,7 @@ where
 			}
 		}
 		let revocation_code = account.revocation_code.clone();
-		drop(account); // explicitly drop the lock so we don't hang on the mutex
-
+		drop(account);
 		info!("Verifying authenticator status...");
 		let status =
 			linker.query_status(&manager.get_account(&account_name).unwrap().lock().unwrap())?;
@@ -147,7 +197,6 @@ where
 			manager.save()?;
 			bail!("Authenticator finalization was unsuccessful. You may have entered the wrong confirm code in the previous step. Try again.");
 		}
-
 		info!("Authenticator finalized.");
 		match manager.save() {
 			Ok(_) => {}
@@ -159,12 +208,52 @@ where
 				return Err(err);
 			}
 		}
-
 		eprintln!(
 			"Authenticator has been finalized. Please actually write down your revocation code: {}",
 			revocation_code.expose_secret()
 		);
+		Ok(())
+	}
 
+	/// Transfer an existing authenticator to steamguard-cli.
+	fn transfer_new_account<T>(
+		mut linker: AccountLinker<T>,
+		manager: &mut AccountManager,
+	) -> anyhow::Result<()>
+	where
+		T: Transport + Clone,
+	{
+		info!("Transferring authenticator to steamguard-cli");
+		linker.transfer_start()?;
+
+		let account: SteamGuardAccount;
+		loop {
+			let sms_code = tui::prompt_non_empty("Enter SMS code: ");
+			match linker.transfer_finish(sms_code) {
+				Ok(acc) => {
+					account = acc;
+					break;
+				}
+				Err(err) => {
+					error!("Failed to transfer authenticator: {}", err);
+				}
+			}
+		}
+		info!("Transfer successful, adding account to manifest");
+		let revocation_code = account.revocation_code.clone();
+		eprintln!(
+			"Take a moment to write down your revocation code: {}",
+			revocation_code.expose_secret()
+		);
+
+		manager.add_account(account);
+
+		manager.save()?;
+
+		eprintln!(
+			"Make sure you have your revocation code written down: {}",
+			revocation_code.expose_secret()
+		);
 		Ok(())
 	}
 }
