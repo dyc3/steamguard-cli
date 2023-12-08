@@ -47,6 +47,7 @@ pub(crate) fn prompt_non_empty(prompt_text: impl AsRef<str>) -> String {
 /// Prompt the user for a single character response. Useful for asking yes or no questions.
 ///
 /// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.
+/// The selected character returned will always be lowercase.
 pub(crate) fn prompt_char(text: &str, chars: &str) -> char {
 	loop {
 		let _ = stderr().queue(Print(format!("{} [{}] ", text, chars)));
@@ -58,10 +59,7 @@ pub(crate) fn prompt_char(text: &str, chars: &str) -> char {
 	}
 }
 
-fn prompt_char_impl<T>(input: T, chars: &str) -> anyhow::Result<char>
-where
-	T: Into<String>,
-{
+fn prompt_char_impl(input: impl Into<String>, chars: &str) -> anyhow::Result<char> {
 	let uppers = chars.replace(char::is_lowercase, "");
 	if uppers.len() > 1 {
 		panic!("Invalid chars for prompt_char. Maximum 1 uppercase letter is allowed.");
