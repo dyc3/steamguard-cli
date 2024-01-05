@@ -371,6 +371,7 @@ impl Confirmation {
 #[repr(u32)]
 #[serde(from = "u32")]
 /// Source: <https://github.com/SteamDatabase/SteamTracking/blob/6e7797e69b714c59f4b5784780b24753c17732ba/Structs/enums.steamd#L1607-L1616>
+/// There are also some additional undocumented types.
 pub enum ConfirmationType {
 	Test = 1,
 	Trade = 2,
@@ -378,6 +379,8 @@ pub enum ConfirmationType {
 	FeatureOptOut = 4,
 	PhoneNumberChange = 5,
 	AccountRecovery = 6,
+	/// Occurs when a new web API key is created via https://steamcommunity.com/dev/apikey
+	ApiKeyCreation = 9,
 	Unknown(u32),
 }
 
