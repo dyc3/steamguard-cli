@@ -8,8 +8,6 @@ keywords = ["steam", "2fa", "steamguard", "authentication"]
 repository = "https://github.com/dyc3/steamguard-cli/tree/master/steamguard"
 license = "MIT OR Apache-2.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 anyhow = "^1.0"
 sha1 = "^0.10"
