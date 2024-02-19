@@ -319,6 +319,8 @@ impl From<ExternalAccount> for SteamGuardAccount {
 
 #[cfg(test)]
 mod tests {
+	use tempfile::TempDir;
+
 	use crate::{accountmanager::CURRENT_MANIFEST_VERSION, AccountManager};
 
 	use super::*;
@@ -477,7 +479,7 @@ mod tests {
 		];
 		for case in cases {
 			eprintln!("testing: {:?}", case);
-			let temp = tempdir::TempDir::new("steamguard-cli-test")?;
+			let temp = TempDir::new()?;
 			for file in std::fs::read_dir(case.dir)? {
 				let file = file?;
 				let path = file.path();

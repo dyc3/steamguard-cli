@@ -470,11 +470,11 @@ pub enum ManifestAccountImportError {
 mod tests {
 	use super::*;
 	use steamguard::ExposeSecret;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	#[test]
 	fn test_should_save_new_manifest() {
-		let tmp_dir = TempDir::new("steamguard-cli-test").unwrap();
+		let tmp_dir = TempDir::new().unwrap();
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let manager = AccountManager::new(manifest_path.as_path());
 		assert!(manager.save().is_ok());
@@ -482,7 +482,7 @@ mod tests {
 
 	#[test]
 	fn test_should_save_and_load_manifest() -> anyhow::Result<()> {
-		let tmp_dir = TempDir::new("steamguard-cli-test")?;
+		let tmp_dir = TempDir::new()?;
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		println!("tempdir: {}", manifest_path.display());
 		let mut manager = AccountManager::new(manifest_path.as_path());
@@ -518,7 +518,7 @@ mod tests {
 	#[test]
 	fn test_should_save_and_load_manifest_encrypted() -> anyhow::Result<()> {
 		let passkey = Some(SecretString::new("password".into()));
-		let tmp_dir = TempDir::new("steamguard-cli-test")?;
+		let tmp_dir = TempDir::new()?;
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let mut manager = AccountManager::new(manifest_path.as_path());
 		let mut account = SteamGuardAccount::new();
@@ -567,7 +567,7 @@ mod tests {
 	#[test]
 	fn test_should_save_and_load_manifest_encrypted_longer() -> anyhow::Result<()> {
 		let passkey = Some(SecretString::new("password".into()));
-		let tmp_dir = TempDir::new("steamguard-cli-test")?;
+		let tmp_dir = TempDir::new()?;
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let mut manager = AccountManager::new(manifest_path.as_path());
 		let mut account = SteamGuardAccount::new();
@@ -614,7 +614,7 @@ mod tests {
 
 	#[test]
 	fn test_should_import() -> anyhow::Result<()> {
-		let tmp_dir = TempDir::new("steamguard-cli-test")?;
+		let tmp_dir = TempDir::new()?;
 		let manifest_path = tmp_dir.path().join("manifest.json");
 		let mut manager = AccountManager::new(manifest_path.as_path());
 		let mut account = SteamGuardAccount::new();
