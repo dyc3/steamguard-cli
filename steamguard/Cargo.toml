@@ -14,7 +14,14 @@ license = "MIT OR Apache-2.0"
 anyhow = "^1.0"
 sha1 = "^0.10"
 base64 = "^0.21"
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "cookies", "gzip", "rustls-tls", "multipart"] }
+reqwest = { version = "0.11", default-features = false, features = [
+	"blocking",
+	"json",
+	"cookies",
+	"gzip",
+	"rustls-tls",
+	"multipart",
+] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rsa = "0.9.2"
@@ -36,6 +43,7 @@ phonenumber = "0.3"
 serde_path_to_error = "0.1.11"
 hmac = "^0.12"
 sha2 = "^0.10"
+num_enum = "0.7.2"
 
 [build-dependencies]
 anyhow = "^1.0"
