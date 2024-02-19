@@ -367,35 +367,25 @@ impl Confirmation {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, num_enum::FromPrimitive)]
 #[repr(u32)]
 #[serde(from = "u32")]
-/// Source: <https://github.com/SteamDatabase/SteamTracking/blob/6e7797e69b714c59f4b5784780b24753c17732ba/Structs/enums.steamd#L1607-L1616>
+/// Source: https://github.com/SteamDatabase/SteamTracking/blob/6e7797e69b714c59f4b5784780b24753c17732ba/Structs/enums.steamd#L1607-L1616
 /// There are also some additional undocumented types.
 pub enum ConfirmationType {
 	Test = 1,
+	/// Occurs when sending a trade offer or accepting a received trade offer, only when there is items on the user's side
 	Trade = 2,
+	/// Occurs when selling an item on the Steam community market
 	MarketSell = 3,
 	FeatureOptOut = 4,
+	/// Occurs when changing the phone number associated with the account
 	PhoneNumberChange = 5,
 	AccountRecovery = 6,
 	/// Occurs when a new web API key is created via https://steamcommunity.com/dev/apikey
 	ApiKeyCreation = 9,
+	#[num_enum(catch_all)]
 	Unknown(u32),
-}
-
-impl From<u32> for ConfirmationType {
-	fn from(text: u32) -> Self {
-		match text {
-			1 => ConfirmationType::Test,
-			2 => ConfirmationType::Trade,
-			3 => ConfirmationType::MarketSell,
-			4 => ConfirmationType::FeatureOptOut,
-			5 => ConfirmationType::PhoneNumberChange,
-			6 => ConfirmationType::AccountRecovery,
-			v => ConfirmationType::Unknown(v),
-		}
-	}
 }
 
 #[derive(Debug, Deserialize)]
