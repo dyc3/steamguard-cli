@@ -86,7 +86,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		Subcommands::Import(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Encrypt(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Decrypt(args) => CommandType::Manifest(Box::new(args)),
-		Subcommands::Trade(args) => CommandType::Account(Box::new(args)),
+		Subcommands::Confirm(args) => CommandType::Account(Box::new(args)),
 		Subcommands::Remove(args) => CommandType::Account(Box::new(args)),
 		Subcommands::Code(args) => CommandType::Account(Box::new(args)),
 		#[cfg(feature = "qr")]

@@ -9,12 +9,12 @@ use crate::{tui, AccountManager};
 use super::*;
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Interactive interface for trade confirmations")]
-pub struct TradeCommand {
+#[clap(about = "Interactive interface for steam mobile confirmations")]
+pub struct ConfirmCommand {
 	#[clap(
 		short,
 		long,
-		help = "Accept all open trade confirmations. Does not open interactive interface."
+		help = "Accept all open mobile confirmations. Does not open interactive interface."
 	)]
 	pub accept_all: bool,
 	#[clap(
@@ -25,7 +25,7 @@ pub struct TradeCommand {
 	pub fail_fast: bool,
 }
 
-impl<T> AccountCommand<T> for TradeCommand
+impl<T> AccountCommand<T> for ConfirmCommand
 where
 	T: Transport + Clone,
 {
@@ -44,12 +44,12 @@ where
 				crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 			}
 
-			info!("{}: Checking for trade confirmations", account.account_name);
+			info!("{}: Checking for confirmations", account.account_name);
 			let confirmations: Vec<Confirmation>;
 			loop {
 				let confirmer = Confirmer::new(transport.clone(), &account);
 
-				match confirmer.get_trade_confirmations() {
+				match confirmer.get_confirmations() {
 					Ok(confs) => {
 						confirmations = confs;
 						break;
@@ -59,7 +59,7 @@ where
 						crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 					}
 					Err(err) => {
-						error!("Failed to get trade confirmations: {}", err);
+						error!("Failed to get confirmations: {}", err);
 						return Err(err.into());
 					}
 				}

@@ -3,7 +3,7 @@
 [![Lint, Build, Test](https://github.com/dyc3/steamguard-cli/actions/workflows/rust.yml/badge.svg)](https://github.com/dyc3/steamguard-cli/actions/workflows/rust.yml)
 [![AUR Tester](https://github.com/dyc3/steamguard-cli/actions/workflows/aur-checker.yml/badge.svg)](https://github.com/dyc3/steamguard-cli/actions/workflows/aur-checker.yml)
 
-A command line utility for setting up and using Steam Mobile Authenticator (AKA Steam 2FA). It can also be used to respond to trade and market confirmations.
+A command line utility for setting up and using Steam Mobile Authenticator (AKA Steam 2FA). It can also be used to respond to trade, market, and any other steam mobile confirmations that you would normally get in the app.
 
 **The only legitimate place to download steamguard-cli binaries is through this repo's releases, or by any package manager that is linked in this document.**
 
