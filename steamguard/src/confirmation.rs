@@ -82,7 +82,7 @@ where
 		cookies
 	}
 
-	pub fn get_trade_confirmations(&self) -> Result<Vec<Confirmation>, ConfirmerError> {
+	pub fn get_confirmations(&self) -> Result<Vec<Confirmation>, ConfirmerError> {
 		let cookies = self.build_cookie_jar();
 		let client = self.transport.innner_http_client()?;
 

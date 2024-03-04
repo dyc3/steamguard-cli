@@ -10,6 +10,7 @@ use crate::AccountManager;
 
 pub mod code;
 pub mod completions;
+pub mod confirm;
 pub mod debug;
 pub mod decrypt;
 pub mod encrypt;
@@ -19,10 +20,10 @@ pub mod qr;
 pub mod qr_login;
 pub mod remove;
 pub mod setup;
-pub mod trade;
 
 pub use code::CodeCommand;
 pub use completions::CompletionsCommand;
+pub use confirm::ConfirmCommand;
 pub use debug::DebugCommand;
 pub use decrypt::DecryptCommand;
 pub use encrypt::EncryptCommand;
@@ -32,7 +33,6 @@ pub use qr::QrCommand;
 pub use qr_login::QrLoginCommand;
 pub use remove::RemoveCommand;
 pub use setup::SetupCommand;
-pub use trade::TradeCommand;
 
 /// A command that does not operate on the manifest or individual accounts.
 pub(crate) trait ConstCommand {
@@ -166,7 +166,8 @@ pub(crate) enum Subcommands {
 	Completion(CompletionsCommand),
 	Setup(SetupCommand),
 	Import(ImportCommand),
-	Trade(TradeCommand),
+	#[clap(alias = "trade")]
+	Confirm(ConfirmCommand),
 	Remove(RemoveCommand),
 	Encrypt(EncryptCommand),
 	Decrypt(DecryptCommand),
