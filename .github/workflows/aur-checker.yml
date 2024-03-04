@@ -5,6 +5,7 @@ on:
     - cron: "32 5 */3 * *"
   push:
     branches: [ master, main ]
+  workflow_dispatch:
 
 jobs:
   test-install:
