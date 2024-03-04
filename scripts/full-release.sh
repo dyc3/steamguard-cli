@@ -54,20 +54,7 @@ This will do everything needed to release a new version:
 """
 
 echo "Previewing changes..."
-cargo smart-release --update-crates-index --no-changelog --no-tag --no-push --no-publish
-
-if [ "$DRY_RUN" = true ]; then
-	echo "This is a dry run, nothing will be done. Artifacts will be built, but not published. Use --execute to do it for real."
-else
-	echo "This is not a dry run. This is the real deal!"
-fi
-echo "Press any key to continue..."
-read -n 1 -s -r
-
 params=()
-if [[ $DRY_RUN == false ]]; then
-	params+=(--execute)
-fi
 if [[ $BUMP != "" ]]; then
 	params+=(--bump "$BUMP")
 	params+=(--bump-dependencies "$BUMP")
@@ -77,6 +64,20 @@ if [[ $SKIP_CRATE_PUBLISH == true ]]; then
 fi
 if [[ $ALLOW_DIRTY == true ]]; then
   params+=(--allow-dirty)
+fi
+cargo smart-release --update-crates-index --no-changelog --no-tag --no-push --no-publish "${params[@]}"
+
+if [ "$DRY_RUN" = true ]; then
+	echo "This is a dry run, nothing will be done. Artifacts will be built, but not published. Use --execute to do it for real."
+else
+	echo "This is not a dry run. This is the real deal!"
+fi
+echo "Press any key to continue..."
+read -n 1 -s -r
+
+
+if [[ $DRY_RUN == false ]]; then
+	params+=(--execute)
 fi
 cargo smart-release --update-crates-index --no-changelog --no-tag --no-push --no-publish "${params[@]}"
 
