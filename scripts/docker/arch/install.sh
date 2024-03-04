@@ -2,4 +2,5 @@
 
 PACKAGE="$1"
 echo "Installing $PACKAGE"
-sudo -u ab -D~ bash -c "yay -Syu --removemake --needed --noprogressbar --noconfirm $PACKAGE"
+# sudo -u ab -D~ bash -c "aur-install $PACKAGE"
+aur-install "$PACKAGE"
