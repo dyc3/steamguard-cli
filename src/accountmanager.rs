@@ -339,8 +339,9 @@ impl AccountManager {
 			debug!("Adding missing account names");
 			for i in 0..self.manifest.entries.len() {
 				let account = self.load_account_by_entry(&self.manifest.entries[i].clone())?;
-				self.manifest.entries[i].account_name =
-					account.lock().unwrap().account_name.clone();
+				self.manifest.entries[i]
+					.account_name
+					.clone_from(&account.lock().unwrap().account_name);
 			}
 			upgraded = true;
 		}
