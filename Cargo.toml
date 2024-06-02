@@ -52,7 +52,7 @@ regex = "1"
 lazy_static = "1.4.0"
 uuid = { version = "1.8", features = ["v4"] }
 steamguard = { version = "^0.13.0", path = "./steamguard" }
-dirs = "3.0.2"
+dirs = "5.0.1"
 aes = { version = "0.8.3", features = ["zeroize"] }
 thiserror = "1.0.61"
 crossterm = { version = "0.23.2", features = ["event-stream"] }
