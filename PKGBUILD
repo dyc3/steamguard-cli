@@ -12,6 +12,7 @@ license=('GPL3')
 makedepends=('rust' 'cargo' 'git')
 source=("git+https://github.com/dyc3/steamguard-cli.git")
 sha256sums=('SKIP')
+options=(!lto)
 
 pkgver() {
     cd "${srcdir}/${_pkgname}"
