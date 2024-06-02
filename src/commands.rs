@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use clap::{clap_derive::ArgEnum, Parser};
+use clap::{Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use secrecy::SecretString;
 use std::str::FromStr;
@@ -127,7 +127,7 @@ pub(crate) struct GlobalArgs {
 		help = "Specify your encryption passkey."
 	)]
 	pub passkey: Option<SecretString>,
-	#[clap(short, long, arg_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
+	#[clap(short, long, value_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
 	pub verbosity: Verbosity,
 
 	#[cfg(feature = "updater")]
@@ -160,7 +160,7 @@ pub(crate) struct GlobalArgs {
 	pub danger_accept_invalid_certs: bool,
 }
 
-#[derive(Debug, Clone, Parser)]
+#[derive(Debug, Clone, Subcommand)]
 pub(crate) enum Subcommands {
 	Debug(DebugCommand),
 	Completion(CompletionsCommand),
@@ -177,7 +177,7 @@ pub(crate) enum Subcommands {
 	QrLogin(QrLoginCommand),
 }
 
-#[derive(Debug, Clone, Copy, ArgEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum Verbosity {
 	Error = 0,
 	Warn = 1,
@@ -221,5 +221,16 @@ impl FromStr for Verbosity {
 impl From<Args> for CodeCommand {
 	fn from(args: Args) -> Self {
 		args.code
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn verify_cli() {
+		use clap::CommandFactory;
+		Args::command().debug_assert()
 	}
 }
