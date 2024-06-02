@@ -5,7 +5,12 @@ use super::*;
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Generate shell completions")]
 pub struct CompletionsCommand {
-	#[clap(short, long, arg_enum, help = "The shell to generate completions for.")]
+	#[clap(
+		short,
+		long,
+		value_enum,
+		help = "The shell to generate completions for."
+	)]
 	pub shell: Shell,
 }
 

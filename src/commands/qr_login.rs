@@ -33,11 +33,6 @@ where
 			accounts.len() == 1,
 			"You can only log in to one account at a time."
 		);
-		// FIXME: in clap v4, this constraint can be expressed as a arg group: https://stackoverflow.com/questions/76315540/how-do-i-require-one-of-the-two-clap-options
-		ensure!(
-			self.login_url_source.url.is_some() || self.login_url_source.image.is_some(),
-			"You must provide either a URL with --url or an image file with --image."
-		);
 
 		let mut account = accounts[0].lock().unwrap();
 
@@ -80,6 +75,7 @@ where
 }
 
 #[derive(Debug, Clone, clap::Args)]
+#[group(required = true, multiple = false)]
 pub struct LoginUrlSource {
 	/// The URL that would normally open in the Steam app. This is the URL that the QR code is displaying. It should start with \"https://s.team/...\"
 	#[clap(long)]
