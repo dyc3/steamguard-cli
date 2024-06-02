@@ -47,7 +47,7 @@ clap = { version = "4.5.4", features = ["derive", "cargo", "env"] }
 clap_complete = "4.5.2"
 log = "0.4.19"
 stderrlog = "0.6"
-cookie = "0.14"
+cookie = "0.18"
 regex = "1"
 lazy_static = "1.4.0"
 uuid = { version = "1.8", features = ["v4"] }

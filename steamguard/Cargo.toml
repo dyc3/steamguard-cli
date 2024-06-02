@@ -24,7 +24,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rsa = "0.9.2"
 rand = "0.8.4"
-cookie = "0.14"
+cookie = "0.18"
 regex = "1"
 lazy_static = "1.4.0"
 uuid = { version = "1.8", features = ["v4"] }
