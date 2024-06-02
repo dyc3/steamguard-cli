@@ -377,6 +377,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "604178f6c5c21f02dc555784810edfb88d34ac2c73b2eae109655649ee73ce3d"
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2853,7 +2859,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cde824a14b7c14f85caff81225f411faacc04a2013f41670f41443742b1c1c55"
 dependencies = [
  "async-compression",
- "base64",
+ "base64 0.21.2",
  "bytes",
  "cookie 0.16.2",
  "cookie_store",
@@ -3039,7 +3045,7 @@ version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d3987094b1d07b653b7dfdc3f70ce9a1da9c51ac18c1b06b662e4f9a0e9f4b2"
 dependencies = [
- "base64",
+ "base64 0.21.2",
 ]
 
 [[package]]
@@ -3520,7 +3526,7 @@ name = "steamguard"
 version = "0.13.0"
 dependencies = [
  "anyhow",
- "base64",
+ "base64 0.22.1",
  "cookie 0.14.4",
  "hmac",
  "lazy_static",
@@ -3542,7 +3548,6 @@ dependencies = [
  "serde_path_to_error",
  "sha1 0.10.5",
  "sha2",
- "standback",
  "thiserror",
  "uuid",
  "zeroize",
@@ -3555,7 +3560,7 @@ dependencies = [
  "aes 0.8.3",
  "anyhow",
  "argon2",
- "base64",
+ "base64 0.22.1",
  "cbc",
  "clap",
  "clap_complete",
@@ -3584,7 +3589,6 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "sha1 0.10.5",
- "standback",
  "stderrlog",
  "steamguard",
  "tempfile",
