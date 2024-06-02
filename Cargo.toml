@@ -32,7 +32,7 @@ anyhow = "^1.0"
 base64 = "0.22.1"
 text_io = "0.1.8"
 rpassword = "7.2.0"
-reqwest = { version = "0.11", default-features = false, features = [
+reqwest = { version = "0.12", default-features = false, features = [
 	"blocking",
 	"json",
 	"cookies",
@@ -47,16 +47,16 @@ clap = { version = "4.5.4", features = ["derive", "cargo", "env"] }
 clap_complete = "4.5.2"
 log = "0.4.19"
 stderrlog = "0.6"
-cookie = "0.14"
+cookie = "0.18"
 regex = "1"
 lazy_static = "1.4.0"
-uuid = { version = "0.8", features = ["v4"] }
+uuid = { version = "1.8", features = ["v4"] }
 steamguard = { version = "^0.13.0", path = "./steamguard" }
-dirs = "3.0.2"
+dirs = "5.0.1"
 aes = { version = "0.8.3", features = ["zeroize"] }
 thiserror = "1.0.61"
 crossterm = { version = "0.23.2", features = ["event-stream"] }
-qrcode = { version = "0.12.0", optional = true }
+qrcode = { version = "0.14.0", optional = true }
 gethostname = "0.4.3"
 secrecy = { version = "0.8", features = ["serde"] }
 zeroize = { version = "^1.6.0", features = ["std", "zeroize_derive"] }
