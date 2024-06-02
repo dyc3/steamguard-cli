@@ -56,7 +56,7 @@ dirs = "3.0.2"
 aes = { version = "0.8.3", features = ["zeroize"] }
 thiserror = "1.0.61"
 crossterm = { version = "0.23.2", features = ["event-stream"] }
-qrcode = { version = "0.12.0", optional = true }
+qrcode = { version = "0.14.0", optional = true }
 gethostname = "0.4.3"
 secrecy = { version = "0.8", features = ["serde"] }
 zeroize = { version = "^1.6.0", features = ["std", "zeroize_derive"] }
