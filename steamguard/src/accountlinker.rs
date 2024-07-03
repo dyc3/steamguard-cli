@@ -137,10 +137,7 @@ where
 		let mut req = CTwoFactor_Status_Request::new();
 		req.set_steamid(account.steam_id);
 
-		let resp = self
-			.client
-			.query_status(req, self.tokens.access_token())
-			.unwrap();
+		let resp = self.client.query_status(req, self.tokens.access_token())?;
 
 		Ok(resp.into_response_data())
 	}
