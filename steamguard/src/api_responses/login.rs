@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct OAuthData {
 	pub oauth_token: String,
 	pub steamid: String,
