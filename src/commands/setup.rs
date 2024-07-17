@@ -193,6 +193,7 @@ impl SetupCommand {
 				"authenticator state: {} -- did not actually finalize",
 				status.state()
 			);
+			debug!("full status: {:#?}", status);
 			manager.remove_account(&account_name);
 			manager.save()?;
 			bail!("Authenticator finalization was unsuccessful. You may have entered the wrong confirm code in the previous step. Try again.");
