@@ -381,6 +381,7 @@ pub enum ConfirmationType {
 	FeatureOptOut = 4,
 	/// Occurs when changing the phone number associated with the account
 	PhoneNumberChange = 5,
+	/// Occurs when removing a phone number
 	AccountRecovery = 6,
 	/// Occurs when a new web API key is created via https://steamcommunity.com/dev/apikey
 	ApiKeyCreation = 9,
