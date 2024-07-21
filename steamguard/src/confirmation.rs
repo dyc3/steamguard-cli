@@ -384,6 +384,10 @@ pub enum ConfirmationType {
 	AccountRecovery = 6,
 	/// Occurs when a new web API key is created via https://steamcommunity.com/dev/apikey
 	ApiKeyCreation = 9,
+	/// Occurs when a user is invited to join a Steam Family, and they have accepted the invitation. This is not used for accepting the initial invitation, just to confirm the acceptance.
+	///
+	/// Triggered upon accepting invitation here: https://store.steampowered.com/account/familymanagement
+	JoinSteamFamily = 11,
 	#[num_enum(catch_all)]
 	Unknown(u32),
 }
