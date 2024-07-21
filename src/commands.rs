@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use secrecy::SecretString;
+use status::StatusCommand;
 use std::str::FromStr;
 use steamguard::{transport::Transport, SteamGuardAccount};
 
@@ -20,6 +21,7 @@ pub mod qr;
 pub mod qr_login;
 pub mod remove;
 pub mod setup;
+pub mod status;
 
 pub use code::CodeCommand;
 pub use completions::CompletionsCommand;
@@ -175,6 +177,7 @@ pub(crate) enum Subcommands {
 	#[cfg(feature = "qr")]
 	Qr(QrCommand),
 	QrLogin(QrLoginCommand),
+	Status(StatusCommand),
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

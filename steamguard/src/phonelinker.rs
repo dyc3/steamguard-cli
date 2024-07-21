@@ -23,7 +23,7 @@ where
 		Self { client, tokens }
 	}
 
-	/// If successful, wait for the user to click the link in the email, then immediately call [`send_phone_verification_code`].
+	/// If successful, wait for the user to click the link in the email, then immediately call [`Self::send_phone_verification_code`].
 	pub fn set_account_phone_number(
 		&self,
 		phone_number: PhoneNumber,

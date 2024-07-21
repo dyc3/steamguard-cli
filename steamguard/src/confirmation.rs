@@ -370,7 +370,7 @@ impl Confirmation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, num_enum::FromPrimitive)]
 #[repr(u32)]
 #[serde(from = "u32")]
-/// Source: https://github.com/SteamDatabase/SteamTracking/blob/6e7797e69b714c59f4b5784780b24753c17732ba/Structs/enums.steamd#L1607-L1616
+/// Source: <https://github.com/SteamDatabase/SteamTracking/blob/6e7797e69b714c59f4b5784780b24753c17732ba/Structs/enums.steamd#L1607-L1616>
 /// There are also some additional undocumented types.
 pub enum ConfirmationType {
 	Test = 1,
@@ -383,11 +383,11 @@ pub enum ConfirmationType {
 	PhoneNumberChange = 5,
 	/// Occurs when removing a phone number
 	AccountRecovery = 6,
-	/// Occurs when a new web API key is created via https://steamcommunity.com/dev/apikey
+	/// Occurs when a new web API key is created via <https://steamcommunity.com/dev/apikey>
 	ApiKeyCreation = 9,
 	/// Occurs when a user is invited to join a Steam Family, and they have accepted the invitation. This is not used for accepting the initial invitation, just to confirm the acceptance.
 	///
-	/// Triggered upon accepting invitation here: https://store.steampowered.com/account/familymanagement
+	/// Triggered upon accepting invitation here: <https://store.steampowered.com/account/familymanagement>
 	JoinSteamFamily = 11,
 	#[num_enum(catch_all)]
 	Unknown(u32),
