@@ -112,7 +112,7 @@ where
 		&self,
 		req: CTwoFactor_Status_Request,
 		access_token: &Jwt,
-	) -> anyhow::Result<ApiResponse<CTwoFactor_Status_Response>> {
+	) -> Result<ApiResponse<CTwoFactor_Status_Response>, TransportError> {
 		let req =
 			ApiRequest::new(SERVICE_NAME, "QueryStatus", 1, req).with_access_token(access_token);
 		let resp = self
@@ -121,7 +121,7 @@ where
 		Ok(resp)
 	}
 
-	pub fn query_time(&self) -> anyhow::Result<ApiResponse<CTwoFactor_Time_Response>> {
+	pub fn query_time(&self) -> Result<ApiResponse<CTwoFactor_Time_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "QueryTime", 1, CTwoFactor_Time_Request::new());
 		let resp = self
 			.transport

@@ -92,6 +92,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		#[cfg(feature = "qr")]
 		Subcommands::Qr(args) => CommandType::Account(Box::new(args)),
 		Subcommands::QrLogin(args) => CommandType::Account(Box::new(args)),
+		Subcommands::Status(args) => CommandType::Account(Box::new(args)),
 	};
 
 	if let CommandType::Const(cmd) = cmd {
