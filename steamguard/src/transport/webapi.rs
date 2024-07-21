@@ -20,7 +20,7 @@ impl Transport for WebApiTransport {
 	fn send_request<Req: BuildableRequest + MessageFull, Res: MessageFull>(
 		&self,
 		apireq: ApiRequest<Req>,
-	) -> anyhow::Result<ApiResponse<Res>, TransportError> {
+	) -> Result<ApiResponse<Res>, TransportError> {
 		// All the API endpoints accept 2 data formats: json and protobuf.
 		// Depending on the http method for the request, the data can go in 2 places:
 		// - GET: query string, with the key `input_protobuf_encoded` or `input_json`

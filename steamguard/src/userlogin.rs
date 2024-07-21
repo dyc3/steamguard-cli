@@ -17,7 +17,7 @@ use crate::refresher::TokenRefresher;
 use crate::steamapi::authentication::AuthenticationClient;
 use crate::steamapi::EResult;
 use crate::token::Tokens;
-use crate::transport::Transport;
+use crate::transport::{Transport, TransportError};
 use anyhow::Context;
 use base64::Engine;
 use log::*;
@@ -30,6 +30,7 @@ pub enum LoginError {
 	TooManyAttempts,
 	UnknownEResult(EResult),
 	AuthAlreadyStarted,
+	TransportError(TransportError),
 	NetworkFailure(reqwest::Error),
 	OtherFailure(anyhow::Error),
 }
@@ -41,6 +42,12 @@ impl std::fmt::Display for LoginError {
 }
 
 impl std::error::Error for LoginError {}
+
+impl From<TransportError> for LoginError {
+	fn from(err: TransportError) -> Self {
+		LoginError::TransportError(err)
+	}
+}
 
 impl From<reqwest::Error> for LoginError {
 	fn from(err: reqwest::Error) -> Self {
@@ -108,7 +115,7 @@ where
 		&mut self,
 		account_name: &str,
 		password: &str,
-	) -> anyhow::Result<Vec<AllowedConfirmation>, LoginError> {
+	) -> Result<Vec<AllowedConfirmation>, LoginError> {
 		if self.started_auth.is_some() {
 			return Err(LoginError::AuthAlreadyStarted);
 		}
@@ -146,7 +153,7 @@ where
 			.collect())
 	}
 
-	pub fn begin_auth_via_qr(&mut self) -> anyhow::Result<BeginQrLoginResponse, LoginError> {
+	pub fn begin_auth_via_qr(&mut self) -> Result<BeginQrLoginResponse, LoginError> {
 		if self.started_auth.is_some() {
 			return Err(LoginError::AuthAlreadyStarted);
 		}
@@ -248,10 +255,8 @@ where
 		&mut self,
 		guard_type: EAuthSessionGuardType,
 		code: String,
-	) -> anyhow::Result<
-		CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response,
-		UpdateAuthSessionError,
-	> {
+	) -> Result<CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response, UpdateAuthSessionError>
+	{
 		let Some(started_auth) = self.started_auth.as_ref() else {
 			return Err(UpdateAuthSessionError::SessionNotStarted);
 		};
@@ -387,6 +392,7 @@ pub enum UpdateAuthSessionError {
 	SessionExpired,
 	IncorrectSteamGuardCode,
 	UnknownEResult(EResult),
+	TransportError(TransportError),
 	NetworkFailure(reqwest::Error),
 	OtherFailure(anyhow::Error),
 }
@@ -407,6 +413,12 @@ impl From<EResult> for UpdateAuthSessionError {
 			EResult::TwoFactorCodeMismatch => UpdateAuthSessionError::IncorrectSteamGuardCode,
 			_ => UpdateAuthSessionError::UnknownEResult(err),
 		}
+	}
+}
+
+impl From<TransportError> for UpdateAuthSessionError {
+	fn from(err: TransportError) -> Self {
+		UpdateAuthSessionError::TransportError(err)
 	}
 }
 

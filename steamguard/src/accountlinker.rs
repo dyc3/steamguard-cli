@@ -43,7 +43,7 @@ where
 		&self.tokens
 	}
 
-	pub fn link(&mut self) -> anyhow::Result<AccountLinkSuccess, AccountLinkError> {
+	pub fn link(&mut self) -> Result<AccountLinkSuccess, AccountLinkError> {
 		let access_token = self.tokens.access_token();
 		let steam_id = access_token
 			.decode()
@@ -99,7 +99,7 @@ where
 		time: u64,
 		account: &mut SteamGuardAccount,
 		confirm_code: String,
-	) -> anyhow::Result<(), FinalizeLinkError> {
+	) -> Result<(), FinalizeLinkError> {
 		let code = account.generate_code(time);
 
 		let token = self.tokens.access_token();
@@ -133,7 +133,7 @@ where
 	pub fn query_status(
 		&self,
 		account: &SteamGuardAccount,
-	) -> anyhow::Result<CTwoFactor_Status_Response> {
+	) -> Result<CTwoFactor_Status_Response, TransportError> {
 		let mut req = CTwoFactor_Status_Request::new();
 		req.set_steamid(account.steam_id);
 
@@ -327,6 +327,8 @@ pub enum FinalizeLinkError {
 	WantMore { server_time: u64 },
 	#[error("Steam returned an unexpected error code: {0:?}")]
 	UnknownEResult(EResult),
+	#[error("Transport error: {0}")]
+	TransportError(#[from] TransportError),
 	#[error(transparent)]
 	Unknown(#[from] anyhow::Error),
 }

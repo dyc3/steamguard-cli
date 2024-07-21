@@ -31,7 +31,8 @@ where
 	pub fn begin_auth_session_via_credentials(
 		&mut self,
 		req: CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
-	) -> anyhow::Result<ApiResponse<CAuthentication_BeginAuthSessionViaCredentials_Response>> {
+	) -> Result<ApiResponse<CAuthentication_BeginAuthSessionViaCredentials_Response>, TransportError>
+	{
 		let req = ApiRequest::new(SERVICE_NAME, "BeginAuthSessionViaCredentials", 1u32, req);
 		let resp = self.transport.send_request::<
 			CAuthentication_BeginAuthSessionViaCredentials_Request_BinaryGuardData,
@@ -42,7 +43,7 @@ where
 	pub fn begin_auth_session_via_qr(
 		&mut self,
 		req: CAuthentication_BeginAuthSessionViaQR_Request,
-	) -> anyhow::Result<ApiResponse<CAuthentication_BeginAuthSessionViaQR_Response>> {
+	) -> Result<ApiResponse<CAuthentication_BeginAuthSessionViaQR_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "BeginAuthSessionViaQR", 1u32, req);
 		let resp = self
 			.transport
@@ -56,7 +57,7 @@ where
 		&mut self,
 		req: CAuthentication_AccessToken_GenerateForApp_Request,
 		access_token: &Jwt,
-	) -> anyhow::Result<ApiResponse<CAuthentication_AccessToken_GenerateForApp_Response>> {
+	) -> Result<ApiResponse<CAuthentication_AccessToken_GenerateForApp_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "GenerateAccessTokenForApp", 1u32, req)
 			.with_access_token(access_token);
 		let resp = self
@@ -70,7 +71,7 @@ where
 	pub fn fetch_rsa_key(
 		&mut self,
 		account_name: String,
-	) -> anyhow::Result<ApiResponse<CAuthentication_GetPasswordRSAPublicKey_Response>> {
+	) -> Result<ApiResponse<CAuthentication_GetPasswordRSAPublicKey_Response>, TransportError> {
 		let mut inner = CAuthentication_GetPasswordRSAPublicKey_Request::new();
 		inner.set_account_name(account_name);
 		let req = ApiRequest::new(SERVICE_NAME, "GetPasswordRSAPublicKey", 1u32, inner);
@@ -86,7 +87,7 @@ where
 	pub fn migrate_mobile_session(
 		&mut self,
 		req: CAuthentication_MigrateMobileSession_Request,
-	) -> anyhow::Result<ApiResponse<CAuthentication_MigrateMobileSession_Response>> {
+	) -> Result<ApiResponse<CAuthentication_MigrateMobileSession_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "MigrateMobileSession", 1u32, req);
 		let resp = self
 			.transport
@@ -99,7 +100,7 @@ where
 	pub fn poll_auth_session(
 		&mut self,
 		req: CAuthentication_PollAuthSessionStatus_Request,
-	) -> anyhow::Result<ApiResponse<CAuthentication_PollAuthSessionStatus_Response>> {
+	) -> Result<ApiResponse<CAuthentication_PollAuthSessionStatus_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "PollAuthSessionStatus", 1u32, req);
 		let resp = self
 			.transport
@@ -112,7 +113,7 @@ where
 	pub fn revoke_refresh_token(
 		&mut self,
 		req: CAuthentication_RefreshToken_Revoke_Request,
-	) -> anyhow::Result<ApiResponse<CAuthentication_RefreshToken_Revoke_Response>> {
+	) -> Result<ApiResponse<CAuthentication_RefreshToken_Revoke_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "RevokeRefreshToken", 1u32, req);
 		let resp = self
 			.transport
@@ -125,7 +126,7 @@ where
 	pub fn revoke_access_token(
 		&mut self,
 		req: CAuthenticationSupport_RevokeToken_Request,
-	) -> anyhow::Result<ApiResponse<CAuthenticationSupport_RevokeToken_Response>> {
+	) -> Result<ApiResponse<CAuthenticationSupport_RevokeToken_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "RevokeToken", 1u32, req);
 		let resp = self
 			.transport
@@ -161,7 +162,10 @@ where
 	pub fn update_session_with_steam_guard_code(
 		&mut self,
 		req: CAuthentication_UpdateAuthSessionWithSteamGuardCode_Request,
-	) -> anyhow::Result<ApiResponse<CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response>> {
+	) -> Result<
+		ApiResponse<CAuthentication_UpdateAuthSessionWithSteamGuardCode_Response>,
+		TransportError,
+	> {
 		let req = ApiRequest::new(
 			SERVICE_NAME,
 			"UpdateAuthSessionWithSteamGuardCode",

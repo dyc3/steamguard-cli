@@ -28,7 +28,7 @@ where
 		&self,
 		req: CTwoFactor_AddAuthenticator_Request,
 		access_token: &Jwt,
-	) -> anyhow::Result<ApiResponse<CTwoFactor_AddAuthenticator_Response>> {
+	) -> Result<ApiResponse<CTwoFactor_AddAuthenticator_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "AddAuthenticator", 1, req)
 			.with_access_token(access_token);
 		let resp = self
@@ -43,7 +43,7 @@ where
 		&self,
 		req: CTwoFactor_FinalizeAddAuthenticator_Request,
 		access_token: &Jwt,
-	) -> anyhow::Result<ApiResponse<CTwoFactor_FinalizeAddAuthenticator_Response>> {
+	) -> Result<ApiResponse<CTwoFactor_FinalizeAddAuthenticator_Response>, TransportError> {
 		let req = ApiRequest::new(SERVICE_NAME, "FinalizeAddAuthenticator", 1, req)
 			.with_access_token(access_token);
 		let resp = self
