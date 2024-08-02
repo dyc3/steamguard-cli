@@ -3,6 +3,7 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
+use image::ImageReader;
 use log::*;
 use rqrr::PreparedImage;
 use steamguard::{QrApprover, QrApproverError};
@@ -100,7 +101,6 @@ impl LoginUrlSource {
 }
 
 fn read_qr_image(path: &Path) -> anyhow::Result<String> {
-	use image::io::Reader as ImageReader;
 	let image = ImageReader::open(path)?.decode()?.to_luma8();
 	let mut img = PreparedImage::prepare(image);
 	let grids = img.detect_grids();
