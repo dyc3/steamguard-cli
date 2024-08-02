@@ -55,6 +55,10 @@ where
 		req.set_steamid(steam_id);
 		req.set_sms_phone_id("1".to_owned());
 		req.set_device_identifier(self.device_id.clone());
+		// Currently, the version value determines what `EAuthSessionGuardType` values are allowed during the login process.
+		// Version 2 allows `EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation`, where version 1 does not.
+		// However, the device confirmation auth guard does not emit a typical 2fa confirmation, so it doesn't show up when running `steamguard confirm`.
+		req.set_version(1);
 
 		let resp = self
 			.client
