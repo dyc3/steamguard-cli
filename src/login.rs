@@ -113,6 +113,10 @@ fn do_login_impl<T: Transport + Clone>(
 				password = tui::prompt_password()?;
 				continue;
 			}
+			Err(LoginError::SessionExpired) => {
+				error!("Session expired. Please try again.");
+				bail!("Login session expired.");
+			}
 			Err(err) => {
 				error!("Unexpected error when trying to log in. If you report this as a bug, please rerun with `-v debug` or `-v trace` and include all output in your issue. {:?}", err);
 				return Err(err.into());

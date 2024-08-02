@@ -28,6 +28,7 @@ use std::time::Duration;
 pub enum LoginError {
 	BadCredentials,
 	TooManyAttempts,
+	SessionExpired,
 	UnknownEResult(EResult),
 	AuthAlreadyStarted,
 	TransportError(TransportError),
@@ -66,6 +67,7 @@ impl From<EResult> for LoginError {
 		match err {
 			EResult::InvalidPassword => LoginError::BadCredentials,
 			EResult::RateLimitExceeded => LoginError::TooManyAttempts,
+			EResult::Expired => LoginError::SessionExpired,
 			err => LoginError::UnknownEResult(err),
 		}
 	}
