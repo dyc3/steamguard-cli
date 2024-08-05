@@ -3140,7 +3140,7 @@ dependencies = [
 
 [[package]]
 name = "steamguard"
-version = "0.14.1"
+version = "0.14.2"
 dependencies = [
  "anyhow",
  "base64",
@@ -3171,7 +3171,7 @@ dependencies = [
 
 [[package]]
 name = "steamguard-cli"
-version = "0.14.1"
+version = "0.14.2"
 dependencies = [
  "aes",
  "anyhow",
