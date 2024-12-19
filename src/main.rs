@@ -319,5 +319,5 @@ fn get_mafiles_dir() -> String {
 		}
 	}
 
-	return paths[0].to_str().unwrap().into();
+	paths[0].to_str().unwrap().into()
 }

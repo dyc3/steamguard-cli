@@ -60,7 +60,8 @@ where
 		&self,
 		req: CPhone_IsAccountWaitingForEmailConfirmation_Request,
 		access_token: &Jwt,
-	) -> Result<ApiResponse<CPhone_IsAccountWaitingForEmailConfirmation_Response>, TransportError> {
+	) -> Result<ApiResponse<CPhone_IsAccountWaitingForEmailConfirmation_Response>, TransportError>
+	{
 		let req = ApiRequest::new(
 			SERVICE_NAME,
 			"IsAccountWaitingForEmailConfirmation",

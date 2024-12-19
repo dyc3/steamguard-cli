@@ -257,7 +257,7 @@ impl AccountManager {
 	/// Return all loaded accounts. Order is not guarenteed.
 	#[allow(dead_code)]
 	pub fn get_all_loaded(&self) -> Vec<Arc<Mutex<SteamGuardAccount>>> {
-		return self.accounts.values().cloned().collect();
+		self.accounts.values().cloned().collect()
 	}
 
 	#[allow(dead_code)]
