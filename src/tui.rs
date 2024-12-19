@@ -229,7 +229,7 @@ pub(crate) fn prompt_confirmation_menu(
 	execute!(stdout(), LeaveAlternateScreen)?;
 	crossterm::terminal::disable_raw_mode()?;
 
-	return Ok((
+	Ok((
 		to_accept_idx
 			.iter()
 			.map(|i| confirmations[*i].clone())
@@ -238,7 +238,7 @@ pub(crate) fn prompt_confirmation_menu(
 			.iter()
 			.map(|i| confirmations[*i].clone())
 			.collect(),
-	));
+	))
 }
 
 pub(crate) fn pause() {
