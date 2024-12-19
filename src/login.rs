@@ -130,6 +130,11 @@ fn do_login_impl<T: Transport + Clone>(
 		confirmation_methods
 	);
 
+	let is_device_confirmation_available = confirmation_methods.iter().any(|method| {
+		method.confirmation_type
+			== EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation
+	});
+
 	for method in confirmation_methods {
 		match method.confirmation_type {
 			EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation => {
@@ -151,9 +156,14 @@ fn do_login_impl<T: Transport + Clone>(
 				let prompt = if method.confirmation_type
 					== EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceCode
 				{
-					"Enter the 2fa code from your device: "
+					if is_device_confirmation_available {
+						"Please confirm this login on your other device and press enter, OR\n"
+					} else {
+						""
+					}
+					.to_string() + "Enter the 2fa code from your device: "
 				} else {
-					"Enter the 2fa code sent to your email: "
+					"Enter the 2fa code sent to your email: ".to_string()
 				};
 				let mut attempts = 0;
 				loop {
@@ -162,13 +172,23 @@ fn do_login_impl<T: Transport + Clone>(
 						let time = steamapi::get_server_time(transport.clone())?.server_time();
 						account.generate_code(time)
 					} else {
-						tui::prompt_non_empty(prompt).trim().to_owned()
+						tui::prompt_allow_empty(&prompt).trim().to_owned()
 					};
+
+					if code.is_empty() {
+						if !is_device_confirmation_available {
+							error!("Code is empty. Please enter a valid code.");
+							continue;
+						}
+						break;
+					}
 
 					match login.submit_steam_guard_code(method.confirmation_type, code) {
 						Ok(_) => break,
 						Err(err) => {
-							error!("Failed to submit code: {}", err);
+							if !matches!(err, UpdateAuthSessionError::DuplicateRequest) {
+								error!("Failed to submit code: {}", err);
+							}
 
 							match err {
 								UpdateAuthSessionError::TooManyAttempts
@@ -176,6 +196,10 @@ fn do_login_impl<T: Transport + Clone>(
 								| UpdateAuthSessionError::InvalidGuardType => {
 									error!("Error is unrecoverable. Aborting.");
 									return Err(err.into());
+								}
+								UpdateAuthSessionError::DuplicateRequest => {
+									info!("Login was already approved.");
+									break;
 								}
 								_ => {}
 							}
