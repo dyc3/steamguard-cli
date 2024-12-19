@@ -393,6 +393,8 @@ pub enum UpdateAuthSessionError {
 	TooManyAttempts,
 	SessionExpired,
 	IncorrectSteamGuardCode,
+	/// This login session already was approved somewhere else. Polling should give you the tokens.
+	DuplicateRequest,
 	UnknownEResult(EResult),
 	TransportError(TransportError),
 	NetworkFailure(reqwest::Error),
@@ -413,6 +415,7 @@ impl From<EResult> for UpdateAuthSessionError {
 			EResult::RateLimitExceeded => UpdateAuthSessionError::TooManyAttempts,
 			EResult::Expired => UpdateAuthSessionError::SessionExpired,
 			EResult::TwoFactorCodeMismatch => UpdateAuthSessionError::IncorrectSteamGuardCode,
+			EResult::DuplicateRequest => UpdateAuthSessionError::DuplicateRequest,
 			_ => UpdateAuthSessionError::UnknownEResult(err),
 		}
 	}

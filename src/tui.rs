@@ -34,6 +34,11 @@ pub(crate) fn prompt() -> String {
 	line
 }
 
+pub(crate) fn prompt_allow_empty(prompt_text: impl AsRef<str>) -> String {
+	eprint!("{}", prompt_text.as_ref());
+	prompt()
+}
+
 pub(crate) fn prompt_non_empty(prompt_text: impl AsRef<str>) -> String {
 	loop {
 		eprint!("{}", prompt_text.as_ref());
