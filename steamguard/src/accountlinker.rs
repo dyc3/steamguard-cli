@@ -179,6 +179,8 @@ where
 	/// Begin the process of "transfering" a mobile authenticator from a different device to this device.
 	///
 	/// "Transfering" does not actually literally transfer the secrets from one device to another. Instead, it generates a new set of secrets on this device, and invalidates the old secrets on the other device. Call [`Self::transfer_finish`] to complete the process.
+	///
+	/// As of 2025-02-07, transfering an authenticator requires a phone number to be present on the account. If there is no phone number on the account, this method will return an error.
 	pub fn transfer_start(&mut self) -> Result<(), TransferError> {
 		let req = CTwoFactor_RemoveAuthenticatorViaChallengeStart_Request::new();
 		let resp = self
@@ -368,6 +370,12 @@ impl From<EResult> for RemoveAuthenticatorError {
 
 #[derive(Error, Debug)]
 pub enum TransferError {
+	/// A generic failure. Anything could have happened, but we don't necessarily know what it would be.
+	///
+	/// Observed conditions when this error has occurred:
+	/// - This can occur upon the start of an authenticator transfer if there is no phone number on the account.
+	#[error("Generic failure. Steam did not provide any additional information.")]
+	GenericFailure,
 	#[error("Provided SMS code was incorrect.")]
 	BadSmsCode,
 	#[error("Failed to send request to Steam: {0:?}")]
@@ -381,6 +389,7 @@ pub enum TransferError {
 impl From<EResult> for TransferError {
 	fn from(result: EResult) -> Self {
 		match result {
+			EResult::Fail => TransferError::GenericFailure,
 			EResult::SMSCodeFailed => TransferError::BadSmsCode,
 			r => TransferError::UnknownEResult(r),
 		}
