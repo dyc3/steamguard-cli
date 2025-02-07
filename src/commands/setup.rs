@@ -54,7 +54,7 @@ where
 					do_add_phone_number(transport.clone(), linker.tokens())?;
 				}
 				Err(AccountLinkError::MustConfirmEmail) => {
-					println!("Check your email and click the link.");
+					eprintln!("Check your email and click the link.");
 					tui::pause();
 				}
 				Err(AccountLinkError::AuthenticatorPresent) => {
@@ -69,11 +69,55 @@ where
 					eprintln!("[A] Abort setup");
 					let answer = tui::prompt_char("What would you like to do?", "Tra");
 					match answer {
-						't' => return Self::transfer_new_account(linker, manager),
+						't' => {
+							let mut already_added_phone_number = false;
+							loop {
+								if let Err(err) = Self::transfer_new_account(&mut linker, manager) {
+									if !already_added_phone_number {
+										error!("Failed to transfer authenticator. {}", err);
+										info!("There's nothing else to be done right now. Wait a few minutes and try again.");
+										match tui::prompt_char("Would you like to try again?", "yN")
+										{
+											'y' => {
+												continue;
+											}
+											_ => debug!("Declined, aborting."),
+										}
+										return Err(err);
+									}
+									info!("I can't check if you already have a phone number, but I can try to add one for you.");
+
+									match tui::prompt_char(
+										"Would you like to add a phone number to this account?",
+										"yN",
+									) {
+										'y' => {
+											do_add_phone_number(
+												transport.clone(),
+												linker.tokens(),
+											)?;
+											info!("Lets try the transfer again. Pausing for 20 seconds to let Steam catch up...");
+											already_added_phone_number = true;
+											// I haven't actually rigorously tested how long it takes for Steam to propagate this change. This is a guess.
+											// 3 seconds is definitely too short (tested).
+											std::thread::sleep(std::time::Duration::from_secs(20));
+											continue;
+										}
+										_ => debug!("Declined, aborting."),
+									}
+
+									return Err(err);
+								}
+
+								return Ok(());
+							}
+						}
 						'r' => {
 							loop {
+								// TODO: keep track of codes already attempted and don't allow them to be used again to avoid consuming attempts.
 								let revocation_code =
 									tui::prompt_non_empty("Enter your revocation code (R#####): ");
+								// TODO: revocation code must start with an R and be 5 digits. Warn if it doesn't, and allow the user to correct it before proceeding.
 								match linker.remove_authenticator(Some(&revocation_code)) {
 									Ok(_) => break,
 									Err(RemoveAuthenticatorError::IncorrectRevocationCode {
@@ -218,7 +262,7 @@ impl SetupCommand {
 
 	/// Transfer an existing authenticator to steamguard-cli.
 	fn transfer_new_account<T>(
-		mut linker: AccountLinker<T>,
+		linker: &mut AccountLinker<T>,
 		manager: &mut AccountManager,
 	) -> anyhow::Result<()>
 	where
@@ -287,7 +331,7 @@ pub fn do_add_phone_number<T: Transport>(transport: T, tokens: &Tokens) -> anyho
 	let resp = linker.set_account_phone_number(phone_number)?;
 
 	eprintln!(
-		"Please click the link in the email sent to {}",
+		"Please click the link in the email sent to {}. Once you've done that, you can continue.",
 		resp.confirmation_email_address()
 	);
 	tui::pause();
@@ -307,7 +351,7 @@ pub fn do_add_phone_number<T: Transport>(transport: T, tokens: &Tokens) -> anyho
 		}
 	}
 
-	info!("Successfully added phone number to account");
+	info!("Successfully added phone number to account.");
 
 	Ok(())
 }
