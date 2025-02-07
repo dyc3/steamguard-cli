@@ -225,7 +225,11 @@ impl SetupCommand {
 		T: Transport + Clone,
 	{
 		info!("Transferring authenticator to steamguard-cli");
-		linker.transfer_start()?;
+		if let Err(err) = linker.transfer_start() {
+			error!("Failed to start transfer: {}", err);
+			error!("You can't transfer an authenticator without a phone number on the account. Make sure you have a phone number on your account and try again.");
+			return Err(err.into());
+		}
 
 		let account: SteamGuardAccount;
 		loop {
