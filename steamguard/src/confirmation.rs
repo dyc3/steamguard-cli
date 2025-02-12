@@ -147,6 +147,7 @@ where
 			)
 			.header(USER_AGENT, "steamguard-cli")
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
+			.header("Origin", "https://steamcommunity.com")
 			.query(&query_params)
 			.send()?;
 
@@ -226,6 +227,7 @@ where
 				CONTENT_TYPE,
 				"application/x-www-form-urlencoded; charset=UTF-8",
 			)
+			.header("Origin", "https://steamcommunity.com")
 			.body(query_params)
 			.send()?;
 
@@ -255,11 +257,39 @@ where
 		Ok(())
 	}
 
+	/// Bulk accept confirmations.
+	///
+	/// Sends one request per confirmation.
 	pub fn accept_confirmations(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+		for conf in confs {
+			self.accept_confirmation(conf)?;
+		}
+
+		Ok(())
+	}
+
+	/// Bulk deny confirmations.
+	///
+	/// Sends one request per confirmation.
+	pub fn deny_confirmations(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+		for conf in confs {
+			self.deny_confirmation(conf)?;
+		}
+
+		Ok(())
+	}
+
+	/// Bulk accept confirmations.
+	///
+	/// Uses a different endpoint than `accept_confirmation()` to submit multiple confirmations in one request.
+	pub fn accept_confirmations_bulk(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
 		self.send_multi_confirmation_ajax(confs, ConfirmationAction::Accept)
 	}
 
-	pub fn deny_confirmations(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+	/// Bulk deny confirmations.
+	///
+	/// Uses a different endpoint than `deny_confirmation()` to submit multiple confirmations in one request.
+	pub fn deny_confirmations_bulk(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
 		self.send_multi_confirmation_ajax(confs, ConfirmationAction::Deny)
 	}
 

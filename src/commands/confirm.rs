@@ -74,12 +74,12 @@ where
 			let mut any_failed = false;
 
 			fn submit_loop(
-				f: impl Fn() -> Result<(), ConfirmerError>,
+				submit: impl Fn() -> Result<(), ConfirmerError>,
 				fail_fast: bool,
 			) -> Result<(), ConfirmerError> {
 				let mut attempts = 0;
 				loop {
-					match f() {
+					match submit() {
 						Ok(_) => break,
 						Err(ConfirmerError::InvalidTokens) => {
 							error!("Invalid tokens, but they should be valid already. This is weird, stopping.");
@@ -116,7 +116,7 @@ where
 			if self.accept_all {
 				info!("accepting all confirmations");
 				match submit_loop(
-					|| confirmer.accept_confirmations(&confirmations),
+					|| confirmer.accept_confirmations_bulk(&confirmations),
 					self.fail_fast,
 				) {
 					Ok(_) => {}
@@ -130,7 +130,10 @@ where
 				}
 			} else if std::io::stdout().is_tty() {
 				let (accept, deny) = tui::prompt_confirmation_menu(confirmations)?;
-				match submit_loop(|| confirmer.accept_confirmations(&accept), self.fail_fast) {
+				match submit_loop(
+					|| confirmer.accept_confirmations_bulk(&accept),
+					self.fail_fast,
+				) {
 					Ok(_) => {}
 					Err(err) => {
 						warn!("accept confirmation result: {}", err);
@@ -140,7 +143,7 @@ where
 						any_failed = true;
 					}
 				}
-				match submit_loop(|| confirmer.deny_confirmations(&deny), self.fail_fast) {
+				match submit_loop(|| confirmer.deny_confirmations_bulk(&deny), self.fail_fast) {
 					Ok(_) => {}
 					Err(err) => {
 						warn!("deny confirmation result: {}", err);
