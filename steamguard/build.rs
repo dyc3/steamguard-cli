@@ -9,7 +9,7 @@ use protobuf_codegen::Customize;
 use protobuf_codegen::CustomizeCallback;
 
 fn main() {
-	// let current_dir = std::env::current_dir().unwrap();
+	let current_dir = std::env::current_dir().unwrap();
 	let mut codegen = Codegen::new();
 	codegen.pure();
 	codegen.include("protobufs");
@@ -19,7 +19,11 @@ fn main() {
 	for proto_file in proto_files {
 		codegen.input(proto_file);
 	}
-	codegen.cargo_out_dir("protobufs");
+	let cargo_out_dir = current_dir.join("src/gen");
+	if !cargo_out_dir.exists() {
+		std::fs::create_dir_all(&cargo_out_dir).expect("failed to create gen directory");
+	}
+	codegen.out_dir(cargo_out_dir.to_str().unwrap()); // override the out directory, into the src folder - so these generated files will be apart of the build's source.
 
 	codegen.customize_callback(GenSerde);
 	codegen.run_from_script();

@@ -7,6 +7,7 @@ description = "Library for generating 2fa codes for Steam and responding to mobi
 keywords = ["steam", "2fa", "steamguard", "authentication"]
 repository = "https://github.com/dyc3/steamguard-cli/tree/master/steamguard"
 license = "MIT OR Apache-2.0"
+include = ["src/gen/"] # This is prevent the gen folder being excluded, due to it being git-ignored.
 
 [dependencies]
 anyhow = "^1.0"

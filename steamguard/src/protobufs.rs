@@ -2,7 +2,7 @@ use zeroize::Zeroize;
 
 use self::steammessages_base::{cmsg_ipaddress::Ip, cmsg_proto_buf_header::Ip_addr};
 
-include!(concat!(env!("OUT_DIR"), "/protobufs/mod.rs"));
+include!("gen/mod.rs");
 
 impl Zeroize for Ip {
 	fn zeroize(&mut self) {
