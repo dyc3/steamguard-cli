@@ -106,6 +106,22 @@ where
 			)?;
 		Ok(resp)
 	}
+
+	/// Reverse engineered from steam mobile app.
+	pub fn account_phone_status(
+		&self,
+		req: CPhone_AccountPhoneStatus_Request,
+		access_token: &Jwt,
+	) -> Result<ApiResponse<CPhone_AccountPhoneStatus_Response>, TransportError> {
+		let req = ApiRequest::new(SERVICE_NAME, "AccountPhoneStatus", 1u32, req)
+			.with_access_token(access_token);
+		let resp = self
+			.transport
+			.send_request::<CPhone_AccountPhoneStatus_Request, CPhone_AccountPhoneStatus_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
 }
 
 macro_rules! impl_buildable_req {
@@ -127,3 +143,4 @@ impl_buildable_req!(CPhone_SendPhoneVerificationCode_Request, true);
 impl_buildable_req!(CPhone_IsAccountWaitingForEmailConfirmation_Request, true);
 impl_buildable_req!(CPhone_ConfirmAddPhoneToAccount_Request, true);
 impl_buildable_req!(CPhone_VerifyAccountPhoneWithCode_Request, true);
+impl_buildable_req!(CPhone_AccountPhoneStatus_Request, true);

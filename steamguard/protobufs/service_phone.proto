@@ -41,10 +41,21 @@ message CPhone_VerifyAccountPhoneWithCode_Request {
 message CPhone_VerifyAccountPhoneWithCode_Response {
 }
 
+// Completely undocumented
+message CPhone_AccountPhoneStatus_Request {
+}
+
+// Completely undocumented, my best guess
+message CPhone_AccountPhoneStatus_Response {
+	optional bool has_phone = 1;
+	// has another field, but I don't know what it is
+}
+
 service Phone {
 	rpc ConfirmAddPhoneToAccount (.CPhone_ConfirmAddPhoneToAccount_Request) returns (.CPhone_AddPhoneToAccount_Response);
 	rpc IsAccountWaitingForEmailConfirmation (.CPhone_IsAccountWaitingForEmailConfirmation_Request) returns (.CPhone_IsAccountWaitingForEmailConfirmation_Response);
 	rpc SendPhoneVerificationCode (.CPhone_SendPhoneVerificationCode_Request) returns (.CPhone_SendPhoneVerificationCode_Response);
 	rpc SetAccountPhoneNumber (.CPhone_SetAccountPhoneNumber_Request) returns (.CPhone_SetAccountPhoneNumber_Response);
 	rpc VerifyAccountPhoneWithCode (.CPhone_VerifyAccountPhoneWithCode_Request) returns (.CPhone_VerifyAccountPhoneWithCode_Response);
+	rpc AccountPhoneStatus (.CPhone_AccountPhoneStatus_Request) returns (.CPhone_AccountPhoneStatus_Response);
 }
