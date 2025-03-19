@@ -84,6 +84,36 @@ where
 		Ok(resp)
 	}
 
+	pub fn get_auth_sessions_for_account(
+		&self,
+		req: CAuthentication_GetAuthSessionsForAccount_Request,
+		access_token: &Jwt,
+	) -> Result<ApiResponse<CAuthentication_GetAuthSessionsForAccount_Response>, TransportError> {
+		let req = ApiRequest::new(SERVICE_NAME, "GetAuthSessionsForAccount", 1u32, req)
+			.with_access_token(access_token);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_GetAuthSessionsForAccount_Request, CAuthentication_GetAuthSessionsForAccount_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
+	pub fn get_auth_session_info(
+		&self,
+		req: CAuthentication_GetAuthSessionInfo_Request,
+		access_token: &Jwt,
+	) -> Result<ApiResponse<CAuthentication_GetAuthSessionInfo_Response>, TransportError> {
+		let req = ApiRequest::new(SERVICE_NAME, "GetAuthSessionInfo", 1u32, req)
+			.with_access_token(access_token);
+		let resp = self
+			.transport
+			.send_request::<CAuthentication_GetAuthSessionInfo_Request, CAuthentication_GetAuthSessionInfo_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
+
 	pub fn migrate_mobile_session(
 		&mut self,
 		req: CAuthentication_MigrateMobileSession_Request,
@@ -213,6 +243,16 @@ impl BuildableRequest for CAuthentication_GetPasswordRSAPublicKey_Request {
 
 	fn requires_access_token() -> bool {
 		false
+	}
+}
+
+impl BuildableRequest for CAuthentication_GetAuthSessionsForAccount_Request {
+	fn method() -> reqwest::Method {
+		reqwest::Method::GET
+	}
+
+	fn requires_access_token() -> bool {
+		true
 	}
 }
 

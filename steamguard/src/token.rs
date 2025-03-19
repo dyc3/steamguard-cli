@@ -61,7 +61,8 @@ impl TwoFactorSecret {
 		String::from_utf8(code_array.to_vec()).unwrap()
 	}
 
-	pub(crate) fn expose_secret(&self) -> &[u8; 20] {
+	/// Expose the underlying secret as a byte array.
+	pub fn expose_secret(&self) -> &[u8; 20] {
 		self.0.expose_secret()
 	}
 }

@@ -6,7 +6,7 @@ use std::{
 use image::ImageReader;
 use log::*;
 use rqrr::PreparedImage;
-use steamguard::{QrApprover, QrApproverError};
+use steamguard::{protobufs::enums::ESessionPersistence, ApproverError, LoginApprover};
 
 use crate::AccountManager;
 
@@ -54,13 +54,17 @@ where
 				return Err(anyhow!("No tokens found for {}", account.account_name));
 			};
 
-			let mut approver = QrApprover::new(transport.clone(), tokens);
-			match approver.approve(&account, url.to_owned()) {
+			let mut approver = LoginApprover::new(transport.clone(), tokens);
+			match approver.approve_from_challenge_url(
+				&account,
+				url.to_owned(),
+				ESessionPersistence::k_ESessionPersistence_Persistent,
+			) {
 				Ok(_) => {
 					info!("Login approved.");
 					break;
 				}
-				Err(QrApproverError::Unauthorized) => {
+				Err(ApproverError::Unauthorized) => {
 					warn!("tokens are invalid. Attempting to log in again.");
 					crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 				}
