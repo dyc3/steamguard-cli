@@ -14,11 +14,18 @@ use steamguard::{LoginApprover, SteamGuardAccount};
 #[clap(about = "Approve or deny pending login sessions")]
 pub struct ApproveCommand {
 	#[clap(
-		short,
 		long,
-		help = "Blindly approve all pending login sessions without prompting."
+		help = "Blindly approve all pending login sessions without prompting.",
+		conflicts_with = "auto_approve_ip"
 	)]
-	pub approve_all: bool,
+	pub dangerously_approve_all: bool,
+
+	#[clap(
+		long,
+		help = "Automatically approve all login requests from the given IPv4 addresses non-interactively. Useful for CI/CD systems. Requests that don't match will be ignored.",
+		conflicts_with = "dangerously_approve_all"
+	)]
+	pub auto_approve_ip: Vec<String>,
 }
 
 impl<T> AccountCommand<T> for ApproveCommand
@@ -58,9 +65,27 @@ where
 
 			info!("Found {} pending sessions", sessions.len());
 
-			if self.approve_all {
+			if self.dangerously_approve_all {
 				info!("Approving all pending sessions");
 				for client_id in sessions {
+					let challenge = Challenge::new(1, client_id);
+					approver.approve(
+						&account,
+						challenge,
+						ESessionPersistence::k_ESessionPersistence_Persistent,
+					)?;
+				}
+			} else if !self.auto_approve_ip.is_empty() {
+				for client_id in sessions {
+					let session = approver.get_auth_session_info(client_id)?;
+
+					if !session.has_ip() || !self.auto_approve_ip.contains(&session.ip().to_owned())
+					{
+						info!("Skipping session {} from IP {}", client_id, session.ip());
+						continue;
+					}
+
+					info!("Approving session {} from IP {}", client_id, session.ip());
 					let challenge = Challenge::new(1, client_id);
 					approver.approve(
 						&account,
