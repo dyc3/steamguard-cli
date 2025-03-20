@@ -47,9 +47,9 @@ impl TwoFactorSecret {
 		let hashed_data = result.into_bytes();
 		let mut code_array: [u8; 5] = [0; 5];
 		let b = (hashed_data[19] & 0xF) as usize;
-		let mut code_point: i32 = ((hashed_data[b] & 0x7F) as i32) << 24
-			| (hashed_data[b + 1] as i32) << 16
-			| (hashed_data[b + 2] as i32) << 8
+		let mut code_point: i32 = (((hashed_data[b] & 0x7F) as i32) << 24)
+			| ((hashed_data[b + 1] as i32) << 16)
+			| ((hashed_data[b + 2] as i32) << 8)
 			| (hashed_data[b + 3] as i32);
 
 		for item in &mut code_array {
