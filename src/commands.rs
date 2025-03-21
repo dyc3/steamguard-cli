@@ -9,6 +9,7 @@ use steamguard::{transport::Transport, SteamGuardAccount};
 
 use crate::AccountManager;
 
+pub mod approve;
 pub mod code;
 pub mod completions;
 pub mod confirm;
@@ -23,6 +24,7 @@ pub mod remove;
 pub mod setup;
 pub mod status;
 
+pub use approve::ApproveCommand;
 pub use code::CodeCommand;
 pub use completions::CompletionsCommand;
 pub use confirm::ConfirmCommand;
@@ -34,7 +36,7 @@ pub use import::ImportCommand;
 pub use qr::QrCommand;
 pub use qr_login::QrLoginCommand;
 pub use remove::RemoveCommand;
-pub use setup::SetupCommand;
+pub use setup::SetupCommand; // export new command
 
 /// A command that does not operate on the manifest or individual accounts.
 pub(crate) trait ConstCommand {
@@ -164,6 +166,7 @@ pub(crate) struct GlobalArgs {
 
 #[derive(Debug, Clone, Subcommand)]
 pub(crate) enum Subcommands {
+	Approve(ApproveCommand),
 	Debug(DebugCommand),
 	Completion(CompletionsCommand),
 	Setup(SetupCommand),

@@ -80,6 +80,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 	let globalargs = args.global;
 
 	let cmd: CommandType<WebApiTransport> = match args.sub.unwrap_or(Subcommands::Code(args.code)) {
+		Subcommands::Approve(args) => CommandType::Account(Box::new(args)),
 		Subcommands::Debug(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Completion(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Setup(args) => CommandType::Manifest(Box::new(args)),

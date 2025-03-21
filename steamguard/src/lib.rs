@@ -1,8 +1,8 @@
 use crate::token::TwoFactorSecret;
 use accountlinker::RemoveAuthenticatorError;
 pub use accountlinker::{AccountLinkError, AccountLinker, FinalizeLinkError};
+pub use approver::{ApproverError, LoginApprover};
 pub use confirmation::*;
-pub use qrapprover::{QrApprover, QrApproverError};
 pub use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
@@ -18,10 +18,10 @@ extern crate maplit;
 
 pub mod accountlinker;
 mod api_responses;
+pub mod approver;
 mod confirmation;
 pub mod phonelinker;
 pub mod protobufs;
-mod qrapprover;
 pub mod refresher;
 mod secret_string;
 pub mod steamapi;
