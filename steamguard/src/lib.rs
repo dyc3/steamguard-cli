@@ -81,6 +81,11 @@ impl SteamGuardAccount {
 		Ok(serde_json::from_reader(r)?)
 	}
 
+	pub fn from_file(path: &str) -> anyhow::Result<Self> {
+		let file = std::fs::File::open(path)?;
+		Self::from_reader(file)
+	}
+
 	pub fn set_tokens(&mut self, tokens: Tokens) {
 		self.tokens = Some(tokens);
 	}
