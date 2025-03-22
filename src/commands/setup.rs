@@ -16,7 +16,14 @@ use super::*;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Set up a new account with steamguard-cli")]
-pub struct SetupCommand;
+pub struct SetupCommand {
+	#[clap(
+		long,
+		help = "What version of 2FA token to tell Steam to use. The token version determines the default methods that Steam will use to let you log in. If you're unsure, leave this at the default value.",
+		default_value = "2"
+	)]
+	pub token_version: u32,
+}
 
 impl<T> ManifestCommand<T> for SetupCommand
 where
@@ -45,7 +52,7 @@ where
 		info!("Adding authenticator...");
 		let mut linker = AccountLinker::new(transport.clone(), tokens);
 		loop {
-			match linker.link() {
+			match linker.link(self.token_version) {
 				Ok(link) => {
 					return Self::add_new_account(link, manager, account_name, linker);
 				}
@@ -92,7 +99,7 @@ where
 							}
 
 							loop {
-								if let Err(err) = Self::transfer_new_account(&mut linker, manager) {
+								if let Err(err) = self.transfer_new_account(&mut linker, manager) {
 									error!("Failed to transfer authenticator. {}", err);
 									info!("There's nothing else to be done right now. Wait a few minutes and try again.");
 									match tui::prompt_char("Would you like to try again?", "yN") {
@@ -257,6 +264,7 @@ impl SetupCommand {
 
 	/// Transfer an existing authenticator to steamguard-cli.
 	fn transfer_new_account<T>(
+		&self,
 		linker: &mut AccountLinker<T>,
 		manager: &mut AccountManager,
 	) -> anyhow::Result<()>
@@ -273,7 +281,7 @@ impl SetupCommand {
 		let account: SteamGuardAccount;
 		loop {
 			let sms_code = tui::prompt_non_empty("Enter SMS code: ");
-			match linker.transfer_finish(sms_code) {
+			match linker.transfer_finish(sms_code, self.token_version) {
 				Ok(acc) => {
 					account = acc;
 					break;
