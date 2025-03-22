@@ -43,7 +43,7 @@ where
 		&self.tokens
 	}
 
-	pub fn link(&mut self) -> Result<AccountLinkSuccess, AccountLinkError> {
+	pub fn link(&mut self, token_version: u32) -> Result<AccountLinkSuccess, AccountLinkError> {
 		let access_token = self.tokens.access_token();
 		let steam_id = access_token
 			.decode()
@@ -58,7 +58,7 @@ where
 		// Currently, the version value determines what `EAuthSessionGuardType` values are allowed during the login process.
 		// Version 2 allows `EAuthSessionGuardType::k_EAuthSessionGuardType_DeviceConfirmation`, where version 1 does not.
 		// However, the device confirmation auth guard does not emit a typical 2fa confirmation, so it doesn't show up when running `steamguard confirm`.
-		req.set_version(2);
+		req.set_version(token_version);
 
 		let resp = self
 			.client
@@ -178,7 +178,7 @@ where
 
 	/// Begin the process of "transfering" a mobile authenticator from a different device to this device.
 	///
-	/// "Transfering" does not actually literally transfer the secrets from one device to another. Instead, it generates a new set of secrets on this device, and invalidates the old secrets on the other device. Call [`Self::transfer_finish`] to complete the process.
+	/// "Transfering" does not actually literally transfer the secrets from one device to another. Instead, it generates a new set of secrets for this device, and invalidates the old secrets on the other device. However, it does preserve the revocation code. Call [`Self::transfer_finish`] to complete the process.
 	///
 	/// As of 2025-02-07, transfering an authenticator requires a phone number to be present on the account. If there is no phone number on the account, this method will return an error.
 	pub fn transfer_start(&mut self) -> Result<(), TransferError> {
@@ -199,6 +199,7 @@ where
 	pub fn transfer_finish(
 		&mut self,
 		sms_code: impl AsRef<str>,
+		token_version: u32,
 	) -> Result<SteamGuardAccount, TransferError> {
 		let access_token = self.tokens.access_token();
 		let steam_id = access_token
@@ -208,7 +209,7 @@ where
 		let mut req = CTwoFactor_RemoveAuthenticatorViaChallengeContinue_Request::new();
 		req.set_sms_code(sms_code.as_ref().to_owned());
 		req.set_generate_new_token(true);
-		req.set_version(2); // Version has the same meaning as it does in AddAuthenticator Request, see `link()` above.
+		req.set_version(token_version); // Version has the same meaning as it does in AddAuthenticator Request, see `link()` above.
 		let resp = self
 			.client
 			.remove_authenticator_via_challenge_continue(req, access_token)?;
