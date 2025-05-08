@@ -54,7 +54,7 @@ Linux:
 - `~/maFiles/`
 
 Windows:
-- `%APPDATA%\Roaming\steamguard-cli\maFiles\`
+- `%APPDATA%\steamguard-cli\maFiles\`
 - `%USERPROFILE%\maFiles\`
 
 Your `maFiles` can be created with or imported from [Steam Desktop Authenticator][SDA]. You can create `maFiles` with steamguard-cli using the `setup` action (`steamguard setup`).
