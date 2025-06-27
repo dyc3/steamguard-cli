@@ -39,7 +39,7 @@ If you have used [Steam Desktop Authenticator][SDA] before, you can use your exi
 	- Linux:
 		- `~/.config/steamguard-cli/maFiles/`
 	- Windows:
-		- `%APPDATA%\Roaming\steamguard-cli\maFiles\`
+		- `%APPDATA%\steamguard-cli\maFiles\`
 3. Run `steamguard` from your terminal.
 
 
