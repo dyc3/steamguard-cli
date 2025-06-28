@@ -22,10 +22,21 @@ pub(crate) fn prompt() -> String {
 	while let Event::Key(KeyEvent { code, .. }) = crossterm::event::read().unwrap() {
 		match code {
 			KeyCode::Enter => {
+				eprintln!();
 				break;
 			}
 			KeyCode::Char(c) => {
 				line.push(c);
+				eprint!("{}", c);
+				let _ = stderr().flush();
+			}
+			KeyCode::Backspace => {
+				if !line.is_empty() {
+					line.pop();
+
+					eprint!("\x08 \x08");
+					let _ = stderr().flush();
+				}
 			}
 			_ => {}
 		}
