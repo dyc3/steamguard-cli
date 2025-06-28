@@ -246,7 +246,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 				break;
 			}
 			Err(
-				accountmanager::ManifestAccountLoadError::MissingPasskey { .. }
+				accountmanager::ManifestAccountLoadError::MissingPasskey
 				| accountmanager::ManifestAccountLoadError::IncorrectPasskey,
 			) => {
 				if manager.has_passkey() {
