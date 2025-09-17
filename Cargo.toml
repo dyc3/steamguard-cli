@@ -74,6 +74,8 @@ sha1 = "0.10.5"
 rayon = "1.7.0"
 rqrr = "0.7.1"
 image = "0.25"
+tokio = { version = "1.0", features = ["full"] }
+warp = "0.3"
 
 [dev-dependencies]
 tempfile = "3"

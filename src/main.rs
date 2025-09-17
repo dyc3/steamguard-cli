@@ -29,6 +29,7 @@ mod errors;
 mod login;
 mod secret_string;
 pub(crate) mod tui;
+mod http_server;
 
 #[cfg(feature = "updater")]
 mod updater;
@@ -94,6 +95,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		Subcommands::Qr(args) => CommandType::Account(Box::new(args)),
 		Subcommands::QrLogin(args) => CommandType::Account(Box::new(args)),
 		Subcommands::Status(args) => CommandType::Account(Box::new(args)),
+		Subcommands::Server(args) => CommandType::Account(Box::new(args)),
 	};
 
 	if let CommandType::Const(cmd) = cmd {

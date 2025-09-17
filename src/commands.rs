@@ -23,11 +23,12 @@ pub mod qr_login;
 pub mod remove;
 pub mod setup;
 pub mod status;
+pub mod server;
 
 pub use approve::ApproveCommand;
 pub use code::CodeCommand;
 pub use completions::CompletionsCommand;
-pub use confirm::ConfirmCommand;
+pub use confirm::{ConfirmCommand, DeclineCommand};
 pub use debug::DebugCommand;
 pub use decrypt::DecryptCommand;
 pub use encrypt::EncryptCommand;
@@ -36,7 +37,8 @@ pub use import::ImportCommand;
 pub use qr::QrCommand;
 pub use qr_login::QrLoginCommand;
 pub use remove::RemoveCommand;
-pub use setup::SetupCommand; // export new command
+pub use setup::SetupCommand;
+pub use server::ServerCommand;
 
 /// A command that does not operate on the manifest or individual accounts.
 pub(crate) trait ConstCommand {
@@ -181,6 +183,7 @@ pub(crate) enum Subcommands {
 	Qr(QrCommand),
 	QrLogin(QrLoginCommand),
 	Status(StatusCommand),
+	Server(ServerCommand),
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
