@@ -137,8 +137,8 @@ where
 		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let mut query_params = self.get_confirmation_query_params("conf", time);
 		query_params.push(("op", operation.into()));
-		query_params.push(("cid", Cow::Borrowed(&conf.id)));
-		query_params.push(("ck", Cow::Borrowed(&conf.nonce)));
+		query_params.push(("cid", Cow::Borrowed(conf.id)));
+		query_params.push(("ck", Cow::Borrowed(conf.nonce)));
 
 		let resp = client
 			.get(
@@ -219,8 +219,8 @@ where
 		query_params.push(("op", operation.into()));
 		for conf in confs.iter() {
 			let conf = conf.into();
-			query_params.push(("cid[]", Cow::Borrowed(&conf.id)));
-			query_params.push(("ck[]", Cow::Borrowed(&conf.nonce)));
+			query_params.push(("cid[]", Cow::Borrowed(conf.id)));
+			query_params.push(("ck[]", Cow::Borrowed(conf.nonce)));
 		}
 		let query_params = self.build_multi_conf_query_string(&query_params);
 		// despite being called query parameters, they will actually go in the body
