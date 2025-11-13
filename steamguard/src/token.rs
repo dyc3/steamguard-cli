@@ -185,6 +185,7 @@ impl SteamJwtData {
 	}
 }
 
+#[cfg(test)]
 mod tests {
 	use super::*;
 
