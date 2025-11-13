@@ -122,12 +122,13 @@ where
 	///
 	/// Host: https://steamcommunity.com
 	/// Steam Endpoint: `GET /mobileconf/ajaxop`
-	fn send_confirmation_ajax(
+	fn send_confirmation_ajax<'id>(
 		&self,
-		conf: &Confirmation,
+		conf: impl Into<ConfirmationId<'id>>,
 		action: ConfirmationAction,
 	) -> Result<(), ConfirmerError> {
 		debug!("responding to a single confirmation: send_confirmation_ajax()");
+		let conf = conf.into();
 		let operation = action.to_operation();
 
 		let cookies = self.build_cookie_jar();
@@ -136,8 +137,8 @@ where
 		let time = steamapi::get_server_time(self.transport.clone())?.server_time();
 		let mut query_params = self.get_confirmation_query_params("conf", time);
 		query_params.push(("op", operation.into()));
-		query_params.push(("cid", Cow::Borrowed(&conf.id)));
-		query_params.push(("ck", Cow::Borrowed(&conf.nonce)));
+		query_params.push(("cid", Cow::Borrowed(conf.id)));
+		query_params.push(("ck", Cow::Borrowed(conf.nonce)));
 
 		let resp = client
 			.get(
@@ -177,11 +178,17 @@ where
 		Ok(())
 	}
 
-	pub fn accept_confirmation(&self, conf: &Confirmation) -> Result<(), ConfirmerError> {
+	pub fn accept_confirmation<'id>(
+		&self,
+		conf: impl Into<ConfirmationId<'id>>,
+	) -> Result<(), ConfirmerError> {
 		self.send_confirmation_ajax(conf, ConfirmationAction::Accept)
 	}
 
-	pub fn deny_confirmation(&self, conf: &Confirmation) -> Result<(), ConfirmerError> {
+	pub fn deny_confirmation<'id>(
+		&self,
+		conf: impl Into<ConfirmationId<'id>>,
+	) -> Result<(), ConfirmerError> {
 		self.send_confirmation_ajax(conf, ConfirmationAction::Deny)
 	}
 
@@ -189,11 +196,14 @@ where
 	///
 	/// Host: https://steamcommunity.com
 	/// Steam Endpoint: `GET /mobileconf/multiajaxop`
-	fn send_multi_confirmation_ajax(
+	fn send_multi_confirmation_ajax<TId>(
 		&self,
-		confs: &[Confirmation],
+		confs: &[TId],
 		action: ConfirmationAction,
-	) -> Result<(), ConfirmerError> {
+	) -> Result<(), ConfirmerError>
+	where
+		for<'id> &'id TId: Into<ConfirmationId<'id>>,
+	{
 		debug!("responding to bulk confirmations: send_multi_confirmation_ajax()");
 		if confs.is_empty() {
 			debug!("confs is empty, nothing to do.");
@@ -208,8 +218,9 @@ where
 		let mut query_params = self.get_confirmation_query_params("conf", time);
 		query_params.push(("op", operation.into()));
 		for conf in confs.iter() {
-			query_params.push(("cid[]", Cow::Borrowed(&conf.id)));
-			query_params.push(("ck[]", Cow::Borrowed(&conf.nonce)));
+			let conf = conf.into();
+			query_params.push(("cid[]", Cow::Borrowed(conf.id)));
+			query_params.push(("ck[]", Cow::Borrowed(conf.nonce)));
 		}
 		let query_params = self.build_multi_conf_query_string(&query_params);
 		// despite being called query parameters, they will actually go in the body
@@ -260,7 +271,10 @@ where
 	/// Bulk accept confirmations.
 	///
 	/// Sends one request per confirmation.
-	pub fn accept_confirmations(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+	pub fn accept_confirmations<TId>(&self, confs: &[TId]) -> Result<(), ConfirmerError>
+	where
+		for<'id> &'id TId: Into<ConfirmationId<'id>>,
+	{
 		for conf in confs {
 			self.accept_confirmation(conf)?;
 		}
@@ -271,7 +285,10 @@ where
 	/// Bulk deny confirmations.
 	///
 	/// Sends one request per confirmation.
-	pub fn deny_confirmations(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+	pub fn deny_confirmations<TId>(&self, confs: &[TId]) -> Result<(), ConfirmerError>
+	where
+		for<'id> &'id TId: Into<ConfirmationId<'id>>,
+	{
 		for conf in confs {
 			self.deny_confirmation(conf)?;
 		}
@@ -282,14 +299,20 @@ where
 	/// Bulk accept confirmations.
 	///
 	/// Uses a different endpoint than `accept_confirmation()` to submit multiple confirmations in one request.
-	pub fn accept_confirmations_bulk(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+	pub fn accept_confirmations_bulk<TId>(&self, confs: &[TId]) -> Result<(), ConfirmerError>
+	where
+		for<'id> &'id TId: Into<ConfirmationId<'id>>,
+	{
 		self.send_multi_confirmation_ajax(confs, ConfirmationAction::Accept)
 	}
 
 	/// Bulk deny confirmations.
 	///
 	/// Uses a different endpoint than `deny_confirmation()` to submit multiple confirmations in one request.
-	pub fn deny_confirmations_bulk(&self, confs: &[Confirmation]) -> Result<(), ConfirmerError> {
+	pub fn deny_confirmations_bulk<TId>(&self, confs: &[TId]) -> Result<(), ConfirmerError>
+	where
+		for<'id> &'id TId: Into<ConfirmationId<'id>>,
+	{
 		self.send_multi_confirmation_ajax(confs, ConfirmationAction::Deny)
 	}
 
@@ -302,7 +325,10 @@ where
 	}
 
 	/// Steam Endpoint: `GET /mobileconf/details/:id`
-	pub fn get_confirmation_details(&self, conf: &Confirmation) -> anyhow::Result<String> {
+	pub fn get_confirmation_details<'id>(
+		&self,
+		conf: impl Into<ConfirmationId<'id>>,
+	) -> anyhow::Result<String> {
 		#[derive(Debug, Clone, Deserialize)]
 		struct ConfirmationDetailsResponse {
 			pub success: bool,
@@ -317,9 +343,12 @@ where
 
 		let resp = client
 			.get(
-				format!("https://steamcommunity.com/mobileconf/details/{}", conf.id)
-					.parse::<Url>()
-					.unwrap(),
+				format!(
+					"https://steamcommunity.com/mobileconf/details/{}",
+					conf.into().id
+				)
+				.parse::<Url>()
+				.unwrap(),
 			)
 			.header(USER_AGENT, "steamguard-cli")
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
@@ -394,6 +423,24 @@ impl Confirmation {
 			self.headline,
 			self.summary.join(", ")
 		)
+	}
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ConfirmationId<'a> {
+	pub id: &'a str,
+	pub nonce: &'a str,
+}
+
+impl<'a> ConfirmationId<'a> {
+	pub fn new(id: &'a str, nonce: &'a str) -> Self {
+		Self { id, nonce }
+	}
+}
+
+impl<'a> From<&'a Confirmation> for ConfirmationId<'a> {
+	fn from(confirmation: &'a Confirmation) -> Self {
+		Self::new(&confirmation.id, &confirmation.nonce)
 	}
 }
 
