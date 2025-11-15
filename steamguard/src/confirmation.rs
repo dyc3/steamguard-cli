@@ -506,7 +506,7 @@ fn generate_confirmation_hash_for_time(
 	mac.update(&build_time_bytes(time));
 	mac.update(tag.as_bytes());
 	let result = mac.finalize();
-	let hash = result.into_bytes();
+	let hash: [u8; 20] = result.into_bytes().into();
 	base64::engine::general_purpose::STANDARD.encode(hash)
 }
 
