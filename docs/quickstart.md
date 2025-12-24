@@ -48,7 +48,7 @@ If you have used [Steam Desktop Authenticator][SDA] before, you can use your exi
 It's also possible to import a single maFile from Steam Desktop Authenticator and add it to your existing manifest.
 
 ```bash
-steamguard import --sda <path to maFile>
+steamguard import --files <path to maFile>
 ```
 
 [SDA]: https://github.com/Jessecar96/SteamDesktopAuthenticator
