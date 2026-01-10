@@ -128,6 +128,21 @@ where
 			.send_request::<CTwoFactor_Time_Request, CTwoFactor_Time_Response>(req)?;
 		Ok(resp)
 	}
+
+	pub fn update_token_version(
+		&self,
+		req: CTwoFactor_UpdateTokenVersion_Request,
+		access_token: &Jwt,
+	) -> Result<ApiResponse<CTwoFactor_UpdateTokenVersion_Response>, TransportError> {
+		let req = ApiRequest::new(SERVICE_NAME, "UpdateTokenVersion", 1, req)
+			.with_access_token(access_token);
+		let resp = self
+			.transport
+			.send_request::<CTwoFactor_UpdateTokenVersion_Request, CTwoFactor_UpdateTokenVersion_Response>(
+				req,
+			)?;
+		Ok(resp)
+	}
 }
 
 macro_rules! impl_buildable_req {
@@ -157,3 +172,4 @@ impl_buildable_req!(
 );
 impl_buildable_req!(CTwoFactor_Status_Request, true);
 impl_buildable_req!(CTwoFactor_Time_Request, false);
+impl_buildable_req!(CTwoFactor_UpdateTokenVersion_Request, true);
