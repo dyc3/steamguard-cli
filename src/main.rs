@@ -77,7 +77,15 @@ fn main() {
 }
 
 fn run(args: commands::Args) -> anyhow::Result<()> {
+	let print_version_only = args.global.show_version && args.sub.is_none() && !args.code.offline;
 	let globalargs = args.global;
+
+	if globalargs.show_version {
+		println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+		if print_version_only {
+			return Ok(());
+		}
+	}
 
 	let cmd: CommandType<WebApiTransport> = match args.sub.unwrap_or(Subcommands::Code(args.code)) {
 		Subcommands::Approve(args) => CommandType::Account(Box::new(args)),

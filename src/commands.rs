@@ -80,7 +80,7 @@ where
 }
 
 #[derive(Debug, Clone, Parser)]
-#[clap(name="steamguard-cli", bin_name="steamguard", author, version, about = "Generate Steam 2FA codes and confirm Steam trades from the command line.", long_about = None)]
+#[clap(name="steamguard-cli", bin_name="steamguard", author, version, disable_version_flag = true, about = "Generate Steam 2FA codes and confirm Steam trades from the command line.", long_about = None)]
 pub(crate) struct Args {
 	#[clap(flatten)]
 	pub global: GlobalArgs,
@@ -133,6 +133,14 @@ pub(crate) struct GlobalArgs {
 	pub passkey: Option<SecretString>,
 	#[clap(short, long, value_enum, default_value_t=Verbosity::Info, help = "Set the log level. Be warned, trace is capable of printing sensitive data.")]
 	pub verbosity: Verbosity,
+
+	#[clap(
+		short = 'V',
+		long = "version",
+		action = clap::ArgAction::SetTrue,
+		help = "Print version information. Can be combined with other flags/commands."
+	)]
+	pub show_version: bool,
 
 	#[cfg(feature = "updater")]
 	#[clap(
