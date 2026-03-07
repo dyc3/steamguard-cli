@@ -137,6 +137,7 @@ pub(crate) struct GlobalArgs {
 	#[cfg(feature = "updater")]
 	#[clap(
 		long,
+		env = "STEAMGUARD_CLI_NO_UPDATE",
 		help = "Disable checking for updates.",
 		long_help = "Disable checking for updates. By default, steamguard-cli will check for updates every now and then. This can be disabled with this flag."
 	)]
