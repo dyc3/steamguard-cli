@@ -17,6 +17,7 @@ pub mod debug;
 pub mod decrypt;
 pub mod encrypt;
 pub mod import;
+pub mod list;
 #[cfg(feature = "qr")]
 pub mod qr;
 pub mod qr_login;
@@ -32,6 +33,7 @@ pub use debug::DebugCommand;
 pub use decrypt::DecryptCommand;
 pub use encrypt::EncryptCommand;
 pub use import::ImportCommand;
+pub use list::ListCommand;
 #[cfg(feature = "qr")]
 pub use qr::QrCommand;
 pub use qr_login::QrLoginCommand;
@@ -172,6 +174,7 @@ pub(crate) enum Subcommands {
 	Completion(CompletionsCommand),
 	Setup(SetupCommand),
 	Import(ImportCommand),
+	List(ListCommand),
 	#[clap(alias = "trade")]
 	Confirm(ConfirmCommand),
 	Remove(RemoveCommand),

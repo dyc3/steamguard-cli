@@ -78,13 +78,16 @@ fn main() {
 
 fn run(args: commands::Args) -> anyhow::Result<()> {
 	let globalargs = args.global;
+	let subcommand = args.sub.unwrap_or(Subcommands::Code(args.code));
+	let is_list_command = matches!(&subcommand, Subcommands::List(_));
 
-	let cmd: CommandType<WebApiTransport> = match args.sub.unwrap_or(Subcommands::Code(args.code)) {
+	let cmd: CommandType<WebApiTransport> = match subcommand {
 		Subcommands::Approve(args) => CommandType::Account(Box::new(args)),
 		Subcommands::Debug(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Completion(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Setup(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Import(args) => CommandType::Manifest(Box::new(args)),
+		Subcommands::List(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Encrypt(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Decrypt(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Confirm(args) => CommandType::Account(Box::new(args)),
@@ -128,6 +131,11 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		manager = match accountmanager::AccountManager::load(path.as_path()) {
 			Ok(m) => m,
 			Err(ManifestLoadError::MigrationNeeded) => {
+				if is_list_command {
+					bail!(
+						"Manifest migration is needed before running `list`. Run another command to migrate the manifest first."
+					);
+				}
 				info!("Migrating manifest");
 				let manifest;
 				let accounts;
@@ -189,6 +197,14 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 	}
 
 	manager.submit_passkey(passkey);
+	if is_list_command {
+		let http_client = reqwest::blocking::Client::builder().build()?;
+		let transport = WebApiTransport::new(http_client);
+		if let CommandType::Manifest(cmd) = cmd {
+			cmd.execute(transport, &mut manager, &globalargs)?;
+			return Ok(());
+		}
+	}
 
 	loop {
 		match manager.auto_upgrade() {
