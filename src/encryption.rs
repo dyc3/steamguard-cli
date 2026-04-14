@@ -1,6 +1,6 @@
 use aes::cipher::InvalidLength;
 
-use rand::Rng;
+use rand::RngExt;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -110,8 +110,8 @@ impl From<std::io::Error> for EntryEncryptionError {
 }
 
 pub fn generate_keyring_id() -> String {
-	let rng = rand::thread_rng();
-	rng.sample_iter(rand::distributions::Alphanumeric)
+	let rng = rand::rng();
+	rng.sample_iter(rand::distr::Alphanumeric)
 		.take(32)
 		.map(char::from)
 		.collect()

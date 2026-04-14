@@ -5,6 +5,7 @@ use anyhow::Context;
 use argon2::Argon2;
 use base64::Engine;
 use log::*;
+use rand::TryRng;
 
 use super::*;
 
@@ -54,11 +55,13 @@ impl Argon2idAes256 {
 
 impl EntryEncryptor for Argon2idAes256 {
 	fn generate() -> Self {
-		let mut rng = rand::rngs::OsRng;
+		let mut rng = rand::rngs::SysRng;
 		let mut salt = [0u8; Self::SALT_LENGTH];
 		let mut iv = [0u8; Self::IV_LENGTH];
-		rng.fill(&mut salt);
-		rng.fill(&mut iv);
+		rng.try_fill_bytes(&mut salt)
+			.expect("failed to generate random salt");
+		rng.try_fill_bytes(&mut iv)
+			.expect("failed to generate random iv");
 		Argon2idAes256 {
 			iv: base64::engine::general_purpose::STANDARD.encode(iv),
 			salt: base64::engine::general_purpose::STANDARD.encode(salt),

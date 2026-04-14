@@ -300,9 +300,9 @@ fn encrypt_password(
 	let rsa_modulus = rsa::BigUint::parse_bytes(rsa_resp.publickey_mod().as_bytes(), 16).unwrap();
 	let public_key = RsaPublicKey::new(rsa_modulus, rsa_exponent).unwrap();
 	#[cfg(test)]
-	let mut rng = tests::MockStepRng(rand::rngs::mock::StepRng::new(2, 1));
+	let mut rng = tests::MockStepRng(rand_08::rngs::mock::StepRng::new(2, 1));
 	#[cfg(not(test))]
-	let mut rng = rand::rngs::OsRng;
+	let mut rng = rsa::rand_core::OsRng;
 	base64::engine::general_purpose::STANDARD.encode(
 		public_key
 			.encrypt(&mut rng, Pkcs1v15Encrypt, password.as_ref())
@@ -443,8 +443,8 @@ impl From<anyhow::Error> for UpdateAuthSessionError {
 mod tests {
 	use super::*;
 
-	pub(crate) struct MockStepRng(pub rand::rngs::mock::StepRng);
-	impl rand::RngCore for MockStepRng {
+	pub(crate) struct MockStepRng(pub rand_08::rngs::mock::StepRng);
+	impl rand_08::RngCore for MockStepRng {
 		fn next_u32(&mut self) -> u32 {
 			self.0.next_u32()
 		}
@@ -457,11 +457,11 @@ mod tests {
 			self.0.fill_bytes(dest)
 		}
 
-		fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+		fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_08::Error> {
 			self.0.try_fill_bytes(dest)
 		}
 	}
-	impl rand::CryptoRng for MockStepRng {}
+	impl rand_08::CryptoRng for MockStepRng {}
 
 	#[test]
 	fn test_encrypt_password() {
