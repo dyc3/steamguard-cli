@@ -8,7 +8,7 @@ use steamguard::approver::Challenge;
 use steamguard::protobufs::enums::ESessionPersistence;
 use steamguard::protobufs::steammessages_auth_steamclient::EAuthTokenPlatformType;
 use steamguard::transport::Transport;
-use steamguard::{LoginApprover, SteamGuardAccount};
+use steamguard::{ApproverError, LoginApprover, SteamGuardAccount};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Approve or deny pending login sessions")]
@@ -47,6 +47,31 @@ where
 				crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 			}
 
+			let sessions = {
+				let Some(tokens) = account.tokens.as_ref() else {
+					error!(
+						"No tokens found for {}. Can't approve login if we aren't logged in ourselves.",
+						account.account_name
+					);
+					return Err(anyhow!("No tokens found for {}", account.account_name));
+				};
+
+				let approver = LoginApprover::new(transport.clone(), tokens);
+				match approver.list_auth_sessions() {
+					Ok(sessions) => sessions,
+					Err(ApproverError::Unauthorized) => {
+						info!("Access token expired, re-logging in...");
+						crate::do_login(transport.clone(), &mut account, args.password.clone())?;
+						let tokens = account.tokens.as_ref().ok_or_else(|| {
+							anyhow!("No tokens found for {}", account.account_name)
+						})?;
+						let approver = LoginApprover::new(transport.clone(), tokens);
+						approver.list_auth_sessions()?
+					}
+					Err(err) => return Err(err.into()),
+				}
+			};
+
 			let Some(tokens) = account.tokens.as_ref() else {
 				error!(
 					"No tokens found for {}. Can't approve login if we aren't logged in ourselves.",
@@ -54,13 +79,10 @@ where
 				);
 				return Err(anyhow!("No tokens found for {}", account.account_name));
 			};
-
 			let mut approver = LoginApprover::new(transport.clone(), tokens);
-
-			let sessions = approver.list_auth_sessions()?;
 			if sessions.is_empty() {
 				info!("No pending sessions to approve");
-				return Ok(());
+				continue;
 			}
 
 			info!("Found {} pending sessions", sessions.len());
