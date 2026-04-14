@@ -30,8 +30,10 @@ where
 					error!("Passkey cannot be empty, try again.");
 					continue;
 				}
-				let passkey_confirm = rpassword::prompt_password("Confirm encryption passkey: ")
-					.map(SecretString::new)?;
+				let passkey_confirm = tui::prompt_secret_non_empty(
+					"Confirm encryption passkey: ",
+					"prompting for encryption passkey confirmation",
+				)?;
 				if passkey1.expose_secret() == passkey_confirm.expose_secret() {
 					passkey = Some(passkey1);
 					break;

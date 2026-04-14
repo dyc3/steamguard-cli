@@ -11,10 +11,106 @@ use log::debug;
 use secrecy::SecretString;
 use std::collections::HashSet;
 use std::io::{stderr, stdout, Write};
+use std::sync::{Arc, OnceLock, RwLock};
 use steamguard::Confirmation;
+
+pub(crate) trait PromptBackend: Send + Sync {
+	fn prompt(&self) -> String;
+	fn prompt_allow_empty(&self, prompt_text: &str) -> String;
+	fn prompt_non_empty(&self, prompt_text: &str) -> String;
+	fn prompt_char(&self, text: &str, chars: &str) -> char;
+	fn prompt_confirmation_menu(
+		&self,
+		confirmations: Vec<Confirmation>,
+	) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)>;
+	fn pause(&self);
+	fn prompt_secret_non_empty(
+		&self,
+		prompt_text: &str,
+		context: &str,
+	) -> anyhow::Result<SecretString>;
+}
+
+pub(crate) struct TuiPromptBackend;
+
+impl PromptBackend for TuiPromptBackend {
+	fn prompt(&self) -> String {
+		prompt_impl()
+	}
+
+	fn prompt_allow_empty(&self, prompt_text: &str) -> String {
+		prompt_allow_empty_impl(prompt_text)
+	}
+
+	fn prompt_non_empty(&self, prompt_text: &str) -> String {
+		prompt_non_empty_impl(prompt_text)
+	}
+
+	fn prompt_char(&self, text: &str, chars: &str) -> char {
+		prompt_char_loop(text, chars)
+	}
+
+	fn prompt_confirmation_menu(
+		&self,
+		confirmations: Vec<Confirmation>,
+	) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
+		prompt_confirmation_menu_impl(confirmations)
+	}
+
+	fn pause(&self) {
+		pause_impl()
+	}
+
+	fn prompt_secret_non_empty(
+		&self,
+		prompt_text: &str,
+		context: &str,
+	) -> anyhow::Result<SecretString> {
+		prompt_secret_non_empty_impl(prompt_text, context)
+	}
+}
+
+fn prompt_backend_cell() -> &'static RwLock<Arc<dyn PromptBackend>> {
+	static PROMPT_BACKEND: OnceLock<RwLock<Arc<dyn PromptBackend>>> = OnceLock::new();
+	PROMPT_BACKEND.get_or_init(|| RwLock::new(Arc::new(TuiPromptBackend)))
+}
+
+fn prompt_backend() -> Arc<dyn PromptBackend> {
+	prompt_backend_cell()
+		.read()
+		.expect("failed to read prompt backend")
+		.clone()
+}
+
+#[allow(dead_code)]
+pub(crate) fn with_prompt_backend<R>(
+	backend: Arc<dyn PromptBackend>,
+	run: impl FnOnce() -> R,
+) -> R {
+	let previous = {
+		let mut current = prompt_backend_cell()
+			.write()
+			.expect("failed to write prompt backend");
+		std::mem::replace(&mut *current, backend)
+	};
+
+	let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(run));
+	*prompt_backend_cell()
+		.write()
+		.expect("failed to write prompt backend") = previous;
+
+	match result {
+		Ok(value) => value,
+		Err(payload) => std::panic::resume_unwind(payload),
+	}
+}
 
 /// Prompt the user for text input.
 pub(crate) fn prompt() -> String {
+	prompt_backend().prompt()
+}
+
+fn prompt_impl() -> String {
 	stdout().flush().expect("failed to flush stdout");
 	stderr().flush().expect("failed to flush stderr");
 
@@ -46,14 +142,22 @@ pub(crate) fn prompt() -> String {
 }
 
 pub(crate) fn prompt_allow_empty(prompt_text: impl AsRef<str>) -> String {
-	eprint!("{}", prompt_text.as_ref());
-	prompt()
+	prompt_backend().prompt_allow_empty(prompt_text.as_ref())
+}
+
+fn prompt_allow_empty_impl(prompt_text: &str) -> String {
+	eprint!("{}", prompt_text);
+	prompt_impl()
 }
 
 pub(crate) fn prompt_non_empty(prompt_text: impl AsRef<str>) -> String {
+	prompt_backend().prompt_non_empty(prompt_text.as_ref())
+}
+
+fn prompt_non_empty_impl(prompt_text: &str) -> String {
 	loop {
-		eprint!("{}", prompt_text.as_ref());
-		let input = prompt();
+		eprint!("{}", prompt_text);
+		let input = prompt_impl();
 		if !input.is_empty() {
 			return input;
 		}
@@ -65,10 +169,14 @@ pub(crate) fn prompt_non_empty(prompt_text: impl AsRef<str>) -> String {
 /// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.
 /// The selected character returned will always be lowercase.
 pub(crate) fn prompt_char(text: &str, chars: &str) -> char {
+	prompt_backend().prompt_char(text, chars)
+}
+
+fn prompt_char_loop(text: &str, chars: &str) -> char {
 	loop {
 		let _ = stderr().queue(Print(format!("{} [{}] ", text, chars)));
 		let _ = stderr().flush();
-		let input = prompt();
+		let input = prompt_impl();
 		if let Ok(c) = prompt_char_impl(input, chars) {
 			return c;
 		}
@@ -108,6 +216,12 @@ fn prompt_char_impl(input: impl Into<String>, chars: &str) -> anyhow::Result<cha
 
 /// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
 pub(crate) fn prompt_confirmation_menu(
+	confirmations: Vec<Confirmation>,
+) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
+	prompt_backend().prompt_confirmation_menu(confirmations)
+}
+
+fn prompt_confirmation_menu_impl(
 	confirmations: Vec<Confirmation>,
 ) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
 	if confirmations.is_empty() {
@@ -258,6 +372,10 @@ pub(crate) fn prompt_confirmation_menu(
 }
 
 pub(crate) fn pause() {
+	prompt_backend().pause();
+}
+
+fn pause_impl() {
 	let _ = write!(stderr(), "Press enter to continue...");
 	let _ = stderr().flush();
 	loop {
@@ -271,25 +389,30 @@ pub(crate) fn pause() {
 	}
 }
 
-pub(crate) fn prompt_passkey() -> anyhow::Result<SecretString> {
-	debug!("prompting for passkey");
+pub(crate) fn prompt_secret_non_empty(
+	prompt_text: &str,
+	context: &str,
+) -> anyhow::Result<SecretString> {
+	prompt_backend().prompt_secret_non_empty(prompt_text, context)
+}
+
+fn prompt_secret_non_empty_impl(prompt_text: &str, context: &str) -> anyhow::Result<SecretString> {
 	loop {
-		let raw = rpassword::prompt_password("Enter encryption passkey: ")
-			.context("prompting for passkey")?;
+		let raw = rpassword::prompt_password(prompt_text).with_context(|| context.to_owned())?;
 		if !raw.is_empty() {
 			return Ok(SecretString::new(raw));
 		}
 	}
 }
 
+pub(crate) fn prompt_passkey() -> anyhow::Result<SecretString> {
+	debug!("prompting for passkey");
+	prompt_secret_non_empty("Enter encryption passkey: ", "prompting for passkey")
+}
+
 pub(crate) fn prompt_password() -> anyhow::Result<SecretString> {
 	debug!("prompting for password");
-	loop {
-		let raw = rpassword::prompt_password("Password: ").context("prompting for password")?;
-		if !raw.is_empty() {
-			return Ok(SecretString::new(raw));
-		}
-	}
+	prompt_secret_non_empty("Password: ", "prompting for password")
 }
 
 #[cfg(test)]
