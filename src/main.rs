@@ -87,6 +87,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 		Subcommands::Completion(args) => CommandType::Const(Box::new(args)),
 		Subcommands::Setup(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Import(args) => CommandType::Manifest(Box::new(args)),
+		Subcommands::Gui(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::List(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Encrypt(args) => CommandType::Manifest(Box::new(args)),
 		Subcommands::Decrypt(args) => CommandType::Manifest(Box::new(args)),
