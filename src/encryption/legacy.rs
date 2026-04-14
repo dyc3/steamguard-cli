@@ -4,6 +4,7 @@ use aes::Aes256;
 use anyhow::Context;
 use base64::Engine;
 use log::*;
+use rand::TryRng;
 use sha1::Sha1;
 
 use super::*;
@@ -45,11 +46,13 @@ impl LegacySdaCompatible {
 
 impl EntryEncryptor for LegacySdaCompatible {
 	fn generate() -> LegacySdaCompatible {
-		let mut rng = rand::rngs::OsRng;
+		let mut rng = rand::rngs::SysRng;
 		let mut salt = [0u8; Self::SALT_LENGTH];
 		let mut iv = [0u8; Self::IV_LENGTH];
-		rng.fill(&mut salt);
-		rng.fill(&mut iv);
+		rng.try_fill_bytes(&mut salt)
+			.expect("failed to generate random salt");
+		rng.try_fill_bytes(&mut iv)
+			.expect("failed to generate random iv");
 		LegacySdaCompatible {
 			iv: base64::engine::general_purpose::STANDARD.encode(iv),
 			salt: base64::engine::general_purpose::STANDARD.encode(salt),
