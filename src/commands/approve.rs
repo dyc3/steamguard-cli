@@ -47,7 +47,8 @@ where
 				crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 			}
 
-			let sessions = {
+			let mut did_relogin = false;
+			let (sessions, mut approver) = loop {
 				let Some(tokens) = account.tokens.as_ref() else {
 					error!(
 						"No tokens found for {}. Can't approve login if we aren't logged in ourselves.",
@@ -58,28 +59,15 @@ where
 
 				let approver = LoginApprover::new(transport.clone(), tokens);
 				match approver.list_auth_sessions() {
-					Ok(sessions) => sessions,
-					Err(ApproverError::Unauthorized) => {
+					Ok(sessions) => break (sessions, approver),
+					Err(ApproverError::Unauthorized) if !did_relogin => {
 						info!("Access token expired, re-logging in...");
 						crate::do_login(transport.clone(), &mut account, args.password.clone())?;
-						let tokens = account.tokens.as_ref().ok_or_else(|| {
-							anyhow!("No tokens found for {}", account.account_name)
-						})?;
-						let approver = LoginApprover::new(transport.clone(), tokens);
-						approver.list_auth_sessions()?
+						did_relogin = true;
 					}
 					Err(err) => return Err(err.into()),
 				}
 			};
-
-			let Some(tokens) = account.tokens.as_ref() else {
-				error!(
-					"No tokens found for {}. Can't approve login if we aren't logged in ourselves.",
-					account.account_name
-				);
-				return Err(anyhow!("No tokens found for {}", account.account_name));
-			};
-			let mut approver = LoginApprover::new(transport.clone(), tokens);
 			if sessions.is_empty() {
 				info!("No pending sessions to approve");
 				continue;
