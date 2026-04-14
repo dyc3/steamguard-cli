@@ -14,59 +14,37 @@ use std::io::{stderr, stdout, Write};
 use std::sync::{Arc, OnceLock, RwLock};
 use steamguard::Confirmation;
 
-pub(crate) trait PromptBackend: Send + Sync {
-	fn prompt(&self) -> String;
-	fn prompt_allow_empty(&self, prompt_text: &str) -> String;
-	fn prompt_non_empty(&self, prompt_text: &str) -> String;
-	fn prompt_char(&self, text: &str, chars: &str) -> char;
-	fn prompt_confirmation_menu(
-		&self,
-		confirmations: Vec<Confirmation>,
-	) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)>;
-	fn pause(&self);
-	fn prompt_secret_non_empty(
-		&self,
-		prompt_text: &str,
-		context: &str,
-	) -> anyhow::Result<SecretString>;
-}
+use crate::prompt_backend::{ChoiceOption, PromptBackend};
 
 pub(crate) struct TuiPromptBackend;
 
 impl PromptBackend for TuiPromptBackend {
-	fn prompt(&self) -> String {
-		prompt_impl()
+	fn prompt_text(&self, prompt_text: &str, allow_empty: bool) -> String {
+		if allow_empty {
+			prompt_allow_empty_impl(prompt_text)
+		} else {
+			prompt_non_empty_impl(prompt_text)
+		}
 	}
 
-	fn prompt_allow_empty(&self, prompt_text: &str) -> String {
-		prompt_allow_empty_impl(prompt_text)
+	fn choose(&self, prompt_text: &str, choices: &[ChoiceOption<'_>]) -> String {
+		prompt_choice_loop(prompt_text, choices)
 	}
 
-	fn prompt_non_empty(&self, prompt_text: &str) -> String {
-		prompt_non_empty_impl(prompt_text)
-	}
-
-	fn prompt_char(&self, text: &str, chars: &str) -> char {
-		prompt_char_loop(text, chars)
-	}
-
-	fn prompt_confirmation_menu(
+	fn select_confirmations(
 		&self,
 		confirmations: Vec<Confirmation>,
 	) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
 		prompt_confirmation_menu_impl(confirmations)
 	}
 
-	fn pause(&self) {
-		pause_impl()
-	}
-
-	fn prompt_secret_non_empty(
+	fn prompt_secret(
 		&self,
 		prompt_text: &str,
 		context: &str,
+		allow_empty: bool,
 	) -> anyhow::Result<SecretString> {
-		prompt_secret_non_empty_impl(prompt_text, context)
+		prompt_secret_impl(prompt_text, context, allow_empty)
 	}
 }
 
@@ -107,7 +85,7 @@ pub(crate) fn with_prompt_backend<R>(
 
 /// Prompt the user for text input.
 pub(crate) fn prompt() -> String {
-	prompt_backend().prompt()
+	prompt_backend().prompt_text("", true)
 }
 
 fn prompt_impl() -> String {
@@ -142,7 +120,7 @@ fn prompt_impl() -> String {
 }
 
 pub(crate) fn prompt_allow_empty(prompt_text: impl AsRef<str>) -> String {
-	prompt_backend().prompt_allow_empty(prompt_text.as_ref())
+	prompt_backend().prompt_text(prompt_text.as_ref(), true)
 }
 
 fn prompt_allow_empty_impl(prompt_text: &str) -> String {
@@ -151,7 +129,7 @@ fn prompt_allow_empty_impl(prompt_text: &str) -> String {
 }
 
 pub(crate) fn prompt_non_empty(prompt_text: impl AsRef<str>) -> String {
-	prompt_backend().prompt_non_empty(prompt_text.as_ref())
+	prompt_backend().prompt_text(prompt_text.as_ref(), false)
 }
 
 fn prompt_non_empty_impl(prompt_text: &str) -> String {
@@ -169,56 +147,116 @@ fn prompt_non_empty_impl(prompt_text: &str) -> String {
 /// `chars` should be all lowercase characters, with at most 1 uppercase character. The uppercase character is the default answer if no answer is provided.
 /// The selected character returned will always be lowercase.
 pub(crate) fn prompt_char(text: &str, chars: &str) -> char {
-	prompt_backend().prompt_char(text, chars)
+	let options = parse_prompt_char_options(chars);
+	let choices = options
+		.iter()
+		.map(|option| ChoiceOption {
+			id: &option.id,
+			label: &option.label,
+			is_default: option.is_default,
+		})
+		.collect::<Vec<_>>();
+
+	let selected = prompt_backend().choose(text, &choices);
+	let mut chars = selected.chars();
+	let answer = chars
+		.next()
+		.expect("prompt backend returned an empty choice");
+	assert!(
+		chars.next().is_none(),
+		"prompt backend returned a multi-character choice"
+	);
+	answer.to_ascii_lowercase()
 }
 
-fn prompt_char_loop(text: &str, chars: &str) -> char {
+fn prompt_choice_loop(text: &str, choices: &[ChoiceOption<'_>]) -> String {
+	let choice_labels = choices
+		.iter()
+		.map(|choice| choice.label)
+		.collect::<Vec<_>>()
+		.join("");
+
 	loop {
-		let _ = stderr().queue(Print(format!("{} [{}] ", text, chars)));
+		let _ = stderr().queue(Print(format!("{} [{}] ", text, choice_labels)));
 		let _ = stderr().flush();
 		let input = prompt_impl();
-		if let Ok(c) = prompt_char_impl(input, chars) {
-			return c;
+		if let Ok(choice) = prompt_choice_impl(input, choices) {
+			return choice;
 		}
 	}
 }
 
-fn prompt_char_impl(input: impl Into<String>, chars: &str) -> anyhow::Result<char> {
-	let uppers = chars.replace(char::is_lowercase, "");
-	if uppers.len() > 1 {
+fn prompt_choice_impl(input: impl Into<String>, choices: &[ChoiceOption<'_>]) -> anyhow::Result<String> {
+	if choices.iter().filter(|choice| choice.is_default).count() > 1 {
 		panic!("Invalid chars for prompt_char. Maximum 1 uppercase letter is allowed.");
 	}
-	let default_answer: Option<char> = if uppers.len() == 1 {
-		Some(uppers.chars().collect::<Vec<char>>()[0].to_ascii_lowercase())
-	} else {
-		None
-	};
 
 	let answer: String = input.into().to_ascii_lowercase();
 
 	if answer.is_empty() {
-		if let Some(a) = default_answer {
-			return Ok(a);
+		if let Some(default_choice) = choices.iter().find(|choice| choice.is_default) {
+			return Ok(default_choice.id.to_owned());
 		} else {
 			bail!("no valid answer")
 		}
-	} else if answer.len() > 1 {
-		bail!("answer too long")
 	}
 
-	let answer_char = answer.chars().collect::<Vec<char>>()[0];
-	if chars.to_ascii_lowercase().contains(answer_char) {
-		return Ok(answer_char);
+	if choices
+		.iter()
+		.any(|choice| choice.id.eq_ignore_ascii_case(&answer))
+	{
+		return Ok(answer);
 	}
 
 	bail!("no valid answer")
+}
+
+struct PromptCharOption {
+	id: String,
+	label: String,
+	is_default: bool,
+}
+
+fn parse_prompt_char_options(chars: &str) -> Vec<PromptCharOption> {
+	let options = chars
+		.chars()
+		.map(|choice| PromptCharOption {
+			id: choice.to_ascii_lowercase().to_string(),
+			label: choice.to_string(),
+			is_default: choice.is_ascii_uppercase(),
+		})
+		.collect::<Vec<_>>();
+
+	if options.iter().filter(|option| option.is_default).count() > 1 {
+		panic!("Invalid chars for prompt_char. Maximum 1 uppercase letter is allowed.");
+	}
+
+	options
+}
+
+#[cfg(test)]
+fn prompt_char_impl(input: impl Into<String>, chars: &str) -> anyhow::Result<char> {
+	let options = parse_prompt_char_options(chars);
+	let choices = options
+		.iter()
+		.map(|option| ChoiceOption {
+			id: &option.id,
+			label: &option.label,
+			is_default: option.is_default,
+		})
+		.collect::<Vec<_>>();
+	let answer = prompt_choice_impl(input, &choices)?;
+	if answer.len() > 1 {
+		bail!("answer too long")
+	}
+	Ok(answer.chars().next().expect("answer should not be empty"))
 }
 
 /// Returns a tuple of (accepted, denied). Ignored confirmations are not included.
 pub(crate) fn prompt_confirmation_menu(
 	confirmations: Vec<Confirmation>,
 ) -> anyhow::Result<(Vec<Confirmation>, Vec<Confirmation>)> {
-	prompt_backend().prompt_confirmation_menu(confirmations)
+	prompt_backend().select_confirmations(confirmations)
 }
 
 fn prompt_confirmation_menu_impl(
@@ -372,7 +410,7 @@ fn prompt_confirmation_menu_impl(
 }
 
 pub(crate) fn pause() {
-	prompt_backend().pause();
+	pause_impl();
 }
 
 fn pause_impl() {
@@ -393,13 +431,17 @@ pub(crate) fn prompt_secret_non_empty(
 	prompt_text: &str,
 	context: &str,
 ) -> anyhow::Result<SecretString> {
-	prompt_backend().prompt_secret_non_empty(prompt_text, context)
+	prompt_backend().prompt_secret(prompt_text, context, false)
 }
 
-fn prompt_secret_non_empty_impl(prompt_text: &str, context: &str) -> anyhow::Result<SecretString> {
+fn prompt_secret_impl(
+	prompt_text: &str,
+	context: &str,
+	allow_empty: bool,
+) -> anyhow::Result<SecretString> {
 	loop {
 		let raw = rpassword::prompt_password(prompt_text).with_context(|| context.to_owned())?;
-		if !raw.is_empty() {
+		if allow_empty || !raw.is_empty() {
 			return Ok(SecretString::new(raw));
 		}
 	}
