@@ -8,7 +8,7 @@ use steamguard::approver::Challenge;
 use steamguard::protobufs::enums::ESessionPersistence;
 use steamguard::protobufs::steammessages_auth_steamclient::EAuthTokenPlatformType;
 use steamguard::transport::Transport;
-use steamguard::{LoginApprover, SteamGuardAccount};
+use steamguard::{ApproverError, LoginApprover, SteamGuardAccount};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Approve or deny pending login sessions")]
@@ -47,20 +47,30 @@ where
 				crate::do_login(transport.clone(), &mut account, args.password.clone())?;
 			}
 
-			let Some(tokens) = account.tokens.as_ref() else {
-				error!(
-					"No tokens found for {}. Can't approve login if we aren't logged in ourselves.",
-					account.account_name
-				);
-				return Err(anyhow!("No tokens found for {}", account.account_name));
+			let mut did_relogin = false;
+			let (sessions, mut approver) = loop {
+				let Some(tokens) = account.tokens.as_ref() else {
+					error!(
+						"No tokens found for {}. Can't approve login if we aren't logged in ourselves.",
+						account.account_name
+					);
+					return Err(anyhow!("No tokens found for {}", account.account_name));
+				};
+
+				let approver = LoginApprover::new(transport.clone(), tokens);
+				match approver.list_auth_sessions() {
+					Ok(sessions) => break (sessions, approver),
+					Err(ApproverError::Unauthorized) if !did_relogin => {
+						info!("Access token expired, re-logging in...");
+						crate::do_login(transport.clone(), &mut account, args.password.clone())?;
+						did_relogin = true;
+					}
+					Err(err) => return Err(err.into()),
+				}
 			};
-
-			let mut approver = LoginApprover::new(transport.clone(), tokens);
-
-			let sessions = approver.list_auth_sessions()?;
 			if sessions.is_empty() {
 				info!("No pending sessions to approve");
-				return Ok(());
+				continue;
 			}
 
 			info!("Found {} pending sessions", sessions.len());
