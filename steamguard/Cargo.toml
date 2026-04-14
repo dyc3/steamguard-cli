@@ -45,6 +45,3 @@ num_enum = "0.7.2"
 anyhow = "^1.0"
 protobuf = "3.7.1"
 protobuf-codegen = "3.7.1"
-
-[dev-dependencies]
-rand_08 = { package = "rand", version = "0.8.5" }
