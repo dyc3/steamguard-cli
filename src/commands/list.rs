@@ -45,7 +45,7 @@ mod tests {
 
 	#[test]
 	fn account_names_preserves_manifest_order() {
-		let entries = vec![
+		let entries = [
 			ManifestEntry {
 				filename: String::from("beta.maFile"),
 				steam_id: 2,
