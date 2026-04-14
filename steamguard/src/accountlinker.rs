@@ -10,7 +10,6 @@ use crate::transport::{Transport, TransportError};
 use crate::{steamapi::EResult, token::Tokens, SteamGuardAccount};
 use anyhow::Context;
 use base64::Engine;
-use log::*;
 use thiserror::Error;
 
 #[derive(Debug)]
