@@ -27,6 +27,7 @@ mod debug;
 mod encryption;
 mod errors;
 mod login;
+mod prompt_backend;
 mod secret_string;
 pub(crate) mod tui;
 
