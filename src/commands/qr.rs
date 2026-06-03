@@ -16,6 +16,22 @@ pub struct QrCommand {
 		help = "Force using ASCII chars to generate QR codes. Useful for terminals that don't support unicode."
 	)]
 	pub ascii: bool,
+
+	/// Generate QR codes in Bitwarden-compatible format (steam://<secret>).
+	#[clap(
+		long,
+		conflicts_with = "keepassxc",
+		help = "Generate QR codes compatible with Bitwarden (steam://<secret>)"
+	)]
+	pub bitwarden: bool,
+
+	/// Generate QR codes in KeePassXC-compatible format (includes period, digits, encoder parameters).
+	#[clap(
+		long,
+		conflicts_with = "bitwarden",
+		help = "Generate QR codes compatible with KeePassXC (otpauth URI with period=30&digits=5&encoder=steam)"
+	)]
+	pub keepassxc: bool,
 }
 
 impl<T> AccountCommand<T> for QrCommand
@@ -35,7 +51,24 @@ where
 
 		for account in accounts {
 			let account = account.lock().unwrap();
-			let qr = QrCode::new(account.uri.expose_secret())
+			let uri_raw = account.uri.expose_secret();
+
+			let qr_content: String = if self.bitwarden {
+				let secret = parse_secret_from_uri(uri_raw)
+					.context("failed to parse secret from URI")?;
+				format!("steam://{}", secret)
+			} else if self.keepassxc {
+				let (secret, username) = parse_secret_and_username(uri_raw)
+					.context("failed to parse URI")?;
+				format!(
+					"otpauth://totp/Steam:{}?secret={}&period=30&digits=5&issuer=Steam&encoder=steam",
+					username, secret
+				)
+			} else {
+				uri_raw.to_owned()
+			};
+
+			let qr = QrCode::new(qr_content.as_bytes())
 				.context(format!("generating qr code for {}", account.account_name))?;
 
 			info!("Printing QR code for {}", account.account_name);
@@ -57,4 +90,26 @@ where
 		}
 		Ok(())
 	}
+}
+
+/// Extract the `secret` query parameter from an `otpauth://totp/...` URI.
+fn parse_secret_from_uri(uri: &str) -> Option<&str> {
+	let query = uri.split('?').nth(1)?;
+	for pair in query.split('&') {
+		if let Some(val) = pair.strip_prefix("secret=") {
+			return Some(val);
+		}
+	}
+	None
+}
+
+/// Extract the `secret` and `username` from an `otpauth://totp/Steam:username?...` URI.
+fn parse_secret_and_username(uri: &str) -> Option<(String, String)> {
+	let uri = uri.strip_prefix("otpauth://totp/")?;
+	let (path, query) = uri.split_once('?')?;
+	let username = path.split_once(':').map(|(_, u)| u).unwrap_or(path).to_string();
+	let secret = query
+		.split('&')
+		.find_map(|pair| pair.strip_prefix("secret="))?;
+	Some((secret.to_string(), username))
 }
