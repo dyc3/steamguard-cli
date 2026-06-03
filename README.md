@@ -90,6 +90,12 @@ There are some applications that do not generate correct 2fa codes from the secr
 - Google Authenticator
 - Authy
 
+Other applications require a different format. If you use either Bitwarden or KeePassXC, you can generate a compatible QR code using their respective flags:
+```bash
+steamguard qr --bitwarden # Bitwarden compatible format
+steamguard qr --keepassxc # KeePassXC compatible format
+```
+
 # Contributing
 
 By contributing code to this project, you give me and any future maintainers a non-exclusive transferable license to use that code for this project, including permission to modify, redistribute, and relicense it.
