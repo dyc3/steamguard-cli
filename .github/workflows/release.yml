@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+  BIN_NAME: steamguard
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            target: x86_64-unknown-linux-gnu
+            artifact: steamguard-linux-x86_64
+            binary: steamguard
+            use-cross: false
+          - name: linux-arm64
+            target: aarch64-unknown-linux-gnu
+            artifact: steamguard-linux-aarch64
+            binary: steamguard
+            use-cross: true
+          - name: linux-musl
+            target: x86_64-unknown-linux-musl
+            artifact: steamguard-linux-musl-x86_64
+            binary: steamguard
+            use-cross: true
+          - name: windows
+            target: x86_64-pc-windows-gnu
+            artifact: steamguard-windows-x86_64.exe
+            binary: steamguard.exe
+            use-cross: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install --profile minimal
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v0-release-${{ matrix.target }}
+
+      - name: Install Cross
+        if: matrix.use-cross
+        uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cross
+
+      - name: Build
+        run: |
+          if [[ "${{ matrix.use-cross }}" == "true" ]]; then
+            cross build --release --bin "$BIN_NAME" --target "${{ matrix.target }}"
+          else
+            cargo build --release --bin "$BIN_NAME" --target "${{ matrix.target }}"
+          fi
+
+      - name: Stage artifact
+        run: |
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/${{ matrix.artifact }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+          if-no-files-found: error
+
+  package-deb:
+    name: Package Debian
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            binary-artifact: steamguard-linux-musl-x86_64
+          - arch: arm64
+            binary-artifact: steamguard-linux-aarch64
+
+    steps:
+      - name: Download package binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.binary-artifact }}
+          path: package-input
+
+      - name: Download native binary
+        uses: actions/download-artifact@v4
+        with:
+          name: steamguard-linux-x86_64
+          path: native-input
+
+      - name: Build Debian package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          package_root="steamguard-cli_${version}_${{ matrix.arch }}"
+          binary_path="package-input/${{ matrix.binary-artifact }}"
+          native_binary_path="native-input/steamguard-linux-x86_64"
+
+          chmod +x "$binary_path" "$native_binary_path"
+          mkdir -p "$package_root/usr/local/bin"
+          mkdir -p "$package_root/etc/bash_completion.d"
+          mkdir -p "$package_root/DEBIAN"
+
+          cp "$binary_path" "$package_root/usr/local/bin/steamguard"
+          "$native_binary_path" completion --shell bash > "$package_root/etc/bash_completion.d/steamguard"
+
+          cat > "$package_root/DEBIAN/control" <<EOF
+          Package: steamguard-cli
+          Depends:
+          Version: $version
+          Section: base
+          Priority: optional
+          Architecture: ${{ matrix.arch }}
+          Maintainer: Carson McManus <carson.mcmanus1@gmail.com>
+          Description: steamguard-cli
+           A command line utility to generate Steam 2FA codes and respond to confirmations.
+          EOF
+
+          dpkg-deb -Zxz --build "$package_root" "steamguard-cli_${version}-0_${{ matrix.arch }}.deb"
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: steamguard-cli-deb-${{ matrix.arch }}
+          path: steamguard-cli_*-0_${{ matrix.arch }}.deb
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - package-deb
+    environment: Publish
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install --profile minimal
+
+      - name: Authenticate with crates.io
+        uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          cargo publish --package steamguard
+          for attempt in 1 2 3 4 5; do
+            cargo publish --package steamguard-cli && break
+            if [[ "$attempt" == "5" ]]; then
+              exit 1
+            fi
+            sleep 30
+          done
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" dist/* \
+            --verify-tag \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
