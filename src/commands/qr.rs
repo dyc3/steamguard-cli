@@ -57,10 +57,13 @@ where
 			let qr_content: String = match self.format {
 				QrFormat::Steam => account.uri.expose_secret().to_owned(),
 				QrFormat::Bitwarden => format!("steam://{}", secret_b64),
-				QrFormat::KeePassXc => format!(
-					"otpauth://totp/Steam:{}?secret={}&period=30&digits=5&issuer=Steam&encoder=steam",
-					account.account_name, secret_b64
-				),
+				QrFormat::KeePassXc => {
+					let username = percent_encode_username(&account.account_name);
+					format!(
+						"otpauth://totp/Steam:{}?secret={}&period=30&digits=5&issuer=Steam&encoder=steam",
+						username, secret_b64
+					)
+				}
 			};
 
 			let qr = QrCode::new(qr_content.as_bytes())
@@ -84,5 +87,56 @@ where
 			println!("{}", qr_string);
 		}
 		Ok(())
+	}
+}
+
+/// Percent-encode characters that are unsafe in a URI path component.
+///
+/// Only encodes characters that would structurally break a URI (delimiters,
+/// the percent escape character itself, and non-ASCII bytes). Safe unreserved
+/// characters (RFC 3986) pass through unchanged.
+fn percent_encode_username(s: &str) -> String {
+	let mut out = String::with_capacity(s.len());
+	for b in s.bytes() {
+		match b {
+			b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+				out.push(b as char);
+			}
+			_ => {
+				out.push('%');
+				out.push_str(&format!("{:02X}", b));
+			}
+		}
+	}
+	out
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn percent_encode_username_passes_through_safe_chars() {
+		assert_eq!(percent_encode_username("abc123_-"), "abc123_-");
+	}
+
+	#[test]
+	fn percent_encode_username_encodes_reserved_chars() {
+		assert_eq!(percent_encode_username("user?name"), "user%3Fname");
+		assert_eq!(percent_encode_username("user&name"), "user%26name");
+		assert_eq!(percent_encode_username("user#name"), "user%23name");
+		assert_eq!(percent_encode_username("user:name"), "user%3Aname");
+		assert_eq!(percent_encode_username("user/name"), "user%2Fname");
+		assert_eq!(percent_encode_username("user%20name"), "user%2520name");
+	}
+
+	#[test]
+	fn percent_encode_username_encodes_space() {
+		assert_eq!(percent_encode_username("user name"), "user%20name");
+	}
+
+	#[test]
+	fn percent_encode_username_encodes_non_ascii() {
+		assert_eq!(percent_encode_username("usér"), "us%C3%A9r");
 	}
 }
