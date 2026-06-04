@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - run: rustup component add clippy rustfmt
       - uses: actions/checkout@v4
+      - run: rustup toolchain install --profile minimal
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
       - name: Check format
@@ -34,6 +34,7 @@ jobs:
         target: [x86_64-unknown-linux-musl, x86_64-pc-windows-gnu]
     steps:
       - uses: actions/checkout@v4
+      - run: rustup toolchain install --profile minimal
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
