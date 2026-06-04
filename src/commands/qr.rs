@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use base64::Engine;
 use log::*;
 use qrcode::QrCode;
 use secrecy::ExposeSecret;
@@ -7,6 +8,17 @@ use secrecy::ExposeSecret;
 use crate::AccountManager;
 
 use super::*;
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+#[clap(rename_all = "lowercase")]
+pub(crate) enum QrFormat {
+	/// The default Steam otpauth URI
+	Steam,
+	/// Bitwarden-compatible format: steam://<secret>
+	Bitwarden,
+	/// KeePassXC-compatible otpauth URI with period, digits, and encoder parameters
+	KeePassXc,
+}
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Generate QR codes. This *will* print sensitive data to stdout.")]
@@ -17,21 +29,9 @@ pub struct QrCommand {
 	)]
 	pub ascii: bool,
 
-	/// Generate QR codes in Bitwarden-compatible format (steam://<secret>).
-	#[clap(
-		long,
-		conflicts_with = "keepassxc",
-		help = "Generate QR codes compatible with Bitwarden (steam://<secret>)"
-	)]
-	pub bitwarden: bool,
-
-	/// Generate QR codes in KeePassXC-compatible format (includes period, digits, encoder parameters).
-	#[clap(
-		long,
-		conflicts_with = "bitwarden",
-		help = "Generate QR codes compatible with KeePassXC (otpauth URI with period=30&digits=5&encoder=steam)"
-	)]
-	pub keepassxc: bool,
+	/// Output format for the QR code content.
+	#[clap(long, value_enum, default_value = "steam")]
+	pub format: QrFormat,
 }
 
 impl<T> AccountCommand<T> for QrCommand
@@ -51,21 +51,16 @@ where
 
 		for account in accounts {
 			let account = account.lock().unwrap();
-			let uri_raw = account.uri.expose_secret();
+			let secret_b64 = base64::engine::general_purpose::STANDARD
+				.encode(account.shared_secret.expose_secret());
 
-			let qr_content: String = if self.bitwarden {
-				let secret = parse_secret_from_uri(uri_raw)
-					.context("failed to parse secret from URI")?;
-				format!("steam://{}", secret)
-			} else if self.keepassxc {
-				let (secret, username) = parse_secret_and_username(uri_raw)
-					.context("failed to parse URI")?;
-				format!(
+			let qr_content: String = match self.format {
+				QrFormat::Steam => account.uri.expose_secret().to_owned(),
+				QrFormat::Bitwarden => format!("steam://{}", secret_b64),
+				QrFormat::KeePassXc => format!(
 					"otpauth://totp/Steam:{}?secret={}&period=30&digits=5&issuer=Steam&encoder=steam",
-					username, secret
-				)
-			} else {
-				uri_raw.to_owned()
+					account.account_name, secret_b64
+				),
 			};
 
 			let qr = QrCode::new(qr_content.as_bytes())
@@ -90,26 +85,4 @@ where
 		}
 		Ok(())
 	}
-}
-
-/// Extract the `secret` query parameter from an `otpauth://totp/...` URI.
-fn parse_secret_from_uri(uri: &str) -> Option<&str> {
-	let query = uri.split('?').nth(1)?;
-	for pair in query.split('&') {
-		if let Some(val) = pair.strip_prefix("secret=") {
-			return Some(val);
-		}
-	}
-	None
-}
-
-/// Extract the `secret` and `username` from an `otpauth://totp/Steam:username?...` URI.
-fn parse_secret_and_username(uri: &str) -> Option<(String, String)> {
-	let uri = uri.strip_prefix("otpauth://totp/")?;
-	let (path, query) = uri.split_once('?')?;
-	let username = path.split_once(':').map(|(_, u)| u).unwrap_or(path).to_string();
-	let secret = query
-		.split('&')
-		.find_map(|pair| pair.strip_prefix("secret="))?;
-	Some((secret.to_string(), username))
 }
