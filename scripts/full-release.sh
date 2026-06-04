@@ -1,5 +1,16 @@
 #!/bin/bash
 
+echo "WARNING: this script is old. The current release process has changed."
+echo "1. manually bump the version in the Cargo.toml files"
+echo "2. run cargo check"
+echo "3. git tag vX.Y.Z"
+echo "4. git push --tags"
+echo "and the release will be handled by CI."
+
+exit 0
+
+# keeping this around for reference
+
 set -e
 
 DRY_RUN=true
