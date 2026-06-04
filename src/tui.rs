@@ -30,13 +30,11 @@ pub(crate) fn prompt() -> String {
 				eprint!("{}", c);
 				let _ = stderr().flush();
 			}
-			KeyCode::Backspace => {
-				if !line.is_empty() {
-					line.pop();
+			KeyCode::Backspace if !line.is_empty() => {
+				line.pop();
 
-					eprint!("\x08 \x08");
-					let _ = stderr().flush();
-				}
+				eprint!("\x08 \x08");
+				let _ = stderr().flush();
 			}
 			_ => {}
 		}
