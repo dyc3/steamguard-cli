@@ -239,6 +239,7 @@ where
 				"application/x-www-form-urlencoded; charset=UTF-8",
 			)
 			.header("Origin", "https://steamcommunity.com")
+			.header("Accept-Language", "en-US,en;q=0.9")
 			.body(query_params)
 			.send()?;
 
