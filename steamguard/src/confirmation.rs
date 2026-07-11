@@ -239,6 +239,8 @@ where
 				"application/x-www-form-urlencoded; charset=UTF-8",
 			)
 			.header("Origin", "https://steamcommunity.com")
+			// Steam Community eventually returns HTTP 429 without this browser-style header.
+			.header("Accept-Language", "en-US,en;q=0.9")
 			.body(query_params)
 			.send()?;
 
