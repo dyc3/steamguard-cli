@@ -18,6 +18,8 @@ use crate::{
 	SteamGuardAccount,
 };
 
+const ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
+
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
 }
@@ -95,6 +97,7 @@ where
 			)
 			.header(USER_AGENT, "steamguard-cli")
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
+			.header("Accept-Language", ACCEPT_LANGUAGE)
 			.query(&self.get_confirmation_query_params("conf", time))
 			.send()?;
 
@@ -148,6 +151,7 @@ where
 			)
 			.header(USER_AGENT, "steamguard-cli")
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
+			.header("Accept-Language", ACCEPT_LANGUAGE)
 			.header("Origin", "https://steamcommunity.com")
 			.query(&query_params)
 			.send()?;
@@ -239,8 +243,7 @@ where
 				"application/x-www-form-urlencoded; charset=UTF-8",
 			)
 			.header("Origin", "https://steamcommunity.com")
-			// Steam Community eventually returns HTTP 429 without this browser-style header.
-			.header("Accept-Language", "en-US,en;q=0.9")
+			.header("Accept-Language", ACCEPT_LANGUAGE)
 			.body(query_params)
 			.send()?;
 
@@ -354,6 +357,7 @@ where
 			)
 			.header(USER_AGENT, "steamguard-cli")
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
+			.header("Accept-Language", ACCEPT_LANGUAGE)
 			.query(&query_params)
 			.send()?;
 
