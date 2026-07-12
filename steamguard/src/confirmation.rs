@@ -19,6 +19,8 @@ use crate::{
 };
 
 const ACCEPT_LANGUAGE: &str = "en-US,en;q=0.9";
+const CONFIRMATION_USER_AGENT: &str =
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36";
 
 lazy_static! {
 	static ref STEAM_COOKIE_URL: Url = "https://steamcommunity.com".parse::<Url>().unwrap();
@@ -95,7 +97,7 @@ where
 					.parse::<Url>()
 					.unwrap(),
 			)
-			.header(USER_AGENT, "steamguard-cli")
+			.header(USER_AGENT, CONFIRMATION_USER_AGENT)
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
 			.header("Accept-Language", ACCEPT_LANGUAGE)
 			.query(&self.get_confirmation_query_params("conf", time))
@@ -149,7 +151,7 @@ where
 					.parse::<Url>()
 					.unwrap(),
 			)
-			.header(USER_AGENT, "steamguard-cli")
+			.header(USER_AGENT, CONFIRMATION_USER_AGENT)
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
 			.header("Accept-Language", ACCEPT_LANGUAGE)
 			.header("Origin", "https://steamcommunity.com")
@@ -236,7 +238,7 @@ where
 					.parse::<Url>()
 					.unwrap(),
 			)
-			.header(USER_AGENT, "steamguard-cli")
+			.header(USER_AGENT, CONFIRMATION_USER_AGENT)
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
 			.header(
 				CONTENT_TYPE,
@@ -355,7 +357,7 @@ where
 				.parse::<Url>()
 				.unwrap(),
 			)
-			.header(USER_AGENT, "steamguard-cli")
+			.header(USER_AGENT, CONFIRMATION_USER_AGENT)
 			.header(COOKIE, cookies.cookies(&STEAM_COOKIE_URL).unwrap())
 			.header("Accept-Language", ACCEPT_LANGUAGE)
 			.query(&query_params)
