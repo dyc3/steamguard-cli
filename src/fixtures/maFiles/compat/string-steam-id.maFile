@@ -1,0 +1,20 @@
+{
+	"shared_secret": "zvIayp3JPvtvX/QGHqsqKBk/44s=",
+	"serial_number": "14767137786155771371",
+	"revocation_code": "R12345",
+	"uri": "otpauth://totp/Steam:example?secret=ASDF&issuer=Steam",
+	"account_name": "example",
+	"token_gid": "5f28d367c8d78a0",
+	"identity_secret": "kjsdlwowiqe=",
+	"secret_1": "sklduhfgsdlkjhf=",
+	"device_id": "android:99d2ad0e-4bad-4247-b111-26393aae0be3",
+	"server_time": 1790072054,
+	"fully_enrolled": true,
+	"Session": {
+		"SteamID": "76561000000000000",
+		"SessionID": "4dd7d775277043d772537f67",
+		"SteamLoginSecure": "76561000000000000%7C%7Csynthetic-token",
+		"AccessToken": "synthetic-access-token",
+		"RefreshToken": "synthetic-refresh-token"
+	}
+}

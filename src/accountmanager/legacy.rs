@@ -8,7 +8,7 @@ use std::{
 
 use log::debug;
 use secrecy::{CloneableSecret, DebugSecret, ExposeSecret};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use steamguard::{token::TwoFactorSecret, SecretString, SteamGuardAccount};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -154,8 +154,30 @@ pub struct Session {
 	pub web_cookie: Option<String>,
 	#[serde(default, rename = "OAuthToken")]
 	pub token: Option<String>,
-	#[serde(rename = "SteamID")]
+	#[serde(
+		default,
+		rename = "SteamID",
+		deserialize_with = "deserialize_optional_u64"
+	)]
 	pub steam_id: Option<u64>,
+}
+
+fn deserialize_optional_u64<'de, D: Deserializer<'de>>(
+	deserializer: D,
+) -> Result<Option<u64>, D::Error> {
+	#[derive(Deserialize)]
+	#[serde(untagged)]
+	enum StringOrU64 {
+		String(String),
+		U64(u64),
+	}
+
+	Option::<StringOrU64>::deserialize(deserializer)?
+		.map(|value| match value {
+			StringOrU64::String(value) => value.parse().map_err(serde::de::Error::custom),
+			StringOrU64::U64(value) => Ok(value),
+		})
+		.transpose()
 }
 
 impl CloneableSecret for Session {}
