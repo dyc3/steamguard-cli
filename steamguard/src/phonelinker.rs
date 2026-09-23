@@ -115,6 +115,17 @@ where
 
 		Ok(resp.seconds_to_wait)
 	}
+
+	/// Whether or not the account has a phone number associated with it.
+	pub fn has_phone_number(&self) -> Result<bool, TransportError> {
+		let req = CPhone_AccountPhoneStatus_Request::new();
+		let status = self
+			.client
+			.account_phone_status(req, self.tokens.access_token())?;
+
+		let data = status.into_response_data();
+		Ok(data.has_phone())
+	}
 }
 
 #[derive(Debug, thiserror::Error)]
