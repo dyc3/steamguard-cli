@@ -82,3 +82,11 @@ proptest = "1"
 [profile.release]
 opt-level = 3
 lto = true
+
+# Lighter profile for building on-device in Termux, where RAM is limited
+# and full LTO can get killed by the OOM killer. Use with:
+#   cargo build --profile termux --no-default-features --features qr,updater
+[profile.termux]
+inherits = "release"
+opt-level = 2
+lto = false

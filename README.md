@@ -19,7 +19,7 @@ If you have no idea what the rest of this document is talking about, go read the
 - Generate 2FA codes
 - Respond to trade, market or any other confirmations
 - Encrypted storage of your 2FA secrets
-  - With the option to store your encryption passkey in the system keyring
+  - With the option to store your encryption passkey in the system keyring [ *Not available for Android* ]
 - Special memory-clearing data structures to prevent leaking secrets
 - QR code generation for importing 2FA secrets into other applications, like KeeWeb
 - QR code logins for quickly logging into Steam on a new device, like the Steam Deck
@@ -45,6 +45,17 @@ Otherwise, you can download binaries from the releases.
 ```
 cargo build --release
 ```
+
+## steamguard-cli-android
+ 
+ Android compatible version of steamguard-cli.
+ 
+### How to build on Android Mobile? **[Recommended] [Link](https://github.com/dyc3/steamguard-cli/blob/master/docs/TERMUX_BUILD.md)**
+
+### How to run on Android? 
+  Use `Termux` as the terminal. **[Guide](https://github.com/dyc3/steamguard-cli/blob/master/docs/TERMUX_BUILD.md#download-precompiled-file)**
+
+Android uses the Linux settings path. 
 
 # Usage
 `steamguard-cli` looks for your `maFiles/manifest.json` in at these paths, in this order:
