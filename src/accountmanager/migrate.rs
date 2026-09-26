@@ -418,6 +418,11 @@ mod tests {
 				steam_id: 1234,
 			},
 			Test {
+				mafile: "src/fixtures/maFiles/compat/string-steam-id.maFile",
+				account_name: "example",
+				steam_id: 76561000000000000,
+			},
+			Test {
 				mafile: "src/fixtures/maFiles/compat/steamv2/sample.maFile",
 				account_name: "afarihm",
 				steam_id: 76561199441992970,
