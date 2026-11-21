@@ -28,7 +28,7 @@ jobs:
       - name: Run tests
         run: cargo test --verbose --all-features --all-targets --workspace
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         target: [x86_64-unknown-linux-musl, x86_64-pc-windows-gnu]
