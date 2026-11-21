@@ -28,10 +28,17 @@ jobs:
       - name: Run tests
         run: cargo test --verbose --all-features --all-targets --workspace
   check:
-    runs-on: ubuntu-24.04
+    name: check (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        target: [x86_64-unknown-linux-musl, x86_64-pc-windows-gnu]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            use-cross: true
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            use-cross: false
     steps:
       - uses: actions/checkout@v4
       - run: rustup toolchain install --profile minimal
@@ -40,8 +47,9 @@ jobs:
         with:
           prefix-key: v0-rust-${{ matrix.target }}
       - name: Install Cross
+        if: matrix.use-cross
         uses: baptiste0928/cargo-install@v2
         with:
           crate: cross
       - name: Check
-        run: cross check --verbose --all-targets --all-features --target ${{ matrix.target }}
+        run: ${{ matrix.use-cross && 'cross' || 'cargo' }} check --verbose --all-targets --all-features --target ${{ matrix.target }}
