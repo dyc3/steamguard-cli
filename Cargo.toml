@@ -4,7 +4,7 @@ members = ["steamguard"]
 
 [package]
 name = "steamguard-cli"
-version = "0.18.4"
+version = "0.19.0"
 authors = ["dyc3 (Carson McManus) <carson.mcmanus1@gmail.com>"]
 edition = "2021"
 description = "A command line utility to generate Steam 2FA codes and respond to confirmations."
@@ -33,11 +33,11 @@ base64 = "0.22.1"
 text_io = "0.1.8"
 rpassword = "7.5.0"
 reqwest = { version = "0.12.28", default-features = false, features = [
-	"blocking",
-	"json",
-	"cookies",
-	"gzip",
-	"rustls-tls",
+    "blocking",
+    "json",
+    "cookies",
+    "gzip",
+    "rustls-tls",
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -51,7 +51,7 @@ cookie = "0.18"
 regex = "1"
 lazy_static = "1.4.0"
 uuid = { version = "1.8", features = ["v4"] }
-steamguard = { version = "^0.18.3", path = "./steamguard" }
+steamguard = { version = "^0.19.0", path = "./steamguard" }
 dirs = "5.0.1"
 aes = { version = "0.8.3", features = ["zeroize"] }
 thiserror = "1.0.61"
@@ -62,7 +62,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 zeroize = { version = "^1.6.0", features = ["std", "zeroize_derive"] }
 serde_path_to_error = "0.1.11"
 update-informer = { version = "1.0.0", optional = true, default-features = false, features = [
-	"github",
+    "github",
 ] }
 phonenumber = "0.3"
 cbc = { version = "0.1.2", features = ["std", "zeroize"] }
