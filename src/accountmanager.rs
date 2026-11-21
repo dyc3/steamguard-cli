@@ -15,6 +15,7 @@ use thiserror::Error;
 mod legacy;
 pub mod manifest;
 pub mod migrate;
+pub(crate) mod permissions;
 mod steamv2;
 mod winauth;
 
@@ -235,7 +236,7 @@ impl AccountManager {
 				};
 
 				let path = Path::new(&self.folder).join(&entry.filename);
-				let mut file = File::create(path)?;
+				let mut file = permissions::create_private_file(&path)?;
 				file.write_all(final_buffer.as_slice())?;
 				file.sync_data()?;
 
@@ -248,7 +249,7 @@ impl AccountManager {
 		debug!("saving manifest");
 		let manifest_serialized = serde_json::to_string(&self.manifest)?;
 		let path = Path::new(&self.folder).join("manifest.json");
-		let mut file = File::create(path)?;
+		let mut file = permissions::create_private_file(&path)?;
 		file.write_all(manifest_serialized.as_bytes())?;
 		file.sync_data()?;
 		Ok(())

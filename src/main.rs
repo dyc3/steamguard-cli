@@ -112,6 +112,10 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 	let path = Path::new(&mafiles_dir).join("manifest.json");
 	let mut passkey = globalargs.passkey.clone();
 
+	if Path::new(&mafiles_dir).exists() {
+		accountmanager::permissions::ensure_private_mafiles_dir(Path::new(&mafiles_dir))?;
+	}
+
 	let mut manager: accountmanager::AccountManager;
 	if !path.exists() {
 		error!("Did not find manifest in {}", mafiles_dir);
@@ -123,7 +127,7 @@ fn run(args: commands::Args) -> anyhow::Result<()> {
 			info!("Aborting!");
 			return Err(errors::UserError::Aborted.into());
 		}
-		std::fs::create_dir_all(mafiles_dir)?;
+		accountmanager::permissions::create_private_dir_all(Path::new(&mafiles_dir))?;
 
 		manager = accountmanager::AccountManager::new(path.as_path());
 		manager.save()?;
