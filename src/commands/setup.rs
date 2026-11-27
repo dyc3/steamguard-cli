@@ -6,6 +6,7 @@ use steamguard::{
 	phonelinker::PhoneLinker,
 	steamapi::PhoneClient,
 	token::Tokens,
+	transport::TransportError,
 	AccountLinkError, AccountLinker, FinalizeLinkError,
 };
 
@@ -59,7 +60,7 @@ where
 				}
 				Err(AccountLinkError::AuthenticatorPresent) => {
 					eprintln!("It looks like there's already an authenticator on this account. If you want to link it to steamguard-cli, you'll need to remove it first. If you remove it using your revocation code (R#####), you'll get a 15 day trade ban.");
-					eprintln!("However, you can \"transfer\" the authenticator to steamguard-cli if you have access to the phone number associated with your account. This will cause you to get only a 2 day trade ban.");
+					eprintln!("However, you can \"transfer\" the authenticator to steamguard-cli if you have access to the phone number associated with your account. You can also add a phone number to the account to transfer the authenticator. This will cause you to get only a 2 day trade ban.");
 					eprintln!("If you were using SDA or WinAuth, you can import it into steamguard-cli with the `import` command, and have no trade ban.");
 					eprintln!("You can't have the same authenticator on steamguard-cli and the steam mobile app at the same time.");
 
@@ -70,42 +71,36 @@ where
 					let answer = tui::prompt_char("What would you like to do?", "Tra");
 					match answer {
 						't' => {
-							let mut already_added_phone_number = false;
+							let has_phone_number: bool = if let Ok(has_phone_number) =
+								fetch_has_phone_number(transport.clone(), linker.tokens())
+							{
+								has_phone_number
+							} else {
+								warn!("Failed to check if account has phone number. Assuming that it does and continuing...");
+								true
+							};
+
+							if !has_phone_number {
+								warn!("Account does not have a phone number.");
+								eprintln!("You can't transfer an authenticator without a phone number on the account. Let's add one.");
+
+								do_add_phone_number(transport.clone(), linker.tokens())?;
+								info!("Pausing for 20 seconds to let Steam catch up...");
+								// I haven't actually rigorously tested how long it takes for Steam to propagate this change. This is a guess.
+								// 3 seconds is definitely too short (tested).
+								std::thread::sleep(std::time::Duration::from_secs(20));
+							}
+
 							loop {
 								if let Err(err) = Self::transfer_new_account(&mut linker, manager) {
-									if !already_added_phone_number {
-										error!("Failed to transfer authenticator. {}", err);
-										info!("There's nothing else to be done right now. Wait a few minutes and try again.");
-										match tui::prompt_char("Would you like to try again?", "yN")
-										{
-											'y' => {
-												continue;
-											}
-											_ => debug!("Declined, aborting."),
-										}
-										return Err(err);
-									}
-									info!("I can't check if you already have a phone number, but I can try to add one for you.");
-
-									match tui::prompt_char(
-										"Would you like to add a phone number to this account?",
-										"yN",
-									) {
+									error!("Failed to transfer authenticator. {}", err);
+									info!("There's nothing else to be done right now. Wait a few minutes and try again.");
+									match tui::prompt_char("Would you like to try again?", "yN") {
 										'y' => {
-											do_add_phone_number(
-												transport.clone(),
-												linker.tokens(),
-											)?;
-											info!("Lets try the transfer again. Pausing for 20 seconds to let Steam catch up...");
-											already_added_phone_number = true;
-											// I haven't actually rigorously tested how long it takes for Steam to propagate this change. This is a guess.
-											// 3 seconds is definitely too short (tested).
-											std::thread::sleep(std::time::Duration::from_secs(20));
 											continue;
 										}
 										_ => debug!("Declined, aborting."),
 									}
-
 									return Err(err);
 								}
 
@@ -305,6 +300,17 @@ impl SetupCommand {
 		);
 		Ok(())
 	}
+}
+
+pub fn fetch_has_phone_number<T: Transport>(
+	transport: T,
+	tokens: &Tokens,
+) -> Result<bool, TransportError> {
+	let client: PhoneClient<T> = PhoneClient::new(transport);
+
+	let linker = PhoneLinker::new(client, tokens.clone());
+
+	linker.has_phone_number()
 }
 
 pub fn do_add_phone_number<T: Transport>(transport: T, tokens: &Tokens) -> anyhow::Result<()> {
